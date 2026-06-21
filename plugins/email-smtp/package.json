@@ -1,0 +1,26 @@
+{
+  "name": "@redbird/plugin-email-smtp",
+  "version": "0.0.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "description": "SMTP email integration for Redbird (via Nodemailer)",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@redbirdshop/plugin-sdk": "workspace:*",
+    "nodemailer": "^6.9.16"
+  },
+  "devDependencies": {
+    "@types/nodemailer": "^6.4.17"
+  }
+}

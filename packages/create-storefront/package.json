@@ -1,0 +1,17 @@
+{
+  "name": "create-redbird-storefront",
+  "version": "0.1.0",
+  "description": "Scaffold a standalone, fully-owned Redbird storefront (Vite + React + tRPC).",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "create-redbird-storefront": "./index.js"
+  },
+  "files": [
+    "index.js",
+    "template"
+  ],
+  "engines": {
+    "node": ">=20"
+  }
+}

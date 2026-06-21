@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+.next/
+.turbo/
+*.tsbuildinfo
+
+# Test
+coverage/
+.vitest-cache/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Postgres data (Docker volume)
+.postgres-data/
+
+# Runtime state (store-specific, not part of the repo)
+redbird.meta.json
+packages/api/redbird.meta.json
+packages/api/redbird.config.ts
+
+# Claude AI internal
+.claude/
+
+# SQLite databases
+*.db
+*.db-shm
+*.db-wal
+VPS.txt
+nginx-redbirdshop.conf
+packages/api/themes/*.zip

@@ -1,0 +1,11 @@
+# Everything works with zero config — Redbird ships with an embedded database.
+# Uncomment and set these only when you need them:
+
+# Use PostgreSQL instead of the embedded database (for production):
+# DATABASE_URL=postgres://user:password@localhost:5432/redbird
+
+# Accept real card payments (https://dashboard.stripe.com/apikeys):
+# STRIPE_SECRET_KEY=sk_test_...
+
+# Override the admin key (defaults to dev-admin-key):
+# ADMIN_KEY=change-me

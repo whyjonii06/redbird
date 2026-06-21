@@ -1,0 +1,23 @@
+{
+  "name": "redbird-shop",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": ["web"],
+  "scripts": {
+    "dev": "concurrently -n api,web -c cyan,green \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "tsx watch server.ts",
+    "dev:web": "npm --workspace web run dev",
+    "build": "npm --workspace web run build",
+    "start": "tsx server.ts"
+  },
+  "dependencies": {
+    "@redbirdshop/api": "^0.1.0",
+    "@redbirdshop/core": "^0.1.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.2"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "name": "@redbird/cli",
+  "version": "0.0.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "description": "forge — the Redbird CLI",
+  "type": "module",
+  "bin": {
+    "forge": "./dist/index.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@redbirdshop/core": "workspace:*",
+    "drizzle-orm": "^0.36.4"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.2.17"
+  }
+}

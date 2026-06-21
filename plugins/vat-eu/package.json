@@ -1,0 +1,23 @@
+{
+  "name": "@redbird/plugin-vat-eu",
+  "version": "0.0.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "description": "EU VAT calculation engine for Redbird (27-country rate table, reverse charge, VIES validation)",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@redbirdshop/plugin-sdk": "workspace:*"
+  }
+}

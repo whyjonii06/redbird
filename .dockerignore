@@ -1,0 +1,45 @@
+# Dependencies — reinstalled inside Docker
+node_modules
+**/node_modules
+
+# Git
+.git
+.gitignore
+
+# Dev artifacts
+**/*.tsbuildinfo
+**/.turbo
+dist
+**/dist
+
+# Local env / secrets
+.env
+**/.env
+*.env.*
+!services/license-server/.env.example
+
+# Test artifacts
+coverage
+**/.vitest
+
+# Editor
+.vscode
+.idea
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude / AI artifacts
+.claude
+
+# Local databases
+*.db
+*.db-shm
+*.db-wal
+.postgres-data
+
+# Build caches
+.next
+**/.next

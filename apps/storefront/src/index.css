@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+:root {
+  --primary: #4f46e5;
+  /* Design-token defaults (overridable per-store via the Theme Editor) */
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --text: #111111;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --radius: 0.75rem;
+}
+
+/* ── No-code custom theme ──────────────────────────────────────────
+   When the merchant customises design tokens, applyMeta() sets the CSS
+   variables inline on :root and adds [data-custom-theme]. These rules wire
+   those tokens into the base look on ANY chosen base theme. */
+[data-custom-theme] body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body, inherit);
+}
+[data-custom-theme] .bg-gray-50 {
+  background-color: var(--bg) !important;
+}
+[data-custom-theme] .bg-white {
+  background-color: var(--surface) !important;
+}
+[data-custom-theme] .border-gray-100,
+[data-custom-theme] .border-gray-200 {
+  border-color: var(--border) !important;
+}
+[data-custom-theme] .text-gray-400,
+[data-custom-theme] .text-gray-500 {
+  color: var(--muted) !important;
+}
+[data-custom-theme] h1,
+[data-custom-theme] h2,
+[data-custom-theme] h3 {
+  font-family: var(--font-heading, inherit);
+}
+[data-custom-theme] .rounded-xl,
+[data-custom-theme] .rounded-2xl {
+  border-radius: var(--radius) !important;
+}
+
+/* ── Storefront themes ────────────────────────────────────────────── */
+
+/* Classic is the default — no overrides needed */
+
+/* Editorial: warm cream, serif feel, copper accent */
+[data-theme="editorial"] {
+  --primary: #b3552c;
+  --bg: #faf8f5;
+  --surface: #ffffff;
+  --text: #2c1810;
+  --muted: #8b6a5a;
+  --border: #e8e0d8;
+}
+[data-theme="editorial"] body {
+  background-color: var(--bg);
+  color: var(--text);
+}
+[data-theme="editorial"] .bg-gray-50 {
+  background-color: var(--bg) !important;
+}
+[data-theme="editorial"] .bg-white {
+  background-color: var(--surface) !important;
+}
+[data-theme="editorial"] .border-gray-100,
+[data-theme="editorial"] .border-gray-200 {
+  border-color: var(--border) !important;
+}
+
+/* Minimal: pure white, sharp corners, near-black accent */
+[data-theme="minimal"] {
+  --primary: #111111;
+  --bg: #ffffff;
+  --surface: #fafafa;
+  --text: #111111;
+  --muted: #666666;
+  --border: #eeeeee;
+}
+[data-theme="minimal"] body {
+  background-color: var(--bg);
+  color: var(--text);
+}
+[data-theme="minimal"] .bg-gray-50 {
+  background-color: var(--surface) !important;
+}
+[data-theme="minimal"] .rounded-2xl,
+[data-theme="minimal"] .rounded-xl {
+  border-radius: 4px !important;
+}
+[data-theme="minimal"] button,
+[data-theme="minimal"] .rounded-lg {
+  border-radius: 2px !important;
+}

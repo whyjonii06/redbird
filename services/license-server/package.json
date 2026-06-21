@@ -1,0 +1,25 @@
+{
+  "name": "@redbird/license-server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file=.env src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "db:migrate": "tsx src/db.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "1.13.7",
+    "better-sqlite3": "9.6.0",
+    "drizzle-orm": "0.38.3",
+    "hono": "4.7.10",
+    "stripe": "17.7.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "7.6.12",
+    "drizzle-kit": "0.30.4",
+    "tsx": "4.19.2",
+    "typescript": "5.7.3"
+  }
+}

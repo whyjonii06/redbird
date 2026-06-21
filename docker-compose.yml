@@ -1,0 +1,83 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: redbird-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: redbird
+      POSTGRES_PASSWORD: redbird
+      POSTGRES_DB: redbird
+    ports:
+      - '5433:5432'
+    volumes:
+      - ./.postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U redbird -d redbird']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  license-server:
+    build: ./services/license-server
+    env_file: ./services/license-server/.env
+    ports:
+      - '127.0.0.1:4000:4000'
+    volumes:
+      - license-db:/app/data
+    restart: unless-stopped
+
+  marketplace:
+    build: ./apps/marketplace
+    ports:
+      - '127.0.0.1:5174:80'
+    depends_on:
+      - license-server
+    restart: unless-stopped
+
+  storefront:
+    build: ./apps/storefront
+    ports:
+      - '127.0.0.1:5173:80'
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  backoffice:
+    build:
+      context: ./apps/backoffice
+      args:
+        VITE_STOREFRONT_URL: https://demo.redbirdshop.dev
+    ports:
+      - '127.0.0.1:3004:80'
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: packages/api/Dockerfile
+    ports:
+      - '127.0.0.1:3000:3000'
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://redbird:redbird@postgres:5432/redbird
+      PORT: '3000'
+    volumes:
+      - ./packages/api/redbird.config.js:/app/packages/api/redbird.config.ts:ro
+      - ./redbird.meta.json:/app/redbird.meta.json
+      - ./uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/health || wget -qO- http://localhost:3000/setup/status || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  license-db:

@@ -1,0 +1,37 @@
+{
+  "name": "redbird",
+  "version": "0.0.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "description": "Headless commerce engine — modern, extensible, TypeScript-first",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@11.8.0",
+  "scripts": {
+    "build": "pnpm -r --filter='./packages/*' run build",
+    "dev": "pnpm build && concurrently --names api,bo,sf --prefix-colors cyan,magenta,green \"pnpm --filter @redbirdshop/api serve\" \"pnpm --filter @redbird/backoffice dev\" \"pnpm --filter @redbird/storefront dev\"",
+    "dev:types": "pnpm -r --parallel --filter='./packages/*' run dev",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "db:logs": "docker compose logs -f postgres",
+    "db:psql": "docker compose exec postgres psql -U redbird -d redbird",
+    "typecheck": "pnpm -r run typecheck",
+    "seed": "pnpm --filter @redbirdshop/core run seed"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@types/node": "^22.10.0",
+    "concurrently": "^10.0.3",
+    "jszip": "^3.10.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

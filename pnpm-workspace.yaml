@@ -1,0 +1,10 @@
+packages:
+  - 'packages/*'
+  - 'apps/*'
+  - 'plugins/*'
+  - 'tests-integration'
+
+allowBuilds:
+  '@biomejs/biome': true
+  esbuild: true
+  sharp: true

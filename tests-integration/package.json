@@ -1,0 +1,21 @@
+{
+  "name": "@redbird/tests-integration",
+  "version": "0.0.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "description": "Cross-package integration tests for Redbird",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@redbirdshop/core": "workspace:*",
+    "@redbird/plugin-analytics": "workspace:*",
+    "@redbird/plugin-paypal": "workspace:*",
+    "@redbird/plugin-reviews": "workspace:*",
+    "@redbird/plugin-shipping-flat": "workspace:*",
+    "@redbird/plugin-stripe": "workspace:*",
+    "@redbird/plugin-email-resend": "workspace:*",
+    "drizzle-orm": "^0.36.4"
+  }
+}

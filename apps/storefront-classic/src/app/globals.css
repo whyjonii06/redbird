@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+@theme {
+  /* ─── Palette ─── Editorial coffee aesthetic */
+  --color-paper: #fbf7ef;
+  --color-paper-deep: #f4ecdc;
+  --color-ink: #1a1411;
+  --color-ink-soft: #3a302a;
+  --color-copper: #b3552c;
+  --color-copper-deep: #8a3f1f;
+  --color-bone: #ddd2bc;
+  --color-rule: #d8cdb4;
+
+  /* ─── Type ─── */
+  --font-display: var(--font-fraunces);
+  --font-sans: var(--font-inter);
+
+  /* ─── Radius + shadow ─── */
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --shadow-soft: 0 1px 0 rgba(26, 20, 17, 0.04), 0 10px 30px -10px rgba(26, 20, 17, 0.12);
+
+  /* ─── Spacing scale (Tailwind default + custom) ─── */
+}
+
+html,
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Display headings */
+.font-display {
+  font-family: var(--font-display);
+  font-feature-settings: "ss01" on, "ss02" on;
+  letter-spacing: -0.02em;
+}
+
+/* Subtle paper grain overlay */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.4;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0.6 0 0 0 0 0.5 0 0 0 0 0.35 0 0 0 0.06 0'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Reset link defaults — we restyle per-context.
+ * Wrapped in @layer base so Tailwind utilities (text-paper, hover:text-copper, etc.)
+ * win over this baseline rule. Without the layer, the bare `a` selector
+ * out-cascades layered utilities. */
+@layer base {
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+}
+
+/* Selection */
+::selection {
+  background: var(--color-copper);
+  color: var(--color-paper);
+}

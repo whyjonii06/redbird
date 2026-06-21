@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Redbird — The modern e-commerce engine</title>
+  <link rel="icon" href="/redbird.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --red: #E8302A;
+      --red-dark: #b32420;
+      --red-glow: rgba(232, 48, 42, 0.25);
+      --bg: #080808;
+      --bg2: #101010;
+      --bg3: #161616;
+      --border: rgba(255,255,255,0.07);
+      --text: #f5f5f5;
+      --muted: #888;
+      --mono: 'JetBrains Mono', monospace;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* ── GRID BACKGROUND ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      height: 64px;
+      background: rgba(8,8,8,0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+
+    .nav-logo img {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+    }
+
+    .nav-logo span {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.02em;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover { color: var(--text); }
+
+    .nav-cta {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    /* ── BUTTONS ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.6rem 1.25rem;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s;
+      cursor: pointer;
+      border: none;
+    }
+
+    .btn-primary {
+      background: var(--red);
+      color: #fff;
+      box-shadow: 0 0 24px var(--red-glow);
+    }
+
+    .btn-primary:hover {
+      background: var(--red-dark);
+      box-shadow: 0 0 36px var(--red-glow);
+      transform: translateY(-1px);
+    }
+
+    .btn-ghost {
+      background: var(--bg3);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-ghost:hover {
+      background: var(--bg2);
+      border-color: rgba(255,255,255,0.15);
+      transform: translateY(-1px);
+    }
+
+    /* ── HERO ── */
+    .hero {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 8rem 2rem 6rem;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.35rem 1rem;
+      background: rgba(232,48,42,0.12);
+      border: 1px solid rgba(232,48,42,0.3);
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #ff6b65;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 2rem;
+    }
+
+    .hero-badge::before {
+      content: '';
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #ff6b65;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    .hero-logo {
+      width: 96px;
+      height: 96px;
+      border-radius: 20px;
+      margin-bottom: 2rem;
+      box-shadow: 0 0 60px rgba(232,48,42,0.4);
+      animation: float 6s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    .hero h1 {
+      font-size: clamp(2.5rem, 6vw, 5rem);
+      font-weight: 900;
+      line-height: 1.05;
+      letter-spacing: -0.04em;
+      margin-bottom: 1.5rem;
+      max-width: 900px;
+    }
+
+    .hero h1 .red { color: var(--red); }
+
+    .hero p {
+      font-size: clamp(1rem, 2vw, 1.25rem);
+      color: var(--muted);
+      max-width: 580px;
+      margin: 0 auto 2.5rem;
+      font-weight: 400;
+    }
+
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    /* ── STATS ── */
+    .stats {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .stat {
+      padding: 2rem;
+      text-align: center;
+      border-right: 1px solid var(--border);
+    }
+
+    .stat:last-child { border-right: none; }
+
+    .stat-number {
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      color: var(--text);
+    }
+
+    .stat-number span { color: var(--red); }
+
+    .stat-label {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 0.25rem;
+      font-weight: 500;
+    }
+
+    /* ── SECTIONS ── */
+    section {
+      position: relative;
+      z-index: 1;
+    }
+
+    .section-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 6rem 2rem;
+    }
+
+    .section-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--red);
+      margin-bottom: 1rem;
+    }
+
+    .section-title {
+      font-size: clamp(1.8rem, 4vw, 3rem);
+      font-weight: 800;
+      letter-spacing: -0.035em;
+      line-height: 1.1;
+      margin-bottom: 1rem;
+    }
+
+    .section-sub {
+      font-size: 1.05rem;
+      color: var(--muted);
+      max-width: 560px;
+    }
+
+    /* ── PROBLEM ── */
+    .problem {
+      background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+    }
+
+    .problem-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2px;
+      margin-top: 4rem;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .problem-col {
+      padding: 2.5rem;
+      background: var(--bg2);
+    }
+
+    .problem-col:first-child {
+      border-right: 1px solid var(--border);
+    }
+
+    .problem-col h3 {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 1.5rem;
+    }
+
+    .problem-col.legacy h3 { color: #666; }
+    .problem-col.modern h3 { color: var(--red); }
+
+    .problem-list { list-style: none; }
+
+    .problem-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.6rem 0;
+      font-size: 0.9rem;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      color: var(--muted);
+    }
+
+    .problem-list li:last-child { border-bottom: none; }
+
+    .problem-list .icon {
+      flex-shrink: 0;
+      width: 18px;
+      font-size: 0.85rem;
+      margin-top: 1px;
+    }
+
+    .modern .problem-list li { color: var(--text); }
+
+    /* ── FEATURES ── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      margin-top: 4rem;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .feature {
+      background: var(--bg2);
+      padding: 2rem;
+      transition: background 0.2s;
+    }
+
+    .feature:hover { background: var(--bg3); }
+
+    .feature-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      background: rgba(232,48,42,0.12);
+      border: 1px solid rgba(232,48,42,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .feature h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      letter-spacing: -0.01em;
+    }
+
+    .feature p {
+      font-size: 0.875rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* ── CODE ── */
+    .code-section {
+      background: var(--bg);
+    }
+
+    .code-block {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      margin-top: 3rem;
+    }
+
+    .code-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg3);
+    }
+
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .dot-red { background: #ff5f57; }
+    .dot-yellow { background: #ffbd2e; }
+    .dot-green { background: #28c840; }
+
+    .code-filename {
+      font-size: 0.75rem;
+      color: var(--muted);
+      font-family: var(--mono);
+      margin-left: 0.5rem;
+    }
+
+    pre {
+      padding: 2rem;
+      overflow-x: auto;
+      font-family: var(--mono);
+      font-size: 0.83rem;
+      line-height: 1.7;
+    }
+
+    .kw { color: #ff79c6; }
+    .fn { color: #50fa7b; }
+    .str { color: #f1fa8c; }
+    .cm { color: #6272a4; font-style: italic; }
+    .prop { color: #8be9fd; }
+    .val { color: #bd93f9; }
+    .num { color: #ffb86c; }
+
+    /* ── STACK ── */
+    .stack-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-top: 3rem;
+    }
+
+    .stack-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text);
+      font-family: var(--mono);
+      transition: border-color 0.2s;
+    }
+
+    .stack-badge:hover { border-color: rgba(255,255,255,0.2); }
+
+    /* ── PLUGINS ── */
+    .plugins-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+      margin-top: 3rem;
+    }
+
+    .plugin-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem;
+      transition: all 0.2s;
+    }
+
+    .plugin-card:hover {
+      border-color: rgba(232,48,42,0.3);
+      background: var(--bg3);
+      transform: translateY(-2px);
+    }
+
+    .plugin-name {
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      color: #50fa7b;
+      margin-bottom: 0.4rem;
+    }
+
+    .plugin-desc {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    /* ── ARCHITECTURE ── */
+    .arch-banner {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1.25rem 1.75rem;
+      background: rgba(232,48,42,0.06);
+      border: 1px solid rgba(232,48,42,0.18);
+      border-radius: 12px;
+      margin-bottom: 3.5rem;
+    }
+
+    .arch-banner-icon {
+      font-size: 1.4rem;
+      flex-shrink: 0;
+    }
+
+    .arch-banner p {
+      font-size: 0.9rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .arch-banner strong {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .arch-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .arch-card {
+      background: var(--bg2);
+      padding: 2.25rem 2rem;
+      transition: background 0.2s;
+    }
+
+    .arch-card:hover { background: var(--bg3); }
+
+    .arch-card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.9rem;
+      margin-bottom: 1rem;
+    }
+
+    .arch-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: rgba(232,48,42,0.1);
+      border: 1px solid rgba(232,48,42,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+
+    .arch-card h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .arch-card p {
+      font-size: 0.875rem;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .arch-tag {
+      display: inline-block;
+      margin-top: 1rem;
+      padding: 0.25rem 0.65rem;
+      background: rgba(80,250,123,0.08);
+      border: 1px solid rgba(80,250,123,0.2);
+      border-radius: 6px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      font-family: var(--mono);
+      color: #50fa7b;
+      letter-spacing: 0.03em;
+    }
+
+    @media (max-width: 768px) {
+      .arch-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ── CTA ── */
+    .cta-section {
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+    }
+
+    .cta-inner {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 8rem 2rem;
+      text-align: center;
+    }
+
+    .cta-inner h2 {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      line-height: 1.05;
+      margin-bottom: 1.25rem;
+    }
+
+    .cta-inner p {
+      color: var(--muted);
+      font-size: 1.05rem;
+      margin-bottom: 2.5rem;
+    }
+
+    .cta-actions {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      position: relative;
+      z-index: 1;
+      border-top: 1px solid var(--border);
+      padding: 2rem;
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    footer a { color: var(--red); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 768px) {
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .stat { border-right: none; border-bottom: 1px solid var(--border); }
+      .stat:nth-child(2n) { border-right: none; }
+      .stat:nth-child(odd) { border-right: 1px solid var(--border); }
+      .stat:last-child, .stat:nth-last-child(2) { border-bottom: none; }
+      .problem-grid { grid-template-columns: 1fr; }
+      .problem-col:first-child { border-right: none; border-bottom: 1px solid var(--border); }
+      .features-grid { grid-template-columns: 1fr; }
+      .plugins-row { grid-template-columns: repeat(2, 1fr); }
+      nav .nav-links { display: none; }
+    }
+
+    /* ── SCROLL ANIMATIONS ── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+
+    .reveal.visible {
+      opacity: 1;
+      transform: none;
+    }
+
+    .reveal-delay-1 { transition-delay: 0.1s; }
+    .reveal-delay-2 { transition-delay: 0.2s; }
+    .reveal-delay-3 { transition-delay: 0.3s; }
+    .reveal-delay-4 { transition-delay: 0.4s; }
+    .reveal-delay-5 { transition-delay: 0.5s; }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <a href="#" class="nav-logo">
+      <img src="./logo.png" alt="Redbird" />
+      <span>redbird</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#plugins">Plugins</a></li>
+      <li><a href="#stack">Stack</a></li>
+      <li><a href="#code">Code</a></li>
+      <li><a href="#architecture">Architecture</a></li>
+    </ul>
+    <div class="nav-cta">
+      <a href="https://github.com/whyjonii06/redbird" class="btn btn-ghost">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+        GitHub
+      </a>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-badge">v0.1 · TypeScript · Self-hosted</div>
+    <img src="./logo.png" alt="Redbird" class="hero-logo" />
+    <h1>E-commerce for the<br/><span class="red">next generation</span></h1>
+    <p>A type-safe, plugin-first e-commerce engine built for developers who are tired of fighting legacy platforms.</p>
+    <div class="hero-actions">
+      <a href="https://github.com/whyjonii06/redbird" class="btn btn-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+        Star on GitHub
+      </a>
+      <a href="#features" class="btn btn-ghost">See the features →</a>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <div class="stats reveal">
+    <div class="stat">
+      <div class="stat-number"><span>260</span>/260</div>
+      <div class="stat-label">Tests passing</div>
+    </div>
+    <div class="stat">
+      <div class="stat-number"><span>11</span> plugins</div>
+      <div class="stat-label">First-party</div>
+    </div>
+    <div class="stat">
+      <div class="stat-number"><span>60</span>+ routes</div>
+      <div class="stat-label">tRPC procedures</div>
+    </div>
+    <div class="stat">
+      <div class="stat-number"><span>100</span>%</div>
+      <div class="stat-label">TypeScript strict</div>
+    </div>
+  </div>
+
+  <!-- PROBLEM / SOLUTION -->
+  <section class="problem">
+    <div class="section-inner">
+      <p class="section-label reveal">Why Redbird</p>
+      <h2 class="section-title reveal reveal-delay-1">Legacy platforms were built for<br/>a world that no longer exists.</h2>
+      <p class="section-sub reveal reveal-delay-2">PHP monoliths, no types, override hell. Redbird is what e-commerce infrastructure looks like when you start from scratch in 2026.</p>
+
+      <div class="problem-grid reveal reveal-delay-3">
+        <div class="problem-col legacy">
+          <h3>The old way</h3>
+          <ul class="problem-list">
+            <li><span class="icon">✗</span> PHP 7, server-rendered templates, override spaghetti</li>
+            <li><span class="icon">✗</span> No types — runtime surprises in production</li>
+            <li><span class="icon">✗</span> God-object architecture, zero separation of concerns</li>
+            <li><span class="icon">✗</span> Frontend coupled to backend rendering</li>
+            <li><span class="icon">✗</span> Module conflicts, hook soup</li>
+            <li><span class="icon">✗</span> Upgrade path: manual SQL patches and prayer</li>
+            <li><span class="icon">✗</span> No official API — scrape your own data</li>
+          </ul>
+        </div>
+        <div class="problem-col modern">
+          <h3>The Redbird way</h3>
+          <ul class="problem-list">
+            <li><span class="icon">✓</span> TypeScript strict, end-to-end type safety</li>
+            <li><span class="icon">✓</span> 20+ typed hooks, plugin-first architecture</li>
+            <li><span class="icon">✓</span> tRPC — auto-inferred client from server types</li>
+            <li><span class="icon">✓</span> Any frontend: Next.js, Vite, React Native</li>
+            <li><span class="icon">✓</span> Plugins register, not override</li>
+            <li><span class="icon">✓</span> Drizzle ORM + versioned SQL migrations</li>
+            <li><span class="icon">✓</span> Public API is the product</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section id="features">
+    <div class="section-inner">
+      <p class="section-label reveal">Features</p>
+      <h2 class="section-title reveal reveal-delay-1">Everything a store needs.<br/>Nothing you don't.</h2>
+
+      <div class="features-grid">
+        <div class="feature reveal">
+          <div class="feature-icon">🧩</div>
+          <h3>Installable modules</h3>
+          <p>Reviews, loyalty, gift cards, suppliers and more ship as free bundled modules — each with its own sidebar entry, settings page and storefront widgets. Install, enable, disable or uninstall from the marketplace. No rebuild, no core overrides, backoffice stays lean.</p>
+        </div>
+        <div class="feature reveal reveal-delay-1">
+          <div class="feature-icon">🔒</div>
+          <h3>Type-safe end-to-end</h3>
+          <p>tRPC v11 + Drizzle ORM. Your IDE knows every field of every query. No more guessing what an API returns.</p>
+        </div>
+        <div class="feature reveal reveal-delay-2">
+          <div class="feature-icon">🛒</div>
+          <h3>Full commerce engine</h3>
+          <p>Catalog, variants, cart, orders, stock reservation, promos, reviews, returns, staff RBAC, CMS — all built in.</p>
+        </div>
+        <div class="feature reveal reveal-delay-1">
+          <div class="feature-icon">🇪🇺</div>
+          <h3>EU compliance built-in</h3>
+          <p>VAT for all 27 countries (B2B reverse charge, VIES), automatic PDF invoices — and an <strong>accessible-by-default storefront</strong> that passes WCAG checks, ready for the European Accessibility Act.</p>
+        </div>
+        <div class="feature reveal reveal-delay-2">
+          <div class="feature-icon">🎨</div>
+          <h3>Custom themes &amp; slots</h3>
+          <p>No-code theming from the backoffice — colours, fonts, radius and homepage sections, applied live. Or own your frontend entirely: <code style="font-family:var(--mono);font-size:0.78rem;color:#8be9fd">npx create-redbird-storefront</code> scaffolds a type-safe React storefront you deploy anywhere.</p>
+        </div>
+        <div class="feature reveal reveal-delay-3">
+          <div class="feature-icon">🖥️</div>
+          <h3>Modern backoffice</h3>
+          <p>Dashboard, orders, product management with variants + stock, customers, promotions, CMS pages — all in one SPA.</p>
+        </div>
+        <div class="feature reveal">
+          <div class="feature-icon">💳</div>
+          <h3>Stripe &amp; PayPal</h3>
+          <p>Both providers ship first-party with webhook auto-discovery, HMAC verification, and dryRun mode for testing.</p>
+        </div>
+        <div class="feature reveal reveal-delay-1">
+          <div class="feature-icon">🗄️</div>
+          <h3>Postgres + PGlite</h3>
+          <p>Production runs on Postgres 16. Tests run in-memory with PGlite — no Docker required, full isolation guaranteed.</p>
+        </div>
+        <div class="feature reveal reveal-delay-2">
+          <div class="feature-icon">🔑</div>
+          <h3>Auth &amp; accounts</h3>
+          <p>JWT customer auth, password reset flows, guest checkout, staff RBAC with owner/admin/warehouse/support roles.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CODE -->
+  <section id="code" class="code-section">
+    <div class="section-inner">
+      <p class="section-label reveal">Developer experience</p>
+      <h2 class="section-title reveal reveal-delay-1">Zero boilerplate.<br/>Maximum type safety.</h2>
+      <p class="section-sub reveal reveal-delay-2">Configure once, extend with plugins. Your entire store in a few lines of TypeScript.</p>
+
+      <div class="code-block reveal reveal-delay-3">
+        <div class="code-header">
+          <div class="dot dot-red"></div>
+          <div class="dot dot-yellow"></div>
+          <div class="dot dot-green"></div>
+          <span class="code-filename">redbird.config.ts</span>
+        </div>
+        <pre><span class="kw">import</span> { <span class="prop">createRedbird</span> } <span class="kw">from</span> <span class="str">'@redbird/core'</span>
+<span class="kw">import</span> { <span class="prop">stripe</span> } <span class="kw">from</span> <span class="str">'@redbird/plugin-stripe'</span>
+<span class="kw">import</span> { <span class="prop">vatEu</span> } <span class="kw">from</span> <span class="str">'@redbird/plugin-vat-eu'</span>
+<span class="kw">import</span> { <span class="prop">emailResend</span> } <span class="kw">from</span> <span class="str">'@redbird/plugin-email-resend'</span>
+<span class="kw">import</span> { <span class="prop">shippingFlat</span> } <span class="kw">from</span> <span class="str">'@redbird/plugin-shipping-flat'</span>
+
+<span class="kw">export const</span> <span class="prop">redbird</span> = <span class="fn">createRedbird</span>({
+  <span class="prop">databaseUrl</span>: <span class="prop">process</span>.env.<span class="prop">DATABASE_URL</span>,
+  <span class="prop">defaultCurrency</span>: <span class="str">'EUR'</span>,
+  <span class="prop">storeName</span>: <span class="str">'My Store'</span>,
+  <span class="prop">plugins</span>: [
+    <span class="fn">stripe</span>({ <span class="prop">secretKey</span>: <span class="prop">process</span>.env.<span class="prop">STRIPE_SECRET_KEY</span> }),
+    <span class="fn">vatEu</span>({ <span class="prop">homeCountry</span>: <span class="str">'FR'</span> }),         <span class="cm">// auto-wires to checkout</span>
+    <span class="fn">emailResend</span>({ <span class="prop">apiKey</span>: <span class="prop">process</span>.env.<span class="prop">RESEND_KEY</span> }),
+    <span class="fn">shippingFlat</span>({
+      <span class="prop">zones</span>: [
+        { <span class="prop">name</span>: <span class="str">'Europe'</span>, <span class="prop">countries</span>: [<span class="str">'FR'</span>, <span class="str">'DE'</span>, <span class="str">'ES'</span>], <span class="prop">rateAmount</span>: <span class="num">499</span>, <span class="prop">freeOver</span>: <span class="num">5000</span> },
+        { <span class="prop">name</span>: <span class="str">'World'</span>,  <span class="prop">countries</span>: [<span class="str">'*'</span>],              <span class="prop">rateAmount</span>: <span class="num">1299</span> },
+      ],
+    }),
+  ],
+})</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- PLUGINS -->
+  <section id="plugins">
+    <div class="section-inner">
+      <p class="section-label reveal">Ecosystem</p>
+      <h2 class="section-title reveal reveal-delay-1">11 first-party plugins.<br/>Infinite extensibility.</h2>
+      <p class="section-sub reveal reveal-delay-2">Every plugin is a typed package. Payments, email, shipping, taxes — swap any provider with one line. Full features ship as installable modules.</p>
+
+      <div class="plugins-row">
+        <div class="plugin-card reveal">
+          <div class="plugin-name">@redbird/plugin-stripe</div>
+          <div class="plugin-desc">PaymentIntents + HMAC webhooks</div>
+        </div>
+        <div class="plugin-card reveal reveal-delay-1">
+          <div class="plugin-name">@redbird/plugin-paypal</div>
+          <div class="plugin-desc">Orders API v2 + REST signature</div>
+        </div>
+        <div class="plugin-card reveal reveal-delay-2">
+          <div class="plugin-name">@redbird/plugin-vat-eu</div>
+          <div class="plugin-desc">27 countries, reverse charge, VIES</div>
+        </div>
+        <div class="plugin-card reveal reveal-delay-3">
+          <div class="plugin-name">@redbird/plugin-shipping-flat</div>
+          <div class="plugin-desc">Zone-based flat rates + free threshold</div>
+        </div>
+        <div class="plugin-card reveal">
+          <div class="plugin-name">@redbird/plugin-email-resend</div>
+          <div class="plugin-desc">Transactional emails + templates</div>
+        </div>
+        <div class="plugin-card reveal reveal-delay-1">
+          <div class="plugin-name">@redbird/plugin-email-smtp</div>
+          <div class="plugin-desc">Generic SMTP provider</div>
+        </div>
+        <div class="plugin-card reveal reveal-delay-2">
+          <div class="plugin-name">@redbird/plugin-reviews</div>
+          <div class="plugin-desc">Full module: router, admin page, config &amp; storefront widget</div>
+        </div>
+        <div class="plugin-card reveal reveal-delay-3">
+          <div class="plugin-name">@redbird/plugin-analytics</div>
+          <div class="plugin-desc">Plausible, GA4, or console hooks</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STACK -->
+  <section id="stack" style="background: var(--bg2); border-top: 1px solid var(--border);">
+    <div class="section-inner">
+      <p class="section-label reveal">Tech stack</p>
+      <h2 class="section-title reveal reveal-delay-1">Built on tools you<br/>already know and love.</h2>
+
+      <div class="stack-grid reveal reveal-delay-2">
+        <div class="stack-badge">TypeScript 5</div>
+        <div class="stack-badge">Node.js 22</div>
+        <div class="stack-badge">tRPC v11</div>
+        <div class="stack-badge">Drizzle ORM</div>
+        <div class="stack-badge">PostgreSQL 16</div>
+        <div class="stack-badge">PGlite</div>
+        <div class="stack-badge">Next.js 15</div>
+        <div class="stack-badge">React 19</div>
+        <div class="stack-badge">Vite 6</div>
+        <div class="stack-badge">Tailwind v4</div>
+        <div class="stack-badge">Vitest</div>
+        <div class="stack-badge">Biome</div>
+        <div class="stack-badge">pnpm workspaces</div>
+        <div class="stack-badge">pdfkit</div>
+        <div class="stack-badge">Stripe SDK</div>
+        <div class="stack-badge">Zod</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ARCHITECTURE -->
+  <section id="architecture">
+    <div class="section-inner">
+      <p class="section-label reveal">Architecture &amp; updates</p>
+      <h2 class="section-title reveal reveal-delay-1">Designed to update<br/>without breaking shops.</h2>
+      <p class="section-sub reveal reveal-delay-2">Legacy platform merchants stop updating to avoid breaking their customisations. Redbird is architected so that trap can never happen.</p>
+
+      <div class="arch-banner reveal reveal-delay-3">
+        <div class="arch-banner-icon">⚠️</div>
+        <p><strong>The legacy platform trap:</strong> overriding core classes works until it doesn't. One minor update rewrites the override target and your store breaks — so merchants never update, and security patches pile up. Redbird makes this structurally impossible.</p>
+      </div>
+
+      <div class="arch-grid">
+        <div class="arch-card reveal">
+          <div class="arch-card-header">
+            <div class="arch-icon">🖥️</div>
+            <h3>Fully self-hosted</h3>
+          </div>
+          <p>Each merchant runs their own Node.js process and PostgreSQL database. No central Redbird cloud, no shared infrastructure, no vendor lock-in. Your data stays on your server.</p>
+          <span class="arch-tag">your stack · your data</span>
+        </div>
+
+        <div class="arch-card reveal reveal-delay-1">
+          <div class="arch-card-header">
+            <div class="arch-icon">📦</div>
+            <h3>Semver strict</h3>
+          </div>
+          <p>Minor and patch releases never break exported TypeScript types. The compiler enforces this — if <code style="font-family:var(--mono);font-size:0.8rem;color:#8be9fd">@redbird/core</code> ships a breaking change in a minor, your build fails before you even deploy.</p>
+          <span class="arch-tag">semver · TypeScript enforced</span>
+        </div>
+
+        <div class="arch-card reveal reveal-delay-1">
+          <div class="arch-card-header">
+            <div class="arch-icon">🗄️</div>
+            <h3>Additive-only migrations</h3>
+          </div>
+          <p>Every schema migration uses <code style="font-family:var(--mono);font-size:0.8rem;color:#8be9fd">ADD COLUMN IF NOT EXISTS</code>. No <code style="font-family:var(--mono);font-size:0.8rem;color:#ff5555">DROP</code>, no <code style="font-family:var(--mono);font-size:0.8rem;color:#ff5555">RENAME</code> in minor releases. Your database is forward-compatible across every upgrade.</p>
+          <span class="arch-tag">zero data loss · rollback safe</span>
+        </div>
+
+        <div class="arch-card reveal reveal-delay-2">
+          <div class="arch-card-header">
+            <div class="arch-icon">🔌</div>
+            <h3>Extend via modules, not forks</h3>
+          </div>
+          <p>The SDK is the stable extension surface. Modules add backend hooks — <code style="font-family:var(--mono);font-size:0.8rem;color:#8be9fd">order.paid</code>, <code style="font-family:var(--mono);font-size:0.8rem;color:#8be9fd">review.approved</code> — plus admin pages and storefront slots, all typed end-to-end. They survive major version bumps without touching core code.</p>
+          <span class="arch-tag">hooks · slots · no core overrides</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-section">
+    <div class="cta-inner">
+      <h2 class="reveal">Ready to build<br/><span style="color: var(--red)">without limits?</span></h2>
+      <p class="reveal reveal-delay-1">Type-safe, plugin-first, self-hosted. Start building your store today.</p>
+      <div class="cta-actions reveal reveal-delay-2">
+        <a href="https://github.com/whyjonii06/redbird" class="btn btn-primary" style="padding: 0.8rem 2rem; font-size: 1rem;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+          View on GitHub
+        </a>
+        <a href="#features" class="btn btn-ghost" style="padding: 0.8rem 2rem; font-size: 1rem;">Explore features</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <p>Built with ❤️ and TypeScript · <a href="https://github.com/whyjonii06/redbird">github.com/whyjonii06/redbird</a></p>
+  </footer>
+
+  <script>
+    // Scroll reveal
+    const observer = new IntersectionObserver(
+      (entries) => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible') }),
+      { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
+    )
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el))
+  </script>
+</body>
+</html>

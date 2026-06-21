@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+@theme {
+  /* ─── Palette ─── Editorial / Magazine: charcoal, ivory, ruby ─── */
+  --color-coal: #0d0c0b;
+  --color-coal-soft: #1a1816;
+  --color-coal-rule: #2a2622;
+  --color-ivory: #efe9da;
+  --color-ivory-muted: #b8b1a0;
+  --color-ruby: #c83332;
+  --color-ruby-deep: #931f1f;
+  --color-saffron: #d4a82a;
+
+  --font-serif: var(--font-bodoni);
+  --font-sans: var(--font-manrope);
+
+  --radius-none: 0;
+}
+
+html,
+body {
+  background: var(--color-coal);
+  color: var(--color-ivory);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer base {
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+}
+
+.font-serif {
+  font-family: var(--font-serif);
+  letter-spacing: -0.015em;
+  font-feature-settings: "liga" on, "kern" on, "ss01" on;
+}
+
+/* Magazine helpers */
+.rule-thick {
+  border-top: 4px solid currentColor;
+}
+
+.rule-thin {
+  border-top: 1px solid var(--color-coal-rule);
+}
+
+::selection {
+  background: var(--color-ruby);
+  color: var(--color-ivory);
+}
+
+/* Numeric/page-number cluster */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Heavy serif italic for editorial pull-quotes */
+.pull-quote {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 0.95;
+}
