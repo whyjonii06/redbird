@@ -11,7 +11,14 @@ import {
 import type { PluginRegistry } from '../plugins/registry.js'
 import type { StockService } from '../stock/service.js'
 
-export type CartWithItems = Cart & { lineItems: CartLineItem[] }
+export type CartLineItemWithProduct = CartLineItem & {
+  productName: string
+  variantName: string
+  sku: string
+  image: string | null
+}
+
+export type CartWithItems = Cart & { lineItems: CartLineItemWithProduct[] }
 
 export type CartService = {
   create(opts: {
@@ -38,9 +45,32 @@ export function createCartService(
   async function loadCart(id: string): Promise<CartWithItems | null> {
     const row = await db.query.carts.findFirst({
       where: eq(carts.id, id),
-      with: { lineItems: true },
+      with: {
+        lineItems: {
+          with: {
+            variant: {
+              with: { product: { with: { images: true } } },
+            },
+          },
+        },
+      },
     })
-    return row ?? null
+    if (!row) return null
+    return {
+      ...row,
+      lineItems: row.lineItems.map(({ variant, ...li }) => {
+        const image = [...(variant?.product?.images ?? [])].sort(
+          (a, b) => a.position - b.position,
+        )[0]
+        return {
+          ...li,
+          productName: variant?.product?.name ?? 'Unknown product',
+          variantName: variant?.name ?? '',
+          sku: variant?.sku ?? '',
+          image: image?.url ?? null,
+        }
+      }),
+    }
   }
 
   async function loadCartOrThrow(id: string): Promise<CartWithItems> {

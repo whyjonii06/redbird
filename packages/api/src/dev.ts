@@ -41,6 +41,27 @@ const PLUGIN_FACTORY_MAP: Record<string, string> = {
   '@redbird/plugin-analytics': 'analytics',
 }
 
+/** Env vars buildEnv() writes itself — anything else in an existing .env is preserved as-is. */
+const MANAGED_ENV_KEYS = new Set([
+  'ADMIN_KEY',
+  'JWT_SECRET',
+  'DEFAULT_CURRENCY',
+  'STRIPE_SECRET_KEY',
+  'STRIPE_WEBHOOK_SECRET',
+  'PAYPAL_CLIENT_ID',
+  'PAYPAL_CLIENT_SECRET',
+  'RESEND_API_KEY',
+  'RESEND_FROM',
+  'SMTP_HOST',
+  'SMTP_PORT',
+  'SMTP_USER',
+  'SMTP_PASS',
+  'SMTP_FROM',
+  'VAT_HOME_COUNTRY',
+  'ANALYTICS_PROVIDER',
+  'ANALYTICS_SITE_ID',
+])
+
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 type SetupPayload = {
@@ -76,12 +97,32 @@ type SetupPayload = {
 
 // ─── File generators ────────────────────────────────────────────────────────
 
+/** Minimal KEY=VALUE parser — good enough for the simple, comment-free files this writes. */
+function parseEnvFile(content: string): Record<string, string> {
+  const vars: Record<string, string> = {}
+  for (const line of content.split('\n')) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) continue
+    const eq = trimmed.indexOf('=')
+    if (eq === -1) continue
+    vars[trimmed.slice(0, eq)] = trimmed.slice(eq + 1)
+  }
+  return vars
+}
+
 function buildEnv(p: SetupPayload, jwtSecret: string): string {
-  const lines = [
+  // Preserve any pre-existing vars (DATABASE_URL, PORT, custom operator settings...) that
+  // this wizard doesn't itself manage — otherwise completing setup silently wipes them.
+  const existing = existsSync(ENV_PATH) ? parseEnvFile(readFileSync(ENV_PATH, 'utf8')) : {}
+  const lines = Object.entries(existing)
+    .filter(([key]) => !MANAGED_ENV_KEYS.has(key))
+    .map(([key, value]) => `${key}=${value}`)
+
+  lines.push(
     `ADMIN_KEY=${p.adminKey}`,
     `JWT_SECRET=${jwtSecret}`,
     `DEFAULT_CURRENCY=${p.currency}`,
-  ]
+  )
   if (p.modules.stripe?.enabled) {
     lines.push(`STRIPE_SECRET_KEY=${p.modules.stripe.secretKey}`)
     lines.push(`STRIPE_WEBHOOK_SECRET=${p.modules.stripe.webhookSecret}`)

@@ -43,6 +43,9 @@ pnpm-debug.log*
 # Postgres data (Docker volume)
 .postgres-data/
 
+# PGlite file-based dev database (DATABASE_URL=file:...)
+*.pglite/
+
 # Runtime state (store-specific, not part of the repo)
 redbird.meta.json
 packages/api/redbird.meta.json

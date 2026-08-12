@@ -48,7 +48,10 @@ export function CartPage() {
             className={`flex items-center gap-4 px-5 py-4 ${i > 0 ? 'border-t border-gray-50' : ''}`}
           >
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-gray-900 text-sm truncate">Line item #{i + 1}</p>
+              <p className="font-semibold text-gray-900 text-sm truncate">
+                {li.productName}
+                {li.variantName ? ` — ${li.variantName}` : ''}
+              </p>
               <p className="text-gray-500 text-xs mt-0.5">
                 {fmt(li.unitPriceAmount, li.unitPriceCurrency)} each
               </p>
