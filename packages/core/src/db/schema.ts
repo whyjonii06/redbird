@@ -303,6 +303,10 @@ export const orders = pgTable(
     trackingUrl: text(),
     shippingAddress: jsonb().$type<Address>(),
     refundedAmount: integer().notNull().default(0),
+    /** Name of the payment provider plugin used to pay this order (e.g. '@redbird/plugin-stripe'). */
+    paymentProvider: text(),
+    /** Provider-specific payment reference (PaymentIntent id, PayPal order id...) — used to issue real refunds. */
+    paymentReference: text(),
     /** Sequential, gapless legal invoice number — assigned when the invoice is issued. */
     invoiceNumber: text(),
     invoicedAt: timestamp({ withTimezone: true }),
@@ -412,13 +416,25 @@ export const customerGroupsRelations = relations(customerGroups, ({ many }) => (
 }))
 
 export const customerGroupMembersRelations = relations(customerGroupMembers, ({ one }) => ({
-  customer: one(customers, { fields: [customerGroupMembers.customerId], references: [customers.id] }),
-  group: one(customerGroups, { fields: [customerGroupMembers.groupId], references: [customerGroups.id] }),
+  customer: one(customers, {
+    fields: [customerGroupMembers.customerId],
+    references: [customers.id],
+  }),
+  group: one(customerGroups, {
+    fields: [customerGroupMembers.groupId],
+    references: [customerGroups.id],
+  }),
 }))
 
 export const groupPriceRulesRelations = relations(groupPriceRules, ({ one }) => ({
-  group: one(customerGroups, { fields: [groupPriceRules.groupId], references: [customerGroups.id] }),
-  variant: one(productVariants, { fields: [groupPriceRules.variantId], references: [productVariants.id] }),
+  group: one(customerGroups, {
+    fields: [groupPriceRules.groupId],
+    references: [customerGroups.id],
+  }),
+  variant: one(productVariants, {
+    fields: [groupPriceRules.variantId],
+    references: [productVariants.id],
+  }),
 }))
 
 export const productsRelations = relations(products, ({ one, many }) => ({
@@ -763,8 +779,12 @@ export const wishlists = pgTable(
   'wishlists',
   {
     id: uuid().primaryKey().defaultRandom(),
-    customerId: uuid().notNull().references(() => customers.id, { onDelete: 'cascade' }),
-    productId: uuid().notNull().references(() => products.id, { onDelete: 'cascade' }),
+    customerId: uuid()
+      .notNull()
+      .references(() => customers.id, { onDelete: 'cascade' }),
+    productId: uuid()
+      .notNull()
+      .references(() => products.id, { onDelete: 'cascade' }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [

@@ -138,9 +138,17 @@ describe('vatEu.calculate — B2B reverse charge', () => {
     expect(result.rate).toBe(0.19)
   })
 
-  it('reverse charge applies regardless of customer country', () => {
-    const result = vat.calculate(10000, 'FR', { vatNumber: 'BE0999999999' })
+  it('applies reverse charge for an intra-EU sale (customer country differs from home country)', () => {
+    const result = vat.calculate(10000, 'BE', { vatNumber: 'BE0999999999' })
     expect(result.reverseCharge).toBe(true)
+  })
+
+  it('does not apply reverse charge for a domestic sale, even with a valid VAT number', () => {
+    // homeCountry is FR — a French customer pays French VAT regardless of having a
+    // valid (even foreign) VAT number; reverse charge is intra-EU only.
+    const result = vat.calculate(10000, 'FR', { vatNumber: 'BE0999999999' })
+    expect(result.reverseCharge).toBe(false)
+    expect(result.rate).toBe(0.2)
   })
 })
 

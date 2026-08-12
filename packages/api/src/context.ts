@@ -5,11 +5,20 @@ import { verifyStaffToken, verifyToken } from './auth.js'
 
 export type { Context }
 
-function extractIp(req: IncomingMessage): string {
-  const xff = req.headers['x-forwarded-for']
-  if (typeof xff === 'string') {
-    const first = xff.split(',')[0]?.trim()
-    if (first) return first
+/**
+ * `X-Forwarded-For` is client-controlled and must only be trusted when the server
+ * genuinely sits behind a reverse proxy that overwrites/strips it before forwarding —
+ * otherwise any client can spoof a fresh IP on every request and bypass rate limiting.
+ * Defaults to false: rate limiting keys off the real TCP peer address, which the client
+ * cannot forge.
+ */
+function extractIp(req: IncomingMessage, trustProxy: boolean): string {
+  if (trustProxy) {
+    const xff = req.headers['x-forwarded-for']
+    if (typeof xff === 'string') {
+      const first = xff.split(',')[0]?.trim()
+      if (first) return first
+    }
   }
   return req.socket.remoteAddress ?? 'unknown'
 }
@@ -20,6 +29,7 @@ export function createContext(
   jwtSecret: string,
   adminKey?: string | undefined,
   rateLimiters?: RateLimiters | undefined,
+  trustProxy = false,
 ): Context {
   const auth = req.headers.authorization
   let customerId: string | null = null
@@ -35,7 +45,7 @@ export function createContext(
   const staffRole: StaffRole | null = staffClaims?.role ?? null
 
   const isAdmin = Boolean(adminKey && req.headers['x-admin-key'] === adminKey)
-  const ip = extractIp(req)
+  const ip = extractIp(req, trustProxy)
 
   return {
     redbird,

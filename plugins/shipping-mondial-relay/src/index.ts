@@ -120,6 +120,9 @@ export function shippingMondialRelay(input: MondialRelayConfig) {
       headers: { 'Content-Type': 'text/xml; charset=utf-8', SOAPAction: WSI4_ACTION },
       body: envelope,
     })
+    if (!res.ok) {
+      throw new Error(`Mondial Relay WSI4 request failed: HTTP ${res.status}`)
+    }
     const { stat, points } = parseSearchResponse(await res.text())
     if (stat !== '0') throw new Error(`Mondial Relay error (STAT ${stat})`)
     return points

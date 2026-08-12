@@ -1,38 +1,29 @@
 import { eq } from 'drizzle-orm'
 import { type AbandonedCartService, createAbandonedCartService } from './abandoned-cart/service.js'
-import { productVariants } from './db/schema.js'
-import { type GiftCardService, createGiftCardService } from './gift-cards/service.js'
-import { type WebhookService, createWebhookService } from './webhooks/service.js'
 import { type AddressService, createAddressService } from './addresses/service.js'
-import { type BrandService, createBrandService } from './brands/service.js'
-import { type DownloadService, createDownloadService } from './downloads/service.js'
-import { type LoyaltyService, createLoyaltyService } from './loyalty/service.js'
-import { type SupplierService, createSupplierService } from './suppliers/service.js'
 import { type AttributeService, createAttributeService } from './attributes/service.js'
+import { type BrandService, createBrandService } from './brands/service.js'
 import { type CartService, createCartService } from './cart/service.js'
-import {
-  type CustomerGroupService,
-  createCustomerGroupService,
-} from './customer-groups/service.js'
 import { type CategoryService, createCategoryService } from './catalog/categories.js'
-import {
-  type ProductFeatureService,
-  createProductFeatureService,
-} from './catalog/features.js'
+import { type ProductFeatureService, createProductFeatureService } from './catalog/features.js'
 import { type ImageService, createImageService } from './catalog/images.js'
 import { type CatalogService, createCatalogService } from './catalog/service.js'
 import { type CmsService, createCmsService } from './cms/service.js'
-import { type ThemeSectionService, createThemeSectionService } from './theme-sections/service.js'
-import type { LicenseInfo } from './license/types.js'
-import { verifyLicense } from './license/verify.js'
 import type { RedbirdConfig } from './config.js'
+import { type CustomerGroupService, createCustomerGroupService } from './customer-groups/service.js'
 import { type CustomerService, createCustomerService } from './customer/service.js'
 import { type DbClient, createDbClient, isPgliteUrl } from './db/client.js'
-import { runPgliteMigrations } from './db/migrate-pglite.js'
 import { runPostgresMigrations } from './db/migrate-pg.js'
+import { runPgliteMigrations } from './db/migrate-pglite.js'
+import { productVariants } from './db/schema.js'
+import { type DownloadService, createDownloadService } from './downloads/service.js'
 import { EmailRegistry } from './email/registry.js'
 import type { EmailProvider, LocalEmailStore } from './email/types.js'
+import { type GiftCardService, createGiftCardService } from './gift-cards/service.js'
 import { type I18nService, createI18nService } from './i18n/service.js'
+import type { LicenseInfo } from './license/types.js'
+import { verifyLicense } from './license/verify.js'
+import { type LoyaltyService, createLoyaltyService } from './loyalty/service.js'
 import { type OrderService, createOrderService } from './order/service.js'
 import { PaymentRegistry } from './payments/registry.js'
 import type { PaymentProvider } from './payments/types.js'
@@ -40,12 +31,15 @@ import { PluginRegistry } from './plugins/registry.js'
 import type { PluginDefinition } from './plugins/types.js'
 import { type PromoService, createPromoService } from './promos/service.js'
 import { type ReturnService, createReturnService } from './returns/service.js'
-import { type StaffService, createStaffService } from './staff/service.js'
-import { type StockService, createStockService } from './stock/service.js'
 import { ShippingRegistry } from './shipping/registry.js'
 import type { ShippingProvider } from './shipping/types.js'
+import { type StaffService, createStaffService } from './staff/service.js'
+import { type StockService, createStockService } from './stock/service.js'
+import { type SupplierService, createSupplierService } from './suppliers/service.js'
 import { TaxRegistry } from './tax/registry.js'
 import type { TaxProvider } from './tax/types.js'
+import { type ThemeSectionService, createThemeSectionService } from './theme-sections/service.js'
+import { type WebhookService, createWebhookService } from './webhooks/service.js'
 
 export type Redbird = {
   readonly db: DbClient
@@ -125,7 +119,11 @@ export function createRedbird(config: RedbirdConfig): Redbird {
   // Detect local email plugin for backoffice mailbox
   let localEmailStore: LocalEmailStore | null = null
   for (const plugin of config.plugins ?? []) {
-    if ('store' in plugin && plugin.store && typeof (plugin.store as { list?: unknown }).list === 'function') {
+    if (
+      'store' in plugin &&
+      plugin.store &&
+      typeof (plugin.store as { list?: unknown }).list === 'function'
+    ) {
       localEmailStore = plugin.store as LocalEmailStore
       break
     }
@@ -159,7 +157,10 @@ export function createRedbird(config: RedbirdConfig): Redbird {
     })
   }
 
-  const stockAlertConfig = { email: config.stockAlertEmail, threshold: config.stockAlertThreshold ?? 5 }
+  const stockAlertConfig = {
+    email: config.stockAlertEmail,
+    threshold: config.stockAlertThreshold ?? 5,
+  }
 
   const stockSvc = createStockService(db)
   const promoSvc = createPromoService(db)
@@ -174,7 +175,7 @@ export function createRedbird(config: RedbirdConfig): Redbird {
   const categorySvc = createCategoryService(db, plugins)
   const imageSvc = createImageService(db)
   const cart = createCartService(db, plugins, stockSvc)
-  const orderSvc = createOrderService(db, plugins, stockSvc)
+  const orderSvc = createOrderService(db, plugins, stockSvc, payments)
   const customerSvc = createCustomerService(db)
   const addressSvc = createAddressService(db)
   const brandSvc = createBrandService(db)
@@ -262,12 +263,7 @@ export function createRedbird(config: RedbirdConfig): Redbird {
       'order.paid': async ({ order }) => {
         await downloadSvc.generateTokensForOrder(order.id)
         if (loyaltyEnabled && order.customerId) {
-          await loyaltySvc.earn(
-            order.customerId,
-            order.id,
-            order.totalAmount,
-            loyaltyEarnRate,
-          )
+          await loyaltySvc.earn(order.customerId, order.id, order.totalAmount, loyaltyEarnRate)
         }
       },
     },
@@ -305,11 +301,18 @@ export function createRedbird(config: RedbirdConfig): Redbird {
     webhooks: webhookSvc,
     productFeatures: productFeatureSvc,
     customerGroupsSvc: customerGroupSvc,
-    get localEmails() { return localEmailStore },
+    get localEmails() {
+      return localEmailStore
+    },
     stockAlertConfig,
-    get license() { return licenseInfo },
+    get license() {
+      return licenseInfo
+    },
     async reloadLicense(key: string) {
-      if (!key) { licenseInfo = null; return null }
+      if (!key) {
+        licenseInfo = null
+        return null
+      }
       licenseInfo = await verifyLicense(key, config.licenseServerUrl)
       return licenseInfo
     },
@@ -347,14 +350,15 @@ export function createRedbird(config: RedbirdConfig): Redbird {
       await plugins.setupAll(db)
       // Verify license if key provided
       if (config.licenseKey) {
-        licenseInfo = await verifyLicense(
-          config.licenseKey,
-          config.licenseServerUrl,
-        )
+        licenseInfo = await verifyLicense(config.licenseKey, config.licenseServerUrl)
         if (licenseInfo?.valid) {
-          console.log(`✓ Redbird license verified — plan: ${licenseInfo.plan} (${licenseInfo.email})`)
+          console.log(
+            `✓ Redbird license verified — plan: ${licenseInfo.plan} (${licenseInfo.email})`,
+          )
         } else if (config.licenseKey) {
-          console.warn('⚠ Redbird license key provided but could not be verified. Running in unlicensed mode.')
+          console.warn(
+            '⚠ Redbird license key provided but could not be verified. Running in unlicensed mode.',
+          )
         }
       }
     },

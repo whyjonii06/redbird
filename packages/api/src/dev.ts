@@ -148,7 +148,9 @@ function buildConfig(p: SetupPayload): string {
   }
   if (m.flatShipping?.enabled) {
     imports.push("import { shippingFlat } from '@redbird/plugin-shipping-flat'")
-    plugins.push(`    shippingFlat({ zones: [{ name: 'Default', countries: [], rateAmount: 0, rateCurrency: ${JSON.stringify(p.currency)} }] }),`)
+    plugins.push(
+      `    shippingFlat({ zones: [{ name: 'Default', countries: [], rateAmount: 0, rateCurrency: ${JSON.stringify(p.currency)} }] }),`,
+    )
   }
   if (m.vatEu?.enabled) {
     imports.push("import { vatEu } from '@redbird/plugin-vat-eu'")
@@ -212,7 +214,9 @@ if (!isConfigured) {
           writeFileSync(CONFIG_PATH, buildConfig(payload))
 
           // Load newly written env vars into process.env
-          try { process.loadEnvFile(ENV_PATH) } catch {}
+          try {
+            process.loadEnvFile(ENV_PATH)
+          } catch {}
 
           json(res, { ok: true })
 
@@ -231,23 +235,54 @@ if (!isConfigured) {
 
               if (m.stripe?.enabled) {
                 const { stripe } = await import('@redbird/plugin-stripe')
-                plugins.push(stripe({ secretKey: process.env.STRIPE_SECRET_KEY!, webhookSecret: process.env.STRIPE_WEBHOOK_SECRET! }))
+                plugins.push(
+                  stripe({
+                    secretKey: process.env.STRIPE_SECRET_KEY!,
+                    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET!,
+                  }),
+                )
               }
               if (m.paypal?.enabled) {
                 const { paypal } = await import('@redbird/plugin-paypal')
-                plugins.push(paypal({ clientId: process.env.PAYPAL_CLIENT_ID!, clientSecret: process.env.PAYPAL_CLIENT_SECRET! }))
+                plugins.push(
+                  paypal({
+                    clientId: process.env.PAYPAL_CLIENT_ID!,
+                    clientSecret: process.env.PAYPAL_CLIENT_SECRET!,
+                  }),
+                )
               }
               if (m.resend?.enabled) {
                 const { resend } = await import('@redbird/plugin-email-resend')
-                plugins.push(resend({ apiKey: process.env.RESEND_API_KEY!, from: process.env.RESEND_FROM! }))
+                plugins.push(
+                  resend({ apiKey: process.env.RESEND_API_KEY!, from: process.env.RESEND_FROM! }),
+                )
               }
               if (m.smtp?.enabled) {
                 const { smtp } = await import('@redbird/plugin-email-smtp')
-                plugins.push(smtp({ host: process.env.SMTP_HOST!, port: Number(process.env.SMTP_PORT), user: process.env.SMTP_USER!, password: process.env.SMTP_PASS!, from: process.env.SMTP_FROM! }))
+                plugins.push(
+                  smtp({
+                    host: process.env.SMTP_HOST!,
+                    port: Number(process.env.SMTP_PORT),
+                    user: process.env.SMTP_USER!,
+                    password: process.env.SMTP_PASS!,
+                    from: process.env.SMTP_FROM!,
+                  }),
+                )
               }
               if (m.flatShipping?.enabled) {
                 const { shippingFlat } = await import('@redbird/plugin-shipping-flat')
-                plugins.push(shippingFlat({ zones: [{ name: 'Default', countries: [], rateAmount: 0, rateCurrency: payload.currency }] }))
+                plugins.push(
+                  shippingFlat({
+                    zones: [
+                      {
+                        name: 'Default',
+                        countries: [],
+                        rateAmount: 0,
+                        rateCurrency: payload.currency,
+                      },
+                    ],
+                  }),
+                )
               }
               if (m.vatEu?.enabled) {
                 const { vatEu } = await import('@redbird/plugin-vat-eu')
@@ -259,7 +294,12 @@ if (!isConfigured) {
               }
               if (m.analytics?.enabled) {
                 const { analytics } = await import('@redbird/plugin-analytics')
-                plugins.push(analytics({ provider: process.env.ANALYTICS_PROVIDER as 'console', siteId: process.env.ANALYTICS_SITE_ID }))
+                plugins.push(
+                  analytics({
+                    provider: process.env.ANALYTICS_PROVIDER as 'console',
+                    siteId: process.env.ANALYTICS_SITE_ID,
+                  }),
+                )
               }
 
               const redbird = createRedbird({
@@ -314,7 +354,9 @@ if (!isConfigured) {
     ...storeConfig,
     ...(process.env.DATABASE_URL ? { databaseUrl: process.env.DATABASE_URL } : {}),
     defaultCurrency: storeConfig.defaultCurrency ?? process.env.DEFAULT_CURRENCY ?? 'EUR',
-    ...(process.env.REDBIRD_LICENSE_SERVER_URL ? { licenseServerUrl: process.env.REDBIRD_LICENSE_SERVER_URL } : {}),
+    ...(process.env.REDBIRD_LICENSE_SERVER_URL
+      ? { licenseServerUrl: process.env.REDBIRD_LICENSE_SERVER_URL }
+      : {}),
   })
 
   await redbird.init()
@@ -322,6 +364,14 @@ if (!isConfigured) {
   // Load plugins installed after initial setup (persisted in meta.json)
   await loadInstalledPlugins(redbird)
 
+  // Weak, well-known fallbacks are only acceptable for local development — a production
+  // deployment that forgot to set these would otherwise be trivially forgeable/admin-able.
+  const isProduction = process.env.NODE_ENV === 'production'
+  if (isProduction && (!process.env.ADMIN_KEY || !process.env.JWT_SECRET)) {
+    throw new Error(
+      'ADMIN_KEY and JWT_SECRET must both be set when NODE_ENV=production — refusing to start with a default secret.',
+    )
+  }
   const adminKey = process.env.ADMIN_KEY ?? 'dev-admin-key'
 
   const server = createApiServer({
@@ -329,6 +379,9 @@ if (!isConfigured) {
     port: Number(process.env.PORT ?? 3000),
     adminKey,
     jwtSecret: process.env.JWT_SECRET ?? 'dev-jwt-secret',
+    // Only trust X-Forwarded-For when explicitly told the deployment sits behind a
+    // reverse proxy that sets it itself (nginx, Cloudflare...) — see ServerOptions.
+    trustProxy: process.env.TRUST_PROXY === '1',
   })
 
   await server.listen()
@@ -344,8 +397,15 @@ if (!isConfigured) {
 
 async function loadInstalledPlugins(redbird: import('@redbirdshop/core').Redbird): Promise<void> {
   let meta: Record<string, unknown> = {}
-  try { meta = JSON.parse(readFileSync(META_PATH, 'utf8')) } catch { return }
-  const installed = (meta.installedPlugins ?? []) as Array<{ name: string; config: Record<string, unknown> }>
+  try {
+    meta = JSON.parse(readFileSync(META_PATH, 'utf8'))
+  } catch {
+    return
+  }
+  const installed = (meta.installedPlugins ?? []) as Array<{
+    name: string
+    config: Record<string, unknown>
+  }>
   for (const entry of installed) {
     if (redbird.plugins.list().some((p) => p.name === entry.name)) continue
     const factoryName = PLUGIN_FACTORY_MAP[entry.name]

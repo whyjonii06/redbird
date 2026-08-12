@@ -20,6 +20,21 @@ const ConfigSchema = z.object({
 export type PayPalConfig = z.input<typeof ConfigSchema>
 export type { PaymentIntent }
 
+/** Currencies PayPal expects as whole numbers, with no decimal subunit. */
+const ZERO_DECIMAL_CURRENCIES = new Set(['HUF', 'JPY', 'TWD'])
+
+function toPayPalDecimalAmount(amountMinorUnits: number, currency: string): string {
+  return ZERO_DECIMAL_CURRENCIES.has(currency.toUpperCase())
+    ? String(amountMinorUnits)
+    : (amountMinorUnits / 100).toFixed(2)
+}
+
+function toPaymentIntentStatus(paypalStatus: string): PaymentIntent['status'] {
+  if (paypalStatus === 'COMPLETED') return 'succeeded'
+  if (paypalStatus === 'VOIDED') return 'canceled'
+  return 'requires_payment_method'
+}
+
 function getHeader(
   headers: Record<string, string | string[] | undefined>,
   name: string,
@@ -90,8 +105,9 @@ export function paypal(input: PayPalConfig) {
     }
 
     const token = await getAccessToken()
-    // PayPal amounts are decimal strings (e.g. "12.99"), not integer minor units
-    const decimalAmount = (opts.amount / 100).toFixed(2)
+    // PayPal amounts are decimal strings (e.g. "12.99"), not integer minor units —
+    // except for zero-decimal currencies (JPY, HUF, TWD), which are sent as whole numbers.
+    const decimalAmount = toPayPalDecimalAmount(opts.amount, opts.currency)
 
     const res = await fetch(`${baseUrl}/v2/checkout/orders`, {
       method: 'POST',
@@ -124,9 +140,55 @@ export function paypal(input: PayPalConfig) {
       clientSecret: data.id,
       amount: opts.amount,
       currency: opts.currency.toUpperCase(),
-      status: 'requires_payment_method',
+      status: toPaymentIntentStatus(data.status),
       metadata: opts.metadata ?? {},
       provider: '@redbird/plugin-paypal',
+    }
+  }
+
+  /**
+   * PayPal refunds target a *capture* id, not the order id returned by createPaymentIntent —
+   * look it up from the order before refunding. `amount` is in minor units (cents); omit for
+   * a full refund.
+   */
+  async function refund(reference: string, amount?: number): Promise<void> {
+    if (config.dryRun) return
+    const token = await getAccessToken()
+
+    const orderRes = await fetch(`${baseUrl}/v2/checkout/orders/${reference}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!orderRes.ok) {
+      const body = await orderRes.text()
+      throw new Error(`PayPal order lookup ${orderRes.status}: ${body}`)
+    }
+    const order = (await orderRes.json()) as {
+      purchase_units?: Array<{
+        payments?: { captures?: Array<{ id: string; amount: { currency_code: string } }> }
+      }>
+    }
+    const capture = order.purchase_units?.[0]?.payments?.captures?.[0]
+    if (!capture) throw new Error(`PayPal order ${reference} has no captured payment to refund`)
+
+    const body: { amount?: { value: string; currency_code: string } } = {}
+    if (amount != null) {
+      body.amount = {
+        value: toPayPalDecimalAmount(amount, capture.amount.currency_code),
+        currency_code: capture.amount.currency_code,
+      }
+    }
+
+    const refundRes = await fetch(`${baseUrl}/v2/payments/captures/${capture.id}/refund`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    })
+    if (!refundRes.ok) {
+      const errBody = await refundRes.text()
+      throw new Error(`PayPal refund API ${refundRes.status}: ${errBody}`)
     }
   }
 
@@ -134,33 +196,34 @@ export function paypal(input: PayPalConfig) {
     return {
       path: '/webhooks/paypal',
       async handle(rawBody, headers): Promise<ParsedWebhookEvent> {
-        if (!config.dryRun) {
-          const token = await getAccessToken()
-          const verifyRes = await fetch(`${baseUrl}/v1/notifications/verify-webhook-signature`, {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              auth_algo: getHeader(headers, 'paypal-auth-algo'),
-              cert_url: getHeader(headers, 'paypal-cert-url'),
-              transmission_id: getHeader(headers, 'paypal-transmission-id'),
-              transmission_sig: getHeader(headers, 'paypal-transmission-sig'),
-              transmission_time: getHeader(headers, 'paypal-transmission-time'),
-              webhook_id: webhookId,
-              webhook_event: JSON.parse(rawBody.toString('utf8')),
-            }),
-          })
-          if (!verifyRes.ok) {
-            throw new Error(`PayPal verification request failed: ${verifyRes.status}`)
-          }
-          const result = (await verifyRes.json()) as { verification_status: string }
-          if (result.verification_status !== 'SUCCESS') {
-            throw new Error(
-              `PayPal webhook signature verification failed: ${result.verification_status}`,
-            )
-          }
+        // Signature verification always runs when a webhookId is configured (which is the
+        // only way this handler gets built) — `dryRun` only stubs createPaymentIntent to
+        // avoid real PayPal API calls, it must never bypass trusting incoming webhooks.
+        const token = await getAccessToken()
+        const verifyRes = await fetch(`${baseUrl}/v1/notifications/verify-webhook-signature`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            auth_algo: getHeader(headers, 'paypal-auth-algo'),
+            cert_url: getHeader(headers, 'paypal-cert-url'),
+            transmission_id: getHeader(headers, 'paypal-transmission-id'),
+            transmission_sig: getHeader(headers, 'paypal-transmission-sig'),
+            transmission_time: getHeader(headers, 'paypal-transmission-time'),
+            webhook_id: webhookId,
+            webhook_event: JSON.parse(rawBody.toString('utf8')),
+          }),
+        })
+        if (!verifyRes.ok) {
+          throw new Error(`PayPal verification request failed: ${verifyRes.status}`)
+        }
+        const result = (await verifyRes.json()) as { verification_status: string }
+        if (result.verification_status !== 'SUCCESS') {
+          throw new Error(
+            `PayPal webhook signature verification failed: ${result.verification_status}`,
+          )
         }
 
         const event = JSON.parse(rawBody.toString('utf8')) as {
@@ -177,9 +240,10 @@ export function paypal(input: PayPalConfig) {
     ? {
         name: '@redbird/plugin-paypal',
         createPaymentIntent,
+        refund,
         webhookHandler: buildWebhookHandler(config.webhookId),
       }
-    : { name: '@redbird/plugin-paypal', createPaymentIntent }
+    : { name: '@redbird/plugin-paypal', createPaymentIntent, refund }
 
   return Object.assign(
     definePlugin({

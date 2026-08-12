@@ -4,6 +4,7 @@ import { createServer } from 'node:http'
 import { join, resolve } from 'node:path'
 import type { Redbird, SellerConfig } from '@redbirdshop/core'
 import { createHTTPHandler } from '@trpc/server/adapters/standalone'
+import { verifyStaffToken } from './auth.js'
 import { createContext } from './context.js'
 import { generateFacturXForOrder, generateFacturXPdf, generateInvoicePdf } from './invoice.js'
 import { type Logger, createLogger } from './logger.js'
@@ -15,9 +16,9 @@ import { buildWebhookHandlerMap, handleWebhookRequest } from './webhooks.js'
 /** Resolve the seller legal identity from the BO-edited meta.json, falling back to config. */
 function resolveSeller(redbird: Redbird): SellerConfig | undefined {
   try {
-    const meta = JSON.parse(
-      readFileSync(resolve(process.cwd(), 'redbird.meta.json'), 'utf8'),
-    ) as { seller?: SellerConfig }
+    const meta = JSON.parse(readFileSync(resolve(process.cwd(), 'redbird.meta.json'), 'utf8')) as {
+      seller?: SellerConfig
+    }
     if (meta?.seller) return meta.seller
   } catch {}
   return redbird.config.seller
@@ -31,6 +32,12 @@ export type ServerOptions = {
   readonly jwtSecret?: string
   /** Secret key required in x-admin-key header to access admin procedures. */
   readonly adminKey?: string | undefined
+  /**
+   * Trust the `X-Forwarded-For` header for rate-limiting/IP logging. Only enable this when
+   * the server sits behind a reverse proxy that overwrites the header (nginx, Cloudflare...) —
+   * otherwise clients can spoof it to bypass rate limiting. Defaults to false.
+   */
+  readonly trustProxy?: boolean
   /** Abandoned cart recovery: run every N minutes (default: disabled). Set to 0 to disable. */
   readonly abandonedCartIntervalMinutes?: number
   /** Store URL for abandoned cart recovery emails (e.g. https://mystore.com). */
@@ -63,19 +70,22 @@ export function createApiServer(opts: ServerOptions) {
 
   const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1'])
 
-  const log: Logger | false =
-    opts.logger !== undefined ? opts.logger : createLogger()
+  const log: Logger | false = opts.logger !== undefined ? opts.logger : createLogger()
 
   const trpcHandler = createHTTPHandler({
     router: appRouter,
-    createContext: ({ req }) => createContext(opts.redbird, req, jwtSecret, opts.adminKey, rateLimiters),
+    createContext: ({ req }) =>
+      createContext(opts.redbird, req, jwtSecret, opts.adminKey, rateLimiters, opts.trustProxy),
     onError: ({ path, error, req }) => {
       if (!log) return
       const ip = req.socket.remoteAddress ?? 'unknown'
       if (CLIENT_ERROR_CODES.has(error.code)) {
         log.warn({ path, code: error.code, message: error.message, ip }, 'trpc client error')
       } else {
-        log.error({ path, code: error.code, message: error.message, ip, err: error.cause }, 'trpc error')
+        log.error(
+          { path, code: error.code, message: error.message, ip, err: error.cause },
+          'trpc error',
+        )
       }
     },
   })
@@ -88,7 +98,17 @@ export function createApiServer(opts: ServerOptions) {
     if (sseClients.size === 0) return
     const payload: Record<string, unknown> = { type: name }
     if (name === 'order.created') {
-      const order = (ctx as { order?: { id: string; number: number; totalAmount: number; currency: string; customerEmail: string } }).order
+      const order = (
+        ctx as {
+          order?: {
+            id: string
+            number: number
+            totalAmount: number
+            currency: string
+            customerEmail: string
+          }
+        }
+      ).order
       if (order) {
         payload.orderId = order.id
         payload.orderNumber = order.number
@@ -97,12 +117,18 @@ export function createApiServer(opts: ServerOptions) {
       }
     } else if (name === 'order.paid') {
       const order = (ctx as { order?: { id: string; number: number } }).order
-      if (order) { payload.orderId = order.id; payload.orderNumber = order.number }
+      if (order) {
+        payload.orderId = order.id
+        payload.orderNumber = order.number
+      }
     }
     const data = JSON.stringify(payload)
     for (const client of [...sseClients]) {
-      try { client.write(`data: ${data}\n\n`) }
-      catch { sseClients.delete(client) }
+      try {
+        client.write(`data: ${data}\n\n`)
+      } catch {
+        sseClients.delete(client)
+      }
     }
   })
 
@@ -208,6 +234,20 @@ export function createApiServer(opts: ServerOptions) {
 
     // ── Image upload (base64 JSON) ────────────────────────────────────────────
     if (url === '/uploads' && req.method === 'POST') {
+      // Mirrors admin.images.add's adminProcedure: master admin key, or staff with
+      // owner/admin role. This raw HTTP endpoint bypasses tRPC, so it must check itself.
+      const staffTokenHeader = req.headers['x-staff-token']
+      const staffToken = typeof staffTokenHeader === 'string' ? staffTokenHeader : undefined
+      const staffClaims = staffToken ? verifyStaffToken(staffToken, jwtSecret) : null
+      const hasAdminKey = Boolean(opts.adminKey && req.headers['x-admin-key'] === opts.adminKey)
+      const hasStaffRole = staffClaims?.role === 'owner' || staffClaims?.role === 'admin'
+      if (!hasAdminKey && !hasStaffRole) {
+        res.setHeader('Access-Control-Allow-Origin', '*')
+        res.writeHead(401, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ error: 'Admin access required' }))
+        return
+      }
+
       const uploaderIp = req.socket.remoteAddress ?? 'unknown'
       if (!LOOPBACK.has(uploaderIp)) {
         const { allowed } = uploadLimiter.check(uploaderIp)
@@ -270,7 +310,8 @@ export function createApiServer(opts: ServerOptions) {
         res.writeHead(400, { 'Content-Type': 'application/json' })
         res.end(
           JSON.stringify({
-            error: 'No relay-point provider installed. Add the Mondial Relay plugin from the Marketplace.',
+            error:
+              'No relay-point provider installed. Add the Mondial Relay plugin from the Marketplace.',
           }),
         )
         return
@@ -494,10 +535,9 @@ export function createApiServer(opts: ServerOptions) {
 
     // ── robots.txt ───────────────────────────────────────────────────────────
     if (url === '/robots.txt' && req.method === 'GET') {
-      const apiBase =
-        opts.storefrontUrl
-          ? `${opts.storefrontUrl.replace(/\/$/, '')}/api`
-          : `http://localhost:3000`
+      const apiBase = opts.storefrontUrl
+        ? `${opts.storefrontUrl.replace(/\/$/, '')}/api`
+        : `http://localhost:3000`
       const txt = ['User-agent: *', 'Allow: /', '', `Sitemap: ${apiBase}/sitemap.xml`].join('\n')
       res.setHeader('Access-Control-Allow-Origin', '*')
       res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' })
@@ -525,10 +565,17 @@ export function createApiServer(opts: ServerOptions) {
       res.writeHead(200)
       res.write(': connected\n\n')
       const heartbeat = setInterval(() => {
-        try { res.write(': ping\n\n') } catch { sseClients.delete(res) }
+        try {
+          res.write(': ping\n\n')
+        } catch {
+          sseClients.delete(res)
+        }
       }, 25_000)
       sseClients.add(res)
-      req.on('close', () => { sseClients.delete(res); clearInterval(heartbeat) })
+      req.on('close', () => {
+        sseClients.delete(res)
+        clearInterval(heartbeat)
+      })
       return
     }
 
@@ -590,7 +637,10 @@ export function createApiServer(opts: ServerOptions) {
                   .runRecovery(recoveryOpts)
                   .then((result) => {
                     if (result.processed > 0 && log) {
-                      log.info({ processed: result.processed, emailed: result.emailed }, 'abandoned-cart recovery')
+                      log.info(
+                        { processed: result.processed, emailed: result.emailed },
+                        'abandoned-cart recovery',
+                      )
                     }
                   })
                   .catch((err) => {

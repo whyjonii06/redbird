@@ -1,7 +1,10 @@
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
+import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto'
+import { promisify } from 'node:util'
 import { eq } from 'drizzle-orm'
 import type { DbClient } from '../db/client.js'
 import { type StaffMember, type StaffRole, staff } from '../db/schema.js'
+
+const scryptAsync = promisify(scrypt)
 
 export type { StaffMember, StaffRole }
 
@@ -32,23 +35,22 @@ export type StaffService = {
   count(): Promise<number>
 }
 
-function hashPassword(password: string): string {
+async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16).toString('hex')
-  const hash = createHash('sha256')
-    .update(salt + password)
-    .digest('hex')
-  return `${salt}:${hash}`
+  const hash = (await scryptAsync(password, salt, 64)) as Buffer
+  return `${salt}:${hash.toString('hex')}`
 }
 
-function verifyPassword(password: string, stored: string): boolean {
+// A well-formed but unusable hash, verified against when no account exists — keeps
+// login() 's timing independent of whether the email is registered.
+const DUMMY_HASH = `${'a'.repeat(32)}:${'b'.repeat(128)}`
+
+async function verifyPassword(password: string, stored: string): Promise<boolean> {
   const [salt, hash] = stored.split(':')
   if (!salt || !hash) return false
-  const attempt = createHash('sha256')
-    .update(salt + password)
-    .digest('hex')
-  const attemptBuf = Buffer.from(attempt, 'hex')
   const hashBuf = Buffer.from(hash, 'hex')
-  return attemptBuf.length === hashBuf.length && timingSafeEqual(attemptBuf, hashBuf)
+  const derived = (await scryptAsync(password, salt, 64)) as Buffer
+  return derived.length === hashBuf.length && timingSafeEqual(derived, hashBuf)
 }
 
 export function createStaffService(db: DbClient): StaffService {
@@ -58,7 +60,7 @@ export function createStaffService(db: DbClient): StaffService {
         where: eq(staff.email, email.toLowerCase()),
       })
       if (existing) throw new Error(`Staff member with email ${email} already exists`)
-      const passwordHash = hashPassword(password)
+      const passwordHash = await hashPassword(password)
       const [member] = await db
         .insert(staff)
         .values({
@@ -75,8 +77,10 @@ export function createStaffService(db: DbClient): StaffService {
 
     async login(email, password) {
       const member = await db.query.staff.findFirst({ where: eq(staff.email, email.toLowerCase()) })
-      if (!member || !member.active) return null
-      if (!verifyPassword(password, member.passwordHash)) return null
+      // Always run verifyPassword, even for an unknown email, so response time doesn't
+      // reveal whether the account exists.
+      const valid = await verifyPassword(password, member?.passwordHash ?? DUMMY_HASH)
+      if (!member || !member.active || !valid) return null
       return member
     },
 

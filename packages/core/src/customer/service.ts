@@ -12,6 +12,10 @@ async function hashPassword(password: string): Promise<string> {
   return `${salt}:${hash.toString('hex')}`
 }
 
+// A well-formed but unusable hash, verified against when no account exists — keeps
+// login() 's timing independent of whether the email is registered.
+const DUMMY_HASH = `${'a'.repeat(32)}:${'b'.repeat(128)}`
+
 async function verifyPassword(password: string, stored: string): Promise<boolean> {
   const [salt, hash] = stored.split(':')
   if (!salt || !hash) return false
@@ -98,9 +102,10 @@ export function createCustomerService(db: DbClient): CustomerService {
       const customer = await db.query.customers.findFirst({
         where: eq(customers.email, email.toLowerCase()),
       })
-      if (!customer) return null
-      const valid = await verifyPassword(password, customer.passwordHash)
-      if (!valid) return null
+      // Always run verifyPassword, even for an unknown email, so response time doesn't
+      // reveal whether the account exists.
+      const valid = await verifyPassword(password, customer?.passwordHash ?? DUMMY_HASH)
+      if (!customer || !valid) return null
       return toPublic(customer)
     },
 
@@ -121,7 +126,11 @@ export function createCustomerService(db: DbClient): CustomerService {
     async list({ limit = 50, offset = 0, search } = {}) {
       const rows = await db.query.customers.findMany({
         where: search
-          ? or(ilike(customers.email, `%${search}%`), ilike(customers.firstName, `%${search}%`), ilike(customers.lastName, `%${search}%`))
+          ? or(
+              ilike(customers.email, `%${search}%`),
+              ilike(customers.firstName, `%${search}%`),
+              ilike(customers.lastName, `%${search}%`),
+            )
           : undefined,
         orderBy: (c, { desc }) => [desc(c.createdAt)],
         limit,

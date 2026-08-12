@@ -1,7 +1,7 @@
 import { createHmac } from 'node:crypto'
-import { createRedbird } from '@redbirdshop/core'
 import { paypal } from '@redbird/plugin-paypal'
 import { stripe } from '@redbird/plugin-stripe'
+import { createRedbird } from '@redbirdshop/core'
 import { sql } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { createApiServer } from './server.js'
@@ -21,6 +21,26 @@ const paypalPlugin = paypal({
   sandbox: true,
   dryRun: true,
 })
+
+// PayPal webhook signature verification is a real network call to PayPal (unlike Stripe's
+// local HMAC check), and it always runs when a webhookId is configured — dryRun only stubs
+// createPaymentIntent, it must never bypass trusting incoming webhooks (see plugins/paypal).
+// Stub just the PayPal sandbox endpoints so these tests exercise the real verification code
+// path without hitting the network; everything else (the local test server) passes through.
+const realFetch = globalThis.fetch
+globalThis.fetch = (async (
+  input: Parameters<typeof fetch>[0],
+  init?: Parameters<typeof fetch>[1],
+) => {
+  const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+  if (url === 'https://api-m.sandbox.paypal.com/v1/oauth2/token') {
+    return new Response(JSON.stringify({ access_token: 'test-access-token' }), { status: 200 })
+  }
+  if (url === 'https://api-m.sandbox.paypal.com/v1/notifications/verify-webhook-signature') {
+    return new Response(JSON.stringify({ verification_status: 'SUCCESS' }), { status: 200 })
+  }
+  return realFetch(input, init)
+}) as typeof fetch
 
 const redbird = createRedbird({
   defaultCurrency: 'EUR',

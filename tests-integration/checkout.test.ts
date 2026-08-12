@@ -52,7 +52,7 @@ describe('Checkout (integration)', () => {
     expect(order.currency).toBe('EUR')
     expect(order.subtotalAmount).toBe(v1.priceAmount * 2 + v2.priceAmount * 1)
     expect(order.totalAmount).toBe(order.subtotalAmount)
-    expect(order.number).toMatch(/^ORD-\d{8}-[0-9A-F]{4}$/)
+    expect(order.number).toMatch(/^ORD-\d{8}-[0-9A-F]{6}$/)
 
     expect(order.lineItems).toHaveLength(2)
     const li1 = order.lineItems.find((li) => li.sku === 'COF-250')

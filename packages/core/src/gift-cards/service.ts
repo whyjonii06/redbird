@@ -1,12 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { eq } from 'drizzle-orm'
 import type { DbClient } from '../db/client.js'
-import {
-  type GiftCard,
-  type NewGiftCard,
-  giftCardTransactions,
-  giftCards,
-} from '../db/schema.js'
+import { type GiftCard, type NewGiftCard, giftCardTransactions, giftCards } from '../db/schema.js'
 
 export type GiftCardService = {
   create(input: {
@@ -80,22 +75,32 @@ export function createGiftCardService(db: DbClient): GiftCardService {
     },
 
     async redeem(code, amount, orderId) {
-      const card = await this.get(code)
-      if (!card) throw new Error('Gift card not found')
-      const deducted = Math.min(amount, card.balance)
-      const [updated] = await db
-        .update(giftCards)
-        .set({ balance: card.balance - deducted, updatedAt: new Date() })
-        .where(eq(giftCards.id, card.id))
-        .returning()
-      if (!updated) throw new Error('Failed to redeem gift card')
-      await db.insert(giftCardTransactions).values({
-        giftCardId: card.id,
-        orderId,
-        amount: -deducted,
-        description: `Redeemed on order`,
+      // `FOR UPDATE` locks the row for the transaction's duration so two concurrent
+      // redemptions of the same card serialize instead of both reading the same stale
+      // balance and both deducting from it (which could drive balance negative).
+      return db.transaction(async (tx) => {
+        const normalized = code.trim().toUpperCase()
+        const [card] = await tx
+          .select()
+          .from(giftCards)
+          .where(eq(giftCards.code, normalized))
+          .for('update')
+        if (!card) throw new Error('Gift card not found')
+        const deducted = Math.min(amount, card.balance)
+        const [updated] = await tx
+          .update(giftCards)
+          .set({ balance: card.balance - deducted, updatedAt: new Date() })
+          .where(eq(giftCards.id, card.id))
+          .returning()
+        if (!updated) throw new Error('Failed to redeem gift card')
+        await tx.insert(giftCardTransactions).values({
+          giftCardId: card.id,
+          orderId,
+          amount: -deducted,
+          description: `Redeemed on order`,
+        })
+        return updated
       })
-      return updated
     },
 
     async void(id) {

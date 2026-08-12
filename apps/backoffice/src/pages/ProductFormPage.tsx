@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { getAdminKey, getStaffToken } from '../auth.js'
 import { btnLink, btnLinkDanger, btnPrimary, inputCls } from '../components/ui.js'
 import { fmt, trpc } from '../trpc.js'
 
@@ -11,18 +12,7 @@ export function ProductFormPage() {
   const navigate = useNavigate()
   const utils = trpc.useUtils()
 
-  const { data: product } = trpc.admin.catalog.list.useQuery(
-    { limit: 1, offset: 0 },
-    { enabled: false },
-  )
-  void product
-
-  // For edit mode, fetch the product via catalog list then filter — or use byId via checkout router
-  const { data: allProducts } = trpc.admin.catalog.list.useQuery(
-    { limit: 100, offset: 0 },
-    { enabled: isEdit },
-  )
-  const existing = isEdit ? allProducts?.find((p) => p.id === id) : undefined
+  const { data: existing } = trpc.admin.catalog.byId.useQuery({ id: id! }, { enabled: isEdit })
 
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')
@@ -951,9 +941,14 @@ function ImagesSection({ productId }: { productId: string }) {
       })
       const apiBase =
         (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:3000'
+      const authHeaders: Record<string, string> = {}
+      const adminKey = getAdminKey()
+      if (adminKey) authHeaders['x-admin-key'] = adminKey
+      const staffToken = getStaffToken()
+      if (staffToken) authHeaders['x-staff-token'] = staffToken
       const resp = await fetch(`${apiBase}/uploads`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({ filename: file.name, data }),
       })
       if (!resp.ok) throw new Error('Upload failed')

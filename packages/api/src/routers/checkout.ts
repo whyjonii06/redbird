@@ -30,10 +30,7 @@ export const checkoutRouter = router({
       if (!provider) return null
       const cart = await ctx.redbird.cart.get(input.cartId)
       if (!cart) throw new TRPCError({ code: 'NOT_FOUND', message: 'Cart not found' })
-      const subtotal = cart.lineItems.reduce(
-        (sum, li) => sum + li.unitPriceAmount * li.quantity,
-        0,
-      )
+      const subtotal = cart.lineItems.reduce((sum, li) => sum + li.unitPriceAmount * li.quantity, 0)
       const currency = cart.lineItems[0]?.unitPriceCurrency ?? ctx.redbird.config.defaultCurrency
       return provider.calculate(input.countryCode.toUpperCase(), subtotal, 0, currency)
     }),
@@ -85,8 +82,7 @@ export const checkoutRouter = router({
         cartId: z.string().uuid(),
         customerEmail: z.string().email(),
         shippingAddress: addressSchema.optional(),
-        shippingAmount: z.number().int().min(0).optional(),
-        taxAmount: z.number().int().min(0).optional(),
+        vatNumber: z.string().optional(),
         promoCode: z.string().optional(),
         loyaltyPointsToRedeem: z.number().int().min(1).optional(),
         giftCardCode: z.string().optional(),
@@ -94,6 +90,21 @@ export const checkoutRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const cart = await ctx.redbird.cart.get(input.cartId)
+      if (!cart) throw new TRPCError({ code: 'NOT_FOUND', message: 'Cart not found' })
+      const subtotal = cart.lineItems.reduce((sum, li) => sum + li.unitPriceAmount * li.quantity, 0)
+      const currency = cart.lineItems[0]?.unitPriceCurrency ?? ctx.redbird.config.defaultCurrency
+      const countryCode = input.shippingAddress?.countryCode.toUpperCase()
+
+      // Shipping and tax are always recomputed server-side — the client only ever
+      // supplies the destination address, never the resulting amounts.
+      let shippingAmount = 0
+      const shippingProvider = ctx.redbird.shipping.default()
+      if (shippingProvider && countryCode) {
+        const rate = shippingProvider.calculate(countryCode, subtotal, 0, currency)
+        shippingAmount = rate.free ? 0 : rate.amount
+      }
+
       // Loyalty validation (doesn't need cart)
       const loyaltyPoints = input.loyaltyPointsToRedeem ?? 0
       let loyaltyDiscountAmount = 0
@@ -119,89 +130,95 @@ export const checkoutRouter = router({
         loyaltyDiscountAmount = ctx.redbird.loyalty.previewRedeem(loyaltyPoints, redeemRate)
       }
 
-      // Promo + gift card (need cart)
+      // Promo code
       let promoDiscountAmount = 0
-      let giftCardDiscount = 0
-      if (input.promoCode || input.giftCardCode) {
-        const cart = await ctx.redbird.cart.get(input.cartId)
-        if (!cart) throw new TRPCError({ code: 'NOT_FOUND', message: 'Cart not found' })
-        const subtotal = cart.lineItems.reduce(
-          (sum, li) => sum + li.unitPriceAmount * li.quantity,
-          0,
-        )
-
-        if (input.promoCode) {
-          const validation = await ctx.redbird.promos.validate(input.promoCode, subtotal)
-          if (!validation.valid) {
-            const msgs: Record<string, string> = {
-              not_found: 'Promo code not found',
-              inactive: 'Promo code is inactive',
-              expired: 'Promo code has expired',
-              max_uses_reached: 'Promo code has reached its usage limit',
-              minimum_not_met: 'Cart total does not meet the minimum for this promo code',
-            }
-            throw new TRPCError({
-              code: 'BAD_REQUEST',
-              message: msgs[validation.reason] ?? 'Invalid promo code',
-            })
+      if (input.promoCode) {
+        const validation = await ctx.redbird.promos.validate(input.promoCode, subtotal)
+        if (!validation.valid) {
+          const msgs: Record<string, string> = {
+            not_found: 'Promo code not found',
+            inactive: 'Promo code is inactive',
+            expired: 'Promo code has expired',
+            max_uses_reached: 'Promo code has reached its usage limit',
+            minimum_not_met: 'Cart total does not meet the minimum for this promo code',
           }
-          promoDiscountAmount = validation.discountAmount
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: msgs[validation.reason] ?? 'Invalid promo code',
+          })
         }
-
-        if (input.giftCardCode) {
-          const cartCurrency =
-            cart.lineItems[0]?.unitPriceCurrency ?? ctx.redbird.config.defaultCurrency
-          const gcValidation = await ctx.redbird.giftCards.validate(
-            input.giftCardCode,
-            cartCurrency,
-          )
-          if (!gcValidation.valid) {
-            const msgs: Record<string, string> = {
-              not_found: 'Gift card not found',
-              expired: 'Gift card has expired',
-              empty: 'Gift card has no remaining balance',
-              currency_mismatch: 'Gift card currency does not match',
-            }
-            throw new TRPCError({
-              code: 'BAD_REQUEST',
-              message: msgs[gcValidation.reason] ?? 'Invalid gift card',
-            })
-          }
-          const orderTotal =
-            subtotal + (input.shippingAmount ?? 0) + (input.taxAmount ?? 0)
-          const alreadyDiscounted = loyaltyDiscountAmount + promoDiscountAmount
-          giftCardDiscount = Math.min(
-            gcValidation.balance,
-            Math.max(0, orderTotal - alreadyDiscounted),
-          )
-        }
+        promoDiscountAmount = validation.discountAmount
       }
 
       // Customer group price discount — compute the delta between cart prices and group prices
       let groupPriceDiscount = 0
       if (ctx.customerId) {
-        const cart = await ctx.redbird.cart.get(input.cartId)
-        if (cart) {
-          for (const li of cart.lineItems) {
-            const groupPrice = await ctx.redbird.customerGroupsSvc.getGroupPrice(
-              ctx.customerId,
-              li.variantId,
-            )
-            if (groupPrice && groupPrice.priceAmount < li.unitPriceAmount) {
-              groupPriceDiscount += (li.unitPriceAmount - groupPrice.priceAmount) * li.quantity
-            }
+        for (const li of cart.lineItems) {
+          const groupPrice = await ctx.redbird.customerGroupsSvc.getGroupPrice(
+            ctx.customerId,
+            li.variantId,
+          )
+          if (groupPrice && groupPrice.priceAmount < li.unitPriceAmount) {
+            groupPriceDiscount += (li.unitPriceAmount - groupPrice.priceAmount) * li.quantity
           }
         }
+      }
+
+      // Gift card — capped against subtotal + shipping, net of discounts already applied.
+      // Tax isn't in this cap: it's computed just below, on the post-discount subtotal,
+      // and gift cards are a payment method rather than a further price reduction.
+      let giftCardDiscount = 0
+      if (input.giftCardCode) {
+        const gcValidation = await ctx.redbird.giftCards.validate(input.giftCardCode, currency)
+        if (!gcValidation.valid) {
+          const msgs: Record<string, string> = {
+            not_found: 'Gift card not found',
+            expired: 'Gift card has expired',
+            empty: 'Gift card has no remaining balance',
+            currency_mismatch: 'Gift card currency does not match',
+          }
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: msgs[gcValidation.reason] ?? 'Invalid gift card',
+          })
+        }
+        const alreadyDiscounted = loyaltyDiscountAmount + promoDiscountAmount + groupPriceDiscount
+        const cap = Math.max(0, subtotal + shippingAmount - alreadyDiscounted)
+        giftCardDiscount = Math.min(gcValidation.balance, cap)
       }
 
       const discountAmount =
         loyaltyDiscountAmount + promoDiscountAmount + giftCardDiscount + groupPriceDiscount
 
+      // Tax is computed on the post-discount subtotal, never on the raw cart total.
+      let taxAmount: number | undefined
+      const taxProvider = ctx.redbird.taxes.default()
+      if (taxProvider && countryCode) {
+        let verifiedVatNumber: string | undefined
+        if (
+          input.vatNumber &&
+          'validateVatNumber' in taxProvider &&
+          typeof taxProvider.validateVatNumber === 'function'
+        ) {
+          try {
+            const viesResult = await taxProvider.validateVatNumber(input.vatNumber)
+            if (viesResult.valid) verifiedVatNumber = input.vatNumber
+          } catch {
+            // VIES unreachable — fall back to charging tax rather than granting an
+            // unverified reverse charge.
+          }
+        }
+        const taxableBase = Math.max(0, subtotal - discountAmount)
+        const opts: { vatNumber?: string } = {}
+        if (verifiedVatNumber) opts.vatNumber = verifiedVatNumber
+        taxAmount = taxProvider.calculate(taxableBase, countryCode, opts).taxAmount
+      }
+
       const order = await ctx.redbird.orders.createFromCart(input.cartId, {
         customerEmail: input.customerEmail,
         shippingAddress: input.shippingAddress,
-        shippingAmount: input.shippingAmount,
-        taxAmount: input.taxAmount,
+        shippingAmount,
+        taxAmount,
         discountAmount: discountAmount > 0 ? discountAmount : undefined,
         promoCode: input.promoCode,
         notes: input.notes,
@@ -262,11 +279,14 @@ export const checkoutRouter = router({
         })
       }
 
-      return provider.createPaymentIntent({
+      const intent = await provider.createPaymentIntent({
         amount: order.totalAmount,
         currency: order.currency,
         metadata: { orderId: order.id, orderNumber: order.number },
       })
+      // Recorded so a later refund can call back into the same gateway/payment.
+      await ctx.redbird.orders.setPaymentReference(order.id, provider.name, intent.id)
+      return intent
     }),
 
   get: publicProcedure.input(orderIdInput).query(async ({ ctx, input }) => {
@@ -295,33 +315,7 @@ export const checkoutRouter = router({
       return ctx.redbird.orders.listByEmail(input.email, { limit: input.limit })
     }),
 
-  list: publicProcedure
-    .input(
-      z
-        .object({
-          status: z.enum(['pending', 'paid', 'fulfilled', 'cancelled', 'refunded']).optional(),
-          customerId: z.string().uuid().optional(),
-          limit: z.number().int().min(1).max(100).optional(),
-        })
-        .optional(),
-    )
-    .query(async ({ ctx, input }) => {
-      return ctx.redbird.orders.list(input)
-    }),
-
-  markPaid: publicProcedure.input(orderIdInput).mutation(async ({ ctx, input }) => {
-    return ctx.redbird.orders.markPaid(input.orderId)
-  }),
-
-  markFulfilled: publicProcedure.input(orderIdInput).mutation(async ({ ctx, input }) => {
-    return ctx.redbird.orders.markFulfilled(input.orderId)
-  }),
-
-  cancel: publicProcedure.input(orderIdInput).mutation(async ({ ctx, input }) => {
-    return ctx.redbird.orders.cancel(input.orderId)
-  }),
-
-  refund: publicProcedure.input(orderIdInput).mutation(async ({ ctx, input }) => {
-    return ctx.redbird.orders.refund(input.orderId)
-  }),
+  // Order listing and status mutations (list/markPaid/markFulfilled/cancel/refund) live
+  // in packages/api/src/routers/admin.ts under `orders.*`, gated by adminProcedure.
+  // A customer's own order history is served by customers.orders (protectedProcedure).
 })

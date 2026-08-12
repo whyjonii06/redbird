@@ -30,4 +30,10 @@ export interface PaymentProvider {
     currency: string
     metadata?: Record<string, string>
   }): Promise<PaymentIntent>
+  /**
+   * Optional capability: issue a real refund at the payment gateway for a previously
+   * created payment (identified by the PaymentIntent id returned from createPaymentIntent).
+   * Omit `amount` for a full refund.
+   */
+  refund?(reference: string, amount?: number): Promise<void>
 }

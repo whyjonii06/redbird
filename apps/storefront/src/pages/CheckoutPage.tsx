@@ -59,8 +59,8 @@ import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-
 import { loadStripe } from '@stripe/stripe-js'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '../AuthContext.js'
 import { useMeta } from '../App.js'
+import { useAuth } from '../AuthContext.js'
 import { useCartContext, useCartData } from '../CartContext.js'
 import { fmt, trpc } from '../trpc.js'
 
@@ -166,8 +166,8 @@ function InfoStep({ onDone }: { onDone: (info: OrderInfo) => void }) {
     e.preventDefault()
     setError('')
     try {
-      const shippingAmount = shippingPreview && !shippingPreview.free ? shippingPreview.amount : 0
-
+      // shippingAmount/taxAmount are no longer sent — the server recomputes both from the
+      // destination address (previewShipping/previewTax above are display-only estimates).
       const order = await createOrder.mutateAsync({
         cartId: cartId!,
         customerEmail: form.email,
@@ -181,8 +181,7 @@ function InfoStep({ onDone }: { onDone: (info: OrderInfo) => void }) {
           countryCode: form.countryCode.toUpperCase().slice(0, 2),
           ...(form.phone ? { phone: form.phone } : {}),
         },
-        ...(shippingAmount > 0 ? { shippingAmount } : {}),
-        ...(taxPreview && taxPreview.taxAmount > 0 ? { taxAmount: taxPreview.taxAmount } : {}),
+        ...(form.vatNumber ? { vatNumber: form.vatNumber } : {}),
         ...(appliedPromo && promoValidation?.valid ? { promoCode: appliedPromo } : {}),
         ...(loyaltyPointsToRedeem > 0 ? { loyaltyPointsToRedeem } : {}),
         ...(appliedGiftCard && giftCardValidation?.valid ? { giftCardCode: appliedGiftCard } : {}),

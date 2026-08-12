@@ -57,8 +57,9 @@ export function vatEu(input: VatEuConfig) {
       const cc = countryCode.toUpperCase()
       const { rateType = 'standard', vatNumber } = opts
 
-      // B2B reverse charge: EU customer with valid VAT number
-      if (vatNumber && parseVatNumber(vatNumber)) {
+      // B2B reverse charge only applies to intra-EU sales — a customer in the seller's
+      // own country pays domestic VAT even with a valid VAT number.
+      if (vatNumber && parseVatNumber(vatNumber) && cc !== config.homeCountry) {
         return {
           countryCode: cc,
           rateType: 'reverse_charge',
@@ -84,7 +85,7 @@ export function vatEu(input: VatEuConfig) {
         rate = rates.standard
       }
 
-      const taxAmount = Math.floor(subtotalCents * rate)
+      const taxAmount = Math.round(subtotalCents * rate)
 
       return {
         countryCode: cc,

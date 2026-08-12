@@ -138,13 +138,34 @@ export function stripe(input: StripeConfig) {
     }
   }
 
+  async function refund(reference: string, amount?: number): Promise<void> {
+    if (config.dryRun) return
+    const params = new URLSearchParams()
+    params.set('payment_intent', reference)
+    if (amount != null) params.set('amount', String(amount))
+
+    const res = await fetch('https://api.stripe.com/v1/refunds', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${config.secretKey}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: params,
+    })
+    if (!res.ok) {
+      const body = await res.text()
+      throw new Error(`Stripe refund API ${res.status}: ${body}`)
+    }
+  }
+
   const provider: PaymentProvider = config.webhookSecret
     ? {
         name: '@redbird/plugin-stripe',
         createPaymentIntent,
+        refund,
         webhookHandler: buildStripeWebhookHandler(config.webhookSecret),
       }
-    : { name: '@redbird/plugin-stripe', createPaymentIntent }
+    : { name: '@redbird/plugin-stripe', createPaymentIntent, refund }
 
   return Object.assign(
     definePlugin({

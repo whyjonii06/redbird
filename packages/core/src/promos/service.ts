@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm'
+import { and, eq, isNull, lt, or, sql } from 'drizzle-orm'
 import type { DbClient } from '../db/client.js'
 import { type PromoCode, promoCodes } from '../db/schema.js'
 
@@ -136,10 +136,24 @@ export function createPromoService(db: DbClient): PromoService {
     },
 
     async redeem(code) {
-      await db
+      // Atomic, conditional increment — the WHERE re-checks maxUses at write time so
+      // two concurrent redemptions of the last remaining use can't both succeed
+      // (validate() alone is a read that two racing requests can both pass).
+      const [updated] = await db
         .update(promoCodes)
         .set({ usedCount: sql`${promoCodes.usedCount} + 1`, updatedAt: new Date() })
-        .where(eq(promoCodes.code, code.toUpperCase().trim()))
+        .where(
+          and(
+            eq(promoCodes.code, code.toUpperCase().trim()),
+            or(isNull(promoCodes.maxUses), lt(promoCodes.usedCount, promoCodes.maxUses)),
+          ),
+        )
+        .returning()
+      if (!updated) {
+        throw new Error(
+          `Promo code ${code} could not be redeemed (not found or usage limit reached)`,
+        )
+      }
     },
   }
 }

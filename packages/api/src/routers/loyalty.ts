@@ -1,6 +1,5 @@
-import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
-import { protectedProcedure, publicProcedure, router } from '../trpc.js'
+import { adminProcedure, protectedProcedure, publicProcedure, router } from '../trpc.js'
 
 export const loyaltyRouter = router({
   myAccount: protectedProcedure.query(async ({ ctx }) => {
@@ -27,8 +26,7 @@ export const loyaltyRouter = router({
 })
 
 export const adminLoyaltyRouter = router({
-  listAccounts: protectedProcedure.query(async ({ ctx }) => {
-    if (!ctx.isAdmin) throw new TRPCError({ code: 'FORBIDDEN' })
+  listAccounts: adminProcedure.query(async ({ ctx }) => {
     const accounts = await ctx.redbird.db.query.loyaltyAccounts.findMany({
       orderBy: (t, { desc }) => [desc(t.balance)],
       limit: 200,
@@ -45,7 +43,7 @@ export const adminLoyaltyRouter = router({
     return accounts.map((a) => ({ ...a, customer: byId.get(a.customerId) ?? null }))
   }),
 
-  adjust: protectedProcedure
+  adjust: adminProcedure
     .input(
       z.object({
         customerId: z.string().uuid(),
@@ -54,14 +52,12 @@ export const adminLoyaltyRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      if (!ctx.isAdmin) throw new TRPCError({ code: 'FORBIDDEN' })
       return ctx.redbird.loyalty.adjust(input.customerId, input.points, input.description)
     }),
 
-  getAccount: protectedProcedure
+  getAccount: adminProcedure
     .input(z.object({ customerId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      if (!ctx.isAdmin) throw new TRPCError({ code: 'FORBIDDEN' })
       const [balance, txs] = await Promise.all([
         ctx.redbird.loyalty.getBalance(input.customerId),
         ctx.redbird.loyalty.getTransactions(input.customerId, { limit: 50 }),

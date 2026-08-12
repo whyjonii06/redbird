@@ -1,8 +1,15 @@
+import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
-import { publicProcedure, router } from '../trpc.js'
+import { protectedProcedure, router } from '../trpc.js'
 
 export const downloadsRouter = router({
-  forOrder: publicProcedure
+  forOrder: protectedProcedure
     .input(z.object({ orderId: z.string().uuid() }))
-    .query(({ ctx, input }) => ctx.redbird.downloads.getTokensForOrder(input.orderId)),
+    .query(async ({ ctx, input }) => {
+      const order = await ctx.redbird.orders.get(input.orderId)
+      if (!order || order.customerId !== ctx.customerId) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Order not found' })
+      }
+      return ctx.redbird.downloads.getTokensForOrder(input.orderId)
+    }),
 })

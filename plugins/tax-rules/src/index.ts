@@ -48,7 +48,7 @@ export function taxRules(input: TaxRulesConfig) {
     }
 
     const rate = (cls.countryRates ?? {})[cc] ?? cls.defaultRate
-    const taxAmount = Math.floor(subtotalCents * rate)
+    const taxAmount = Math.round(subtotalCents * rate)
 
     return { countryCode: cc, taxClass, rate, taxAmount, exempt: false }
   }

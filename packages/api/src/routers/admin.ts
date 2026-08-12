@@ -1,13 +1,19 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { type FecEntry, generateFec } from '@redbirdshop/core'
+import { carts, storeSettings } from '@redbirdshop/core/schema'
 import { TRPCError } from '@trpc/server'
 import { desc, eq } from 'drizzle-orm'
-import { carts, storeSettings } from '@redbirdshop/core/schema'
 import { z } from 'zod'
-import { type FecEntry, generateFec } from '@redbirdshop/core'
 import { adminProcedure, router } from '../trpc.js'
 
-export type NavItem = { id: string; label: string; type: 'category' | 'page' | 'custom'; value: string; children?: Omit<NavItem, 'children'>[] }
+export type NavItem = {
+  id: string
+  label: string
+  type: 'category' | 'page' | 'custom'
+  value: string
+  children?: Omit<NavItem, 'children'>[]
+}
 // Reviews data layer — loaded lazily so the API can be published without the
 // `@redbird/plugin-reviews` module installed.
 const reviewsPlugin = () => import('@redbird/plugin-reviews')
@@ -50,7 +56,9 @@ export const adminRouter = router({
     get: adminProcedure.query(({ ctx }) => {
       const metaPath = resolve(process.cwd(), 'redbird.meta.json')
       let meta: Record<string, unknown> = {}
-      try { meta = JSON.parse(readFileSync(metaPath, 'utf8')) } catch {}
+      try {
+        meta = JSON.parse(readFileSync(metaPath, 'utf8'))
+      } catch {}
       return {
         storeName: ctx.redbird.config.storeName ?? '',
         defaultCurrency: ctx.redbird.config.defaultCurrency,
@@ -58,21 +66,27 @@ export const adminRouter = router({
         defaultEmailProvider: ctx.redbird.config.defaultEmailProvider ?? null,
         theme: (meta.theme as 'classic' | 'editorial' | 'minimal') ?? 'classic',
         priceDisplay: (meta.priceDisplay as 'incl_tax' | 'excl_tax' | 'none') ?? 'none',
-        branding: (meta.branding as {
-          primaryColor?: string
-          tagline?: string
-          logoUrl?: string
-          bgColor?: string
-          surfaceColor?: string
-          textColor?: string
-          mutedColor?: string
-          borderColor?: string
-          fontHeading?: string
-          fontBody?: string
-          radius?: string
-        } | undefined) ?? {},
-        stockAlertEmail: (meta.stockAlertEmail as string | undefined) ?? ctx.redbird.stockAlertConfig.email ?? '',
-        stockAlertThreshold: (meta.stockAlertThreshold as number | undefined) ?? ctx.redbird.stockAlertConfig.threshold,
+        branding:
+          (meta.branding as
+            | {
+                primaryColor?: string
+                tagline?: string
+                logoUrl?: string
+                bgColor?: string
+                surfaceColor?: string
+                textColor?: string
+                mutedColor?: string
+                borderColor?: string
+                fontHeading?: string
+                fontBody?: string
+                radius?: string
+              }
+            | undefined) ?? {},
+        stockAlertEmail:
+          (meta.stockAlertEmail as string | undefined) ?? ctx.redbird.stockAlertConfig.email ?? '',
+        stockAlertThreshold:
+          (meta.stockAlertThreshold as number | undefined) ??
+          ctx.redbird.stockAlertConfig.threshold,
         licenseKey: (meta.licenseKey as string | undefined) ?? '',
         unsplashAccessKey: process.env.UNSPLASH_ACCESS_KEY ?? '',
         seller:
@@ -83,54 +97,60 @@ export const adminRouter = router({
     }),
 
     update: adminProcedure
-      .input(z.object({
-        theme: z.enum(['classic', 'editorial', 'lookbook', 'minimal']).optional(),
-        priceDisplay: z.enum(['incl_tax', 'excl_tax', 'none']).optional(),
-        storeName: z.string().optional(),
-        branding: z.object({
-          primaryColor: z.string().optional(),
-          tagline: z.string().optional(),
-          logoUrl: z.string().optional(),
-          // Design tokens (no-code theming)
-          bgColor: z.string().optional(),
-          surfaceColor: z.string().optional(),
-          textColor: z.string().optional(),
-          mutedColor: z.string().optional(),
-          borderColor: z.string().optional(),
-          fontHeading: z.string().optional(),
-          fontBody: z.string().optional(),
-          radius: z.string().optional(),
-        }).optional(),
-        stockAlertEmail: z.string().optional(),
-        stockAlertThreshold: z.number().int().min(0).optional(),
-        licenseKey: z.string().optional(),
-        seller: z
-          .object({
-            name: z.string(),
-            address: z.object({
-              line1: z.string(),
-              line2: z.string().optional(),
-              postalCode: z.string(),
-              city: z.string(),
-              countryCode: z.string(),
-            }),
-            vatNumber: z.string().optional(),
-            legalRegistrationId: z.string().optional(),
-            email: z.string().optional(),
-          })
-          .optional(),
-      }))
+      .input(
+        z.object({
+          theme: z.enum(['classic', 'editorial', 'lookbook', 'minimal']).optional(),
+          priceDisplay: z.enum(['incl_tax', 'excl_tax', 'none']).optional(),
+          storeName: z.string().optional(),
+          branding: z
+            .object({
+              primaryColor: z.string().optional(),
+              tagline: z.string().optional(),
+              logoUrl: z.string().optional(),
+              // Design tokens (no-code theming)
+              bgColor: z.string().optional(),
+              surfaceColor: z.string().optional(),
+              textColor: z.string().optional(),
+              mutedColor: z.string().optional(),
+              borderColor: z.string().optional(),
+              fontHeading: z.string().optional(),
+              fontBody: z.string().optional(),
+              radius: z.string().optional(),
+            })
+            .optional(),
+          stockAlertEmail: z.string().optional(),
+          stockAlertThreshold: z.number().int().min(0).optional(),
+          licenseKey: z.string().optional(),
+          seller: z
+            .object({
+              name: z.string(),
+              address: z.object({
+                line1: z.string(),
+                line2: z.string().optional(),
+                postalCode: z.string(),
+                city: z.string(),
+                countryCode: z.string(),
+              }),
+              vatNumber: z.string().optional(),
+              legalRegistrationId: z.string().optional(),
+              email: z.string().optional(),
+            })
+            .optional(),
+        }),
+      )
       .mutation(async ({ ctx, input }) => {
         const metaPath = resolve(process.cwd(), 'redbird.meta.json')
         let current: Record<string, unknown> = {}
-        try { current = JSON.parse(readFileSync(metaPath, 'utf8')) } catch {}
+        try {
+          current = JSON.parse(readFileSync(metaPath, 'utf8'))
+        } catch {}
         const updated = { ...current }
         if (input.theme !== undefined) updated.theme = input.theme
         if (input.priceDisplay !== undefined) updated.priceDisplay = input.priceDisplay
         if (input.storeName !== undefined) updated.storeName = input.storeName
         if (input.seller !== undefined) updated.seller = input.seller
         if (input.branding !== undefined) {
-          updated.branding = { ...(current.branding as object ?? {}), ...input.branding }
+          updated.branding = { ...((current.branding as object) ?? {}), ...input.branding }
         }
         if (input.stockAlertEmail !== undefined) {
           updated.stockAlertEmail = input.stockAlertEmail
@@ -150,13 +170,28 @@ export const adminRouter = router({
         const storeNameChanged = input.storeName !== undefined
         const primaryColorChanged = input.branding?.primaryColor !== undefined
         if (storeNameChanged || primaryColorChanged) {
-          const EMAIL_PLUGIN_NAMES = new Set(['@redbird/plugin-email-resend', '@redbird/plugin-email-smtp', '@redbird/plugin-email-local'])
-          const installed = (updated.installedPlugins ?? []) as Array<{ name: string; config: Record<string, unknown> }>
+          const EMAIL_PLUGIN_NAMES = new Set([
+            '@redbird/plugin-email-resend',
+            '@redbird/plugin-email-smtp',
+            '@redbird/plugin-email-local',
+          ])
+          const installed = (updated.installedPlugins ?? []) as Array<{
+            name: string
+            config: Record<string, unknown>
+          }>
           let dirty = false
           for (const entry of installed) {
             if (!EMAIL_PLUGIN_NAMES.has(entry.name)) continue
-            if (storeNameChanged) { entry.config.storeName = input.storeName; dirty = true }
-            if (primaryColorChanged) { entry.config.primaryColor = (updated.branding as Record<string, unknown>)?.primaryColor; dirty = true }
+            if (storeNameChanged) {
+              entry.config.storeName = input.storeName
+              dirty = true
+            }
+            if (primaryColorChanged) {
+              entry.config.primaryColor = (
+                updated.branding as Record<string, unknown>
+              )?.primaryColor
+              dirty = true
+            }
           }
           if (dirty) writeFileSync(metaPath, JSON.stringify(updated, null, 2))
         }
@@ -233,7 +268,8 @@ export const adminRouter = router({
         revenueChart,
         lowStock,
         lowStockTotal: products.reduce(
-          (n, p) => n + p.variants.filter((v) => (v.stockLevel?.available ?? 0) <= threshold).length,
+          (n, p) =>
+            n + p.variants.filter((v) => (v.stockLevel?.available ?? 0) <= threshold).length,
           0,
         ),
       }
@@ -273,7 +309,9 @@ export const adminRouter = router({
     count: adminProcedure
       .input(
         z
-          .object({ status: z.enum(['pending', 'paid', 'fulfilled', 'cancelled', 'refunded']).optional() })
+          .object({
+            status: z.enum(['pending', 'paid', 'fulfilled', 'cancelled', 'refunded']).optional(),
+          })
           .optional(),
       )
       .query(async ({ ctx, input }) => ctx.redbird.orders.count({ status: input?.status })),
@@ -304,9 +342,7 @@ export const adminRouter = router({
 
     refundPartial: adminProcedure
       .input(z.object({ id: z.string().uuid(), amount: z.number().int().positive() }))
-      .mutation(async ({ ctx, input }) =>
-        ctx.redbird.orders.refundPartial(input.id, input.amount),
-      ),
+      .mutation(async ({ ctx, input }) => ctx.redbird.orders.refundPartial(input.id, input.amount)),
 
     setTracking: adminProcedure
       .input(
@@ -344,7 +380,13 @@ export const adminRouter = router({
 
     count: adminProcedure
       .input(z.object({ status: z.enum(['draft', 'active', 'archived']).optional() }).optional())
-      .query(async ({ ctx, input }) => ctx.redbird.catalog.countProducts({ status: input?.status })),
+      .query(async ({ ctx, input }) =>
+        ctx.redbird.catalog.countProducts({ status: input?.status }),
+      ),
+
+    byId: adminProcedure
+      .input(z.object({ id: z.string().uuid() }))
+      .query(async ({ ctx, input }) => ctx.redbird.catalog.getProductById(input.id)),
 
     create: adminProcedure
       .input(
@@ -447,9 +489,7 @@ export const adminRouter = router({
 
     listRelations: adminProcedure
       .input(z.object({ productId: z.string().uuid() }))
-      .query(async ({ ctx, input }) =>
-        ctx.redbird.catalog.listRelations(input.productId),
-      ),
+      .query(async ({ ctx, input }) => ctx.redbird.catalog.listRelations(input.productId)),
 
     addRelation: adminProcedure
       .input(
@@ -684,13 +724,11 @@ export const adminRouter = router({
         return listAllReviews(ctx.redbird.db)
       }),
 
-    get: adminProcedure
-      .input(z.object({ id: z.string().uuid() }))
-      .query(async ({ ctx, input }) => {
-        const review = await (await reviewsPlugin()).getReview(ctx.redbird.db, input.id)
-        if (!review) throw new TRPCError({ code: 'NOT_FOUND', message: 'Review not found' })
-        return review
-      }),
+    get: adminProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ ctx, input }) => {
+      const review = await (await reviewsPlugin()).getReview(ctx.redbird.db, input.id)
+      if (!review) throw new TRPCError({ code: 'NOT_FOUND', message: 'Review not found' })
+      return review
+    }),
 
     approve: adminProcedure
       .input(z.object({ id: z.string().uuid() }))
@@ -1012,7 +1050,10 @@ export const adminRouter = router({
       .input(
         z.object({
           name: z.string().min(1),
-          slug: z.string().min(1).regex(/^[a-z0-9-]+$/, 'Slug must be lowercase alphanumeric with dashes'),
+          slug: z
+            .string()
+            .min(1)
+            .regex(/^[a-z0-9-]+$/, 'Slug must be lowercase alphanumeric with dashes'),
           description: z.string().optional(),
           logoUrl: z.string().url().optional(),
           websiteUrl: z.string().url().optional(),
@@ -1268,13 +1309,11 @@ export const adminRouter = router({
   customerGroups: router({
     list: adminProcedure.query(({ ctx }) => ctx.redbird.customerGroupsSvc.list()),
 
-    get: adminProcedure
-      .input(z.object({ id: z.string().uuid() }))
-      .query(async ({ ctx, input }) => {
-        const g = await ctx.redbird.customerGroupsSvc.get(input.id)
-        if (!g) throw new TRPCError({ code: 'NOT_FOUND', message: 'Group not found' })
-        return g
-      }),
+    get: adminProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ ctx, input }) => {
+      const g = await ctx.redbird.customerGroupsSvc.get(input.id)
+      if (!g) throw new TRPCError({ code: 'NOT_FOUND', message: 'Group not found' })
+      return g
+    }),
 
     create: adminProcedure
       .input(z.object({ name: z.string().min(1), description: z.string().optional() }))
@@ -1319,9 +1358,7 @@ export const adminRouter = router({
 
     listMembers: adminProcedure
       .input(z.object({ groupId: z.string().uuid() }))
-      .query(({ ctx, input }) =>
-        ctx.redbird.customerGroupsSvc.listMembers(input.groupId),
-      ),
+      .query(({ ctx, input }) => ctx.redbird.customerGroupsSvc.listMembers(input.groupId)),
 
     setPriceRule: adminProcedure
       .input(
@@ -1347,9 +1384,7 @@ export const adminRouter = router({
 
     listPriceRules: adminProcedure
       .input(z.object({ groupId: z.string().uuid() }))
-      .query(({ ctx, input }) =>
-        ctx.redbird.customerGroupsSvc.listPriceRules(input.groupId),
-      ),
+      .query(({ ctx, input }) => ctx.redbird.customerGroupsSvc.listPriceRules(input.groupId)),
   }),
 
   // ---- Plugins ----
@@ -1364,15 +1399,22 @@ export const adminRouter = router({
     listInstalled: adminProcedure.query(() => {
       const metaPath = resolve(process.cwd(), 'redbird.meta.json')
       let meta: Record<string, unknown> = {}
-      try { meta = JSON.parse(readFileSync(metaPath, 'utf8')) } catch {}
-      return (meta.installedPlugins ?? []) as Array<{ name: string; config: Record<string, unknown> }>
+      try {
+        meta = JSON.parse(readFileSync(metaPath, 'utf8'))
+      } catch {}
+      return (meta.installedPlugins ?? []) as Array<{
+        name: string
+        config: Record<string, unknown>
+      }>
     }),
 
     install: adminProcedure
-      .input(z.object({
-        name: z.string().min(1),
-        config: z.record(z.unknown()).optional(),
-      }))
+      .input(
+        z.object({
+          name: z.string().min(1),
+          config: z.record(z.unknown()).optional(),
+        }),
+      )
       .mutation(async ({ input, ctx }) => {
         // Skip if already active in this session
         if (ctx.redbird.plugins.list().some((p) => p.name === input.name)) {
@@ -1395,7 +1437,8 @@ export const adminRouter = router({
           '@redbird/plugin-analytics': 'analytics',
         }
         const factoryName = FACTORY_MAP[input.name]
-        if (!factoryName) throw new TRPCError({ code: 'BAD_REQUEST', message: `Unknown plugin: ${input.name}` })
+        if (!factoryName)
+          throw new TRPCError({ code: 'BAD_REQUEST', message: `Unknown plugin: ${input.name}` })
 
         let mod: Record<string, unknown>
         try {
@@ -1409,7 +1452,10 @@ export const adminRouter = router({
 
         const factory = mod[factoryName]
         if (typeof factory !== 'function') {
-          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: `${input.name} has no export "${factoryName}"` })
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: `${input.name} has no export "${factoryName}"`,
+          })
         }
 
         // Type-coerce port for smtp
@@ -1419,13 +1465,21 @@ export const adminRouter = router({
         }
 
         // Inject store branding into email plugins (storeName, primaryColor)
-        const EMAIL_PLUGINS = new Set(['@redbird/plugin-email-resend', '@redbird/plugin-email-smtp', '@redbird/plugin-email-local'])
+        const EMAIL_PLUGINS = new Set([
+          '@redbird/plugin-email-resend',
+          '@redbird/plugin-email-smtp',
+          '@redbird/plugin-email-local',
+        ])
         if (EMAIL_PLUGINS.has(input.name)) {
           const metaForBranding = resolve(process.cwd(), 'redbird.meta.json')
           let brandingMeta: Record<string, unknown> = {}
-          try { brandingMeta = JSON.parse(readFileSync(metaForBranding, 'utf8')) } catch {}
-          const storeName = (brandingMeta.storeName as string | undefined) ?? ctx.redbird.config.storeName
-          const primaryColor = ((brandingMeta.branding as Record<string, unknown> | undefined)?.primaryColor as string | undefined)
+          try {
+            brandingMeta = JSON.parse(readFileSync(metaForBranding, 'utf8'))
+          } catch {}
+          const storeName =
+            (brandingMeta.storeName as string | undefined) ?? ctx.redbird.config.storeName
+          const primaryColor = (brandingMeta.branding as Record<string, unknown> | undefined)
+            ?.primaryColor as string | undefined
           if (storeName && !cfg.storeName) cfg = { ...cfg, storeName }
           if (primaryColor && !cfg.primaryColor) cfg = { ...cfg, primaryColor }
         }
@@ -1436,8 +1490,13 @@ export const adminRouter = router({
         // Persist to meta.json
         const metaPath = resolve(process.cwd(), 'redbird.meta.json')
         let meta: Record<string, unknown> = {}
-        try { meta = JSON.parse(readFileSync(metaPath, 'utf8')) } catch {}
-        const installed = (meta.installedPlugins ?? []) as Array<{ name: string; config: Record<string, unknown> }>
+        try {
+          meta = JSON.parse(readFileSync(metaPath, 'utf8'))
+        } catch {}
+        const installed = (meta.installedPlugins ?? []) as Array<{
+          name: string
+          config: Record<string, unknown>
+        }>
         const idx = installed.findIndex((p) => p.name === input.name)
         const entry = { name: input.name, config: cfg }
         if (idx >= 0) installed[idx] = entry
@@ -1448,34 +1507,40 @@ export const adminRouter = router({
         return { ok: true }
       }),
 
-    uninstall: adminProcedure
-      .input(z.object({ name: z.string().min(1) }))
-      .mutation(({ input }) => {
-        const metaPath = resolve(process.cwd(), 'redbird.meta.json')
-        let meta: Record<string, unknown> = {}
-        try { meta = JSON.parse(readFileSync(metaPath, 'utf8')) } catch {}
-        const installed = (meta.installedPlugins ?? []) as Array<{ name: string }>
-        meta.installedPlugins = installed.filter((p) => p.name !== input.name)
-        writeFileSync(metaPath, JSON.stringify(meta, null, 2))
-        return { ok: true, restartRequired: true }
-      }),
+    uninstall: adminProcedure.input(z.object({ name: z.string().min(1) })).mutation(({ input }) => {
+      const metaPath = resolve(process.cwd(), 'redbird.meta.json')
+      let meta: Record<string, unknown> = {}
+      try {
+        meta = JSON.parse(readFileSync(metaPath, 'utf8'))
+      } catch {}
+      const installed = (meta.installedPlugins ?? []) as Array<{ name: string }>
+      meta.installedPlugins = installed.filter((p) => p.name !== input.name)
+      writeFileSync(metaPath, JSON.stringify(meta, null, 2))
+      return { ok: true, restartRequired: true }
+    }),
 
     getConfig: adminProcedure.query(() => {
       const metaPath = resolve(process.cwd(), 'redbird.meta.json')
       let meta: Record<string, unknown> = {}
-      try { meta = JSON.parse(readFileSync(metaPath, 'utf8')) } catch {}
+      try {
+        meta = JSON.parse(readFileSync(metaPath, 'utf8'))
+      } catch {}
       return (meta.pluginConfig ?? {}) as Record<string, Record<string, string>>
     }),
 
     saveConfig: adminProcedure
-      .input(z.object({
-        pluginName: z.string().min(1),
-        config: z.record(z.string()),
-      }))
+      .input(
+        z.object({
+          pluginName: z.string().min(1),
+          config: z.record(z.string()),
+        }),
+      )
       .mutation(({ input }) => {
         const metaPath = resolve(process.cwd(), 'redbird.meta.json')
         let meta: Record<string, unknown> = {}
-        try { meta = JSON.parse(readFileSync(metaPath, 'utf8')) } catch {}
+        try {
+          meta = JSON.parse(readFileSync(metaPath, 'utf8'))
+        } catch {}
         const pluginConfig = (meta.pluginConfig ?? {}) as Record<string, Record<string, string>>
         pluginConfig[input.pluginName] = { ...pluginConfig[input.pluginName], ...input.config }
         meta.pluginConfig = pluginConfig
@@ -1492,7 +1557,9 @@ export const adminRouter = router({
     list: adminProcedure.query(() => {
       const metaPath = resolve(process.cwd(), 'redbird.meta.json')
       let meta: Record<string, unknown> = {}
-      try { meta = JSON.parse(readFileSync(metaPath, 'utf8')) } catch {}
+      try {
+        meta = JSON.parse(readFileSync(metaPath, 'utf8'))
+      } catch {}
       return (meta.moduleStates ?? {}) as Record<string, 'active' | 'disabled'>
     }),
 
@@ -1501,7 +1568,9 @@ export const adminRouter = router({
       .mutation(({ input }) => {
         const metaPath = resolve(process.cwd(), 'redbird.meta.json')
         let meta: Record<string, unknown> = {}
-        try { meta = JSON.parse(readFileSync(metaPath, 'utf8')) } catch {}
+        try {
+          meta = JSON.parse(readFileSync(metaPath, 'utf8'))
+        } catch {}
         const states = (meta.moduleStates ?? {}) as Record<string, string>
         states[input.name] = input.state
         meta.moduleStates = states
@@ -1509,22 +1578,22 @@ export const adminRouter = router({
         return { ok: true }
       }),
 
-    uninstall: adminProcedure
-      .input(z.object({ name: z.string().min(1) }))
-      .mutation(({ input }) => {
-        const metaPath = resolve(process.cwd(), 'redbird.meta.json')
-        let meta: Record<string, unknown> = {}
-        try { meta = JSON.parse(readFileSync(metaPath, 'utf8')) } catch {}
-        const states = (meta.moduleStates ?? {}) as Record<string, string>
-        delete states[input.name]
-        meta.moduleStates = states
-        // Also drop any saved per-module config
-        const pluginConfig = (meta.pluginConfig ?? {}) as Record<string, unknown>
-        delete pluginConfig[input.name]
-        meta.pluginConfig = pluginConfig
-        writeFileSync(metaPath, JSON.stringify(meta, null, 2))
-        return { ok: true }
-      }),
+    uninstall: adminProcedure.input(z.object({ name: z.string().min(1) })).mutation(({ input }) => {
+      const metaPath = resolve(process.cwd(), 'redbird.meta.json')
+      let meta: Record<string, unknown> = {}
+      try {
+        meta = JSON.parse(readFileSync(metaPath, 'utf8'))
+      } catch {}
+      const states = (meta.moduleStates ?? {}) as Record<string, string>
+      delete states[input.name]
+      meta.moduleStates = states
+      // Also drop any saved per-module config
+      const pluginConfig = (meta.pluginConfig ?? {}) as Record<string, unknown>
+      delete pluginConfig[input.name]
+      meta.pluginConfig = pluginConfig
+      writeFileSync(metaPath, JSON.stringify(meta, null, 2))
+      return { ok: true }
+    }),
   }),
 
   // ---- Saved theme presets (named design-token snapshots) ----
@@ -1532,7 +1601,9 @@ export const adminRouter = router({
     listPresets: adminProcedure.query(() => {
       const metaPath = resolve(process.cwd(), 'redbird.meta.json')
       let meta: Record<string, unknown> = {}
-      try { meta = JSON.parse(readFileSync(metaPath, 'utf8')) } catch {}
+      try {
+        meta = JSON.parse(readFileSync(metaPath, 'utf8'))
+      } catch {}
       return (meta.themePresets ?? {}) as Record<string, Record<string, string>>
     }),
 
@@ -1541,7 +1612,9 @@ export const adminRouter = router({
       .mutation(({ input }) => {
         const metaPath = resolve(process.cwd(), 'redbird.meta.json')
         let meta: Record<string, unknown> = {}
-        try { meta = JSON.parse(readFileSync(metaPath, 'utf8')) } catch {}
+        try {
+          meta = JSON.parse(readFileSync(metaPath, 'utf8'))
+        } catch {}
         const presets = (meta.themePresets ?? {}) as Record<string, unknown>
         presets[input.name] = input.tokens
         meta.themePresets = presets
@@ -1554,7 +1627,9 @@ export const adminRouter = router({
       .mutation(({ input }) => {
         const metaPath = resolve(process.cwd(), 'redbird.meta.json')
         let meta: Record<string, unknown> = {}
-        try { meta = JSON.parse(readFileSync(metaPath, 'utf8')) } catch {}
+        try {
+          meta = JSON.parse(readFileSync(metaPath, 'utf8'))
+        } catch {}
         const presets = (meta.themePresets ?? {}) as Record<string, unknown>
         delete presets[input.name]
         meta.themePresets = presets
@@ -1571,7 +1646,9 @@ export const adminRouter = router({
     list: adminProcedure.query(() => {
       const metaPath = resolve(process.cwd(), 'redbird.meta.json')
       let meta: Record<string, unknown> = {}
-      try { meta = JSON.parse(readFileSync(metaPath, 'utf8')) } catch {}
+      try {
+        meta = JSON.parse(readFileSync(metaPath, 'utf8'))
+      } catch {}
       const owned = (meta.ownedThemes ?? []) as string[]
       const active = (meta.activeStorefrontTheme as string | undefined) ?? 'classic'
       return {
@@ -1583,39 +1660,39 @@ export const adminRouter = router({
       }
     }),
 
-    purchase: adminProcedure
-      .input(z.object({ id: z.string().min(1) }))
-      .mutation(({ input }) => {
-        const theme = STOREFRONT_THEMES.find((t) => t.id === input.id)
-        if (!theme) throw new TRPCError({ code: 'NOT_FOUND', message: 'Unknown theme' })
-        // NOTE: payment integration is future work — this records ownership so the
-        // download/activate flow can be exercised end-to-end.
-        const metaPath = resolve(process.cwd(), 'redbird.meta.json')
-        let meta: Record<string, unknown> = {}
-        try { meta = JSON.parse(readFileSync(metaPath, 'utf8')) } catch {}
-        const owned = new Set((meta.ownedThemes ?? []) as string[])
-        owned.add(input.id)
-        meta.ownedThemes = [...owned]
-        writeFileSync(metaPath, JSON.stringify(meta, null, 2))
-        return { ok: true }
-      }),
+    purchase: adminProcedure.input(z.object({ id: z.string().min(1) })).mutation(({ input }) => {
+      const theme = STOREFRONT_THEMES.find((t) => t.id === input.id)
+      if (!theme) throw new TRPCError({ code: 'NOT_FOUND', message: 'Unknown theme' })
+      // NOTE: payment integration is future work — this records ownership so the
+      // download/activate flow can be exercised end-to-end.
+      const metaPath = resolve(process.cwd(), 'redbird.meta.json')
+      let meta: Record<string, unknown> = {}
+      try {
+        meta = JSON.parse(readFileSync(metaPath, 'utf8'))
+      } catch {}
+      const owned = new Set((meta.ownedThemes ?? []) as string[])
+      owned.add(input.id)
+      meta.ownedThemes = [...owned]
+      writeFileSync(metaPath, JSON.stringify(meta, null, 2))
+      return { ok: true }
+    }),
 
-    setActive: adminProcedure
-      .input(z.object({ id: z.string().min(1) }))
-      .mutation(({ input }) => {
-        const theme = STOREFRONT_THEMES.find((t) => t.id === input.id)
-        if (!theme) throw new TRPCError({ code: 'NOT_FOUND', message: 'Unknown theme' })
-        const metaPath = resolve(process.cwd(), 'redbird.meta.json')
-        let meta: Record<string, unknown> = {}
-        try { meta = JSON.parse(readFileSync(metaPath, 'utf8')) } catch {}
-        const owned = (meta.ownedThemes ?? []) as string[]
-        if (theme.plan !== 'free' && !owned.includes(theme.id)) {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'Purchase this theme first.' })
-        }
-        meta.activeStorefrontTheme = input.id
-        writeFileSync(metaPath, JSON.stringify(meta, null, 2))
-        return { ok: true }
-      }),
+    setActive: adminProcedure.input(z.object({ id: z.string().min(1) })).mutation(({ input }) => {
+      const theme = STOREFRONT_THEMES.find((t) => t.id === input.id)
+      if (!theme) throw new TRPCError({ code: 'NOT_FOUND', message: 'Unknown theme' })
+      const metaPath = resolve(process.cwd(), 'redbird.meta.json')
+      let meta: Record<string, unknown> = {}
+      try {
+        meta = JSON.parse(readFileSync(metaPath, 'utf8'))
+      } catch {}
+      const owned = (meta.ownedThemes ?? []) as string[]
+      if (theme.plan !== 'free' && !owned.includes(theme.id)) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Purchase this theme first.' })
+      }
+      meta.activeStorefrontTheme = input.id
+      writeFileSync(metaPath, JSON.stringify(meta, null, 2))
+      return { ok: true }
+    }),
   }),
 
   // ---- Local email mailbox ----
@@ -1625,27 +1702,31 @@ export const adminRouter = router({
       return ctx.redbird.localEmails.list().map(({ html: _h, text: _t, ...e }) => e)
     }),
 
-    get: adminProcedure
-      .input(z.object({ id: z.string().uuid() }))
-      .query(({ ctx, input }) => {
-        if (!ctx.redbird.localEmails) throw new TRPCError({ code: 'NOT_FOUND', message: 'Local email plugin not active' })
-        const email = ctx.redbird.localEmails.get(input.id)
-        if (!email) throw new TRPCError({ code: 'NOT_FOUND', message: 'Email not found' })
-        return email
-      }),
+    get: adminProcedure.input(z.object({ id: z.string().uuid() })).query(({ ctx, input }) => {
+      if (!ctx.redbird.localEmails)
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Local email plugin not active' })
+      const email = ctx.redbird.localEmails.get(input.id)
+      if (!email) throw new TRPCError({ code: 'NOT_FOUND', message: 'Email not found' })
+      return email
+    }),
 
     clear: adminProcedure.mutation(({ ctx }) => {
-      if (!ctx.redbird.localEmails) throw new TRPCError({ code: 'NOT_FOUND', message: 'Local email plugin not active' })
+      if (!ctx.redbird.localEmails)
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Local email plugin not active' })
       ctx.redbird.localEmails.clear()
       return { ok: true }
     }),
 
     sendTest: adminProcedure.mutation(async ({ ctx }) => {
       if (!ctx.redbird.localEmails) {
-        throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Email Local plugin not active. Install it from the Marketplace first.' })
+        throw new TRPCError({
+          code: 'PRECONDITION_FAILED',
+          message: 'Email Local plugin not active. Install it from the Marketplace first.',
+        })
       }
       const provider = ctx.redbird.email.default()
-      if (!provider) throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'No email provider active' })
+      if (!provider)
+        throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'No email provider active' })
       const storeName = ctx.redbird.config.storeName ?? 'Redbird Store'
       await provider.send({
         to: 'test@example.com',
@@ -1687,27 +1768,40 @@ export const adminRouter = router({
   // ---- Demo data ----
   navigation: router({
     get: adminProcedure.query(async ({ ctx }) => {
-      const row = await ctx.redbird.db.query.storeSettings.findFirst({ where: eq(storeSettings.key, 'header_nav') })
+      const row = await ctx.redbird.db.query.storeSettings.findFirst({
+        where: eq(storeSettings.key, 'header_nav'),
+      })
       return (row?.value as NavItem[] | null) ?? []
     }),
     set: adminProcedure
-      .input(z.array(z.object({
-        id: z.string(),
-        label: z.string().min(1),
-        type: z.enum(['category', 'page', 'custom']),
-        value: z.string(),
-        children: z.array(z.object({
-          id: z.string(),
-          label: z.string().min(1),
-          type: z.enum(['category', 'page', 'custom']),
-          value: z.string(),
-        })).optional(),
-      })))
+      .input(
+        z.array(
+          z.object({
+            id: z.string(),
+            label: z.string().min(1),
+            type: z.enum(['category', 'page', 'custom']),
+            value: z.string(),
+            children: z
+              .array(
+                z.object({
+                  id: z.string(),
+                  label: z.string().min(1),
+                  type: z.enum(['category', 'page', 'custom']),
+                  value: z.string(),
+                }),
+              )
+              .optional(),
+          }),
+        ),
+      )
       .mutation(async ({ ctx, input }) => {
         await ctx.redbird.db
           .insert(storeSettings)
           .values({ key: 'header_nav', value: input, updatedAt: new Date() })
-          .onConflictDoUpdate({ target: storeSettings.key, set: { value: input, updatedAt: new Date() } })
+          .onConflictDoUpdate({
+            target: storeSettings.key,
+            set: { value: input, updatedAt: new Date() },
+          })
         return { ok: true }
       }),
   }),
