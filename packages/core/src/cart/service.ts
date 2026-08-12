@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 import type { DbClient } from '../db/client.js'
 import {
   type Address,
@@ -29,6 +29,12 @@ export type CartService = {
   get(id: string): Promise<CartWithItems | null>
   /** Associate a guest email with the cart so createFromCart can pick it up automatically. */
   setEmail(cartId: string, email: string): Promise<Cart>
+  /**
+   * Attach a cart started as a guest to a now-authenticated customer, so the resulting
+   * order links to their account (order history, loyalty points). Only claims carts that
+   * aren't already owned — logging in never reassigns someone else's cart.
+   */
+  claim(cartId: string, customerId: string, customerEmail: string): Promise<Cart>
   setShippingAddress(cartId: string, address: Address): Promise<Cart>
   addItem(cartId: string, variantId: string, quantity: number): Promise<CartLineItem>
   removeItem(cartId: string, lineItemId: string): Promise<void>
@@ -100,6 +106,17 @@ export function createCartService(
         .returning()
       if (!cart) throw new Error(`Cart ${cartId} not found`)
       return cart
+    },
+
+    async claim(cartId, customerId, customerEmail) {
+      const [cart] = await db
+        .update(carts)
+        .set({ customerId, customerEmail, updatedAt: new Date() })
+        .where(and(eq(carts.id, cartId), isNull(carts.customerId)))
+        .returning()
+      // Not an error if it's already claimed (e.g. by this same customer on another tab) —
+      // just return the current row.
+      return cart ?? (await loadCartOrThrow(cartId))
     },
 
     async setShippingAddress(cartId, address) {

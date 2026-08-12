@@ -1,7 +1,7 @@
 import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
 import { addressSchema } from '../address-schema.js'
-import { publicProcedure, router } from '../trpc.js'
+import { protectedProcedure, publicProcedure, router } from '../trpc.js'
 
 const cartIdInput = z.object({ cartId: z.string().uuid() })
 
@@ -72,4 +72,11 @@ export const cartRouter = router({
     .mutation(async ({ ctx, input }) => {
       return ctx.redbird.cart.setEmail(input.cartId, input.email)
     }),
+
+  /** Attach a guest cart to the now-authenticated customer, right after login/register. */
+  claim: protectedProcedure.input(cartIdInput).mutation(async ({ ctx, input }) => {
+    const customer = await ctx.redbird.customers.get(ctx.customerId)
+    if (!customer) throw new TRPCError({ code: 'UNAUTHORIZED' })
+    return ctx.redbird.cart.claim(input.cartId, ctx.customerId, customer.email)
+  }),
 })

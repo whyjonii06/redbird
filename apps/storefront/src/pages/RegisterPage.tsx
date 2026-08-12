@@ -1,17 +1,23 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../AuthContext.js'
+import { useCartContext } from '../CartContext.js'
 import { trpc } from '../trpc.js'
 
 export function RegisterPage() {
   const { login } = useAuth()
+  const { cartId } = useCartContext()
   const navigate = useNavigate()
   const [form, setForm] = useState({ email: '', password: '', firstName: '', lastName: '' })
   const [error, setError] = useState('')
 
+  const claimCart = trpc.cart.claim.useMutation()
   const registerMut = trpc.customers.register.useMutation({
     onSuccess({ token, customer }) {
       login(token, customer)
+      // Attach whatever guest cart is in progress so this order counts toward their
+      // account (order history, loyalty points) instead of staying unlinked.
+      if (cartId) claimCart.mutate({ cartId })
       navigate('/account')
     },
     onError(err) {
