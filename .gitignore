@@ -9,6 +9,13 @@ build/
 .turbo/
 *.tsbuildinfo
 
+# Vite app sources are TS/TSX only — a same-named .js next to a .tsx is always a stray
+# compiled artifact (Vite/Node resolve the literal .js before the .tsx sibling, so a
+# stale one silently shadows real source edits).
+apps/marketplace/src/**/*.js
+apps/storefront/src/**/*.js
+apps/backoffice/src/**/*.js
+
 # Test
 coverage/
 .vitest-cache/
