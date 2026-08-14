@@ -1157,6 +1157,21 @@ export const storeSettings = pgTable('store_settings', {
   updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 })
 
+// ---------- Feature flags ----------
+
+export const featureFlags = pgTable('feature_flags', {
+  key: text().primaryKey(),
+  enabled: boolean().notNull().default(false),
+  /** Gradual rollout: 0-100. Only consulted when enabled=true. */
+  rolloutPercent: integer().notNull().default(100),
+  description: text(),
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+})
+
+export type FeatureFlag = typeof featureFlags.$inferSelect
+export type NewFeatureFlag = typeof featureFlags.$inferInsert
+
 export const webhookDeliveriesRelations = relations(webhookDeliveries, ({ one }) => ({
   webhook: one(webhooks, {
     fields: [webhookDeliveries.webhookId],

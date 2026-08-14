@@ -504,7 +504,7 @@ export function createApiServer(opts: ServerOptions) {
       return
     }
 
-    if (url === '/meta.json' && req.method === 'GET') {
+    if (url.split('?')[0] === '/meta.json' && req.method === 'GET') {
       res.setHeader('Access-Control-Allow-Origin', '*')
       const metaPath = resolve(process.cwd(), 'redbird.meta.json')
       let fileMeta: Record<string, unknown> = {}
@@ -512,17 +512,37 @@ export function createApiServer(opts: ServerOptions) {
         if (existsSync(metaPath))
           fileMeta = JSON.parse(readFileSync(metaPath, 'utf8')) as Record<string, unknown>
       } catch {}
-      res.writeHead(200, { 'Content-Type': 'application/json' })
-      res.end(
-        JSON.stringify({
-          storeName,
-          currency: opts.redbird.config.defaultCurrency,
-          stripePublicKey: process.env.STRIPE_PUBLIC_KEY ?? null,
-          theme: 'classic',
-          branding: { primaryColor: '#4f46e5' },
-          ...fileMeta,
-        }),
-      )
+      const anonId = new URL(url, 'http://internal').searchParams.get('anon') ?? 'anonymous'
+      opts.redbird.featureFlags
+        .evaluateAll(anonId)
+        .then((featureFlags) => {
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(
+            JSON.stringify({
+              storeName,
+              currency: opts.redbird.config.defaultCurrency,
+              stripePublicKey: process.env.STRIPE_PUBLIC_KEY ?? null,
+              theme: 'classic',
+              branding: { primaryColor: '#4f46e5' },
+              ...fileMeta,
+              featureFlags,
+            }),
+          )
+        })
+        .catch(() => {
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(
+            JSON.stringify({
+              storeName,
+              currency: opts.redbird.config.defaultCurrency,
+              stripePublicKey: process.env.STRIPE_PUBLIC_KEY ?? null,
+              theme: 'classic',
+              branding: { primaryColor: '#4f46e5' },
+              ...fileMeta,
+              featureFlags: {},
+            }),
+          )
+        })
       return
     }
 

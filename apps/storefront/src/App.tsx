@@ -35,6 +35,11 @@ export function useMeta() {
   return useContext(MetaContext)
 }
 
+/** Reads a feature flag evaluated server-side for this visitor. Unknown/disabled flags are false. */
+export function useFeatureFlag(key: string): boolean {
+  return useContext(MetaContext).featureFlags[key] ?? false
+}
+
 function RedirectCategory() {
   const { slug } = useParams<{ slug: string }>()
   return <Navigate to={`/category/${slug ?? ''}`} replace />

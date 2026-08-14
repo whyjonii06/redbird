@@ -232,6 +232,13 @@
       "when": 1782000700000,
       "tag": "0033_group_price_tiers",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1782000800000,
+      "tag": "0034_feature_flags",
+      "breakpoints": true
     }
   ]
 }

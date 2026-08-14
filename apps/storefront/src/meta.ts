@@ -20,6 +20,8 @@ export type StoreMeta = {
     fontBody?: string
     radius?: string
   }
+  /** Feature flags evaluated for this visitor (stable per anon id — see anonId()). */
+  featureFlags: Record<string, boolean>
 }
 
 export const DEFAULT_META: StoreMeta = {
@@ -29,17 +31,34 @@ export const DEFAULT_META: StoreMeta = {
   theme: 'classic',
   priceDisplay: 'none',
   branding: { primaryColor: '#4f46e5' },
+  featureFlags: {},
+}
+
+/** Stable per-browser id so a partial feature-flag rollout doesn't flicker across page loads. */
+function anonId(): string {
+  try {
+    const key = 'rb_anon_id'
+    let id = localStorage.getItem(key)
+    if (!id) {
+      id = crypto.randomUUID()
+      localStorage.setItem(key, id)
+    }
+    return id
+  } catch {
+    return 'anonymous'
+  }
 }
 
 export async function fetchMeta(): Promise<StoreMeta> {
   try {
-    const res = await fetch('/meta.json')
+    const res = await fetch(`/meta.json?anon=${encodeURIComponent(anonId())}`)
     if (res.ok) {
       const data = (await res.json()) as Partial<StoreMeta>
       return {
         ...DEFAULT_META,
         ...data,
         branding: { ...DEFAULT_META.branding, ...data.branding },
+        featureFlags: { ...DEFAULT_META.featureFlags, ...data.featureFlags },
       }
     }
   } catch {}

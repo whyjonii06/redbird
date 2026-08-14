@@ -11,6 +11,7 @@ import { CustomerDetailPage } from './pages/CustomerDetailPage.js'
 import { CustomerGroupsPage } from './pages/CustomerGroupsPage.js'
 import { CustomersPage } from './pages/CustomersPage.js'
 import { DashboardPage } from './pages/DashboardPage.js'
+import { FeatureFlagsPage } from './pages/FeatureFlagsPage.js'
 import { LoginPage } from './pages/LoginPage.js'
 import { MailboxPage } from './pages/MailboxPage.js'
 import { MarketplacePage } from './pages/MarketplacePage.js'
@@ -63,6 +64,7 @@ export default function App() {
                   <Route path="warehouses" element={<WarehousesPage />} />
                   <Route path="cms" element={<CmsPage />} />
                   <Route path="modules" element={<ModulesPage />} />
+                  <Route path="feature-flags" element={<FeatureFlagsPage />} />
                   <Route path="mailbox" element={<MailboxPage />} />
                   <Route path="marketplace" element={<MarketplacePage />} />
                   <Route path="navigation" element={<NavigationPage />} />

@@ -64,6 +64,7 @@ export type { GiftCardService } from './gift-cards/service.js'
 export type { WebhookService, CreateWebhookInput, UpdateWebhookInput } from './webhooks/service.js'
 export type { BrandService, CreateBrandInput } from './brands/service.js'
 export type { CmsService } from './cms/service.js'
+export type { FeatureFlagService, UpsertFeatureFlagInput } from './feature-flags/service.js'
 export type { SupplierService, CreateSupplierInput, LinkProductInput } from './suppliers/service.js'
 export type { DownloadService } from './downloads/service.js'
 
@@ -140,6 +141,8 @@ export type {
   // Translations
   CategoryTranslation,
   CmsTranslation,
+  // Feature flags
+  FeatureFlag,
 } from './db/schema.js'
 export type { CategoryWithTranslations } from './catalog/categories.js'
 export type { CmsPageWithTranslations } from './cms/service.js'

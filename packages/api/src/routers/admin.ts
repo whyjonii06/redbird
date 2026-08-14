@@ -464,6 +464,44 @@ export const adminRouter = router({
       }),
   }),
 
+  // ---- Feature flags ----
+  featureFlags: router({
+    list: adminProcedure.query(({ ctx }) => ctx.redbird.featureFlags.list()),
+
+    upsert: adminProcedure
+      .input(
+        z.object({
+          key: z
+            .string()
+            .min(1)
+            .max(100)
+            .regex(/^[a-z0-9][a-z0-9_-]*$/, 'lowercase letters, numbers, - and _ only'),
+          enabled: z.boolean(),
+          rolloutPercent: z.number().int().min(0).max(100).default(100),
+          description: z.string().max(500).optional(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        const row = await ctx.redbird.featureFlags.upsert(input.key, {
+          enabled: input.enabled,
+          rolloutPercent: input.rolloutPercent,
+          description: input.description,
+        })
+        await writeAudit(ctx, 'feature_flag.upsert', 'feature_flag', input.key, {
+          enabled: input.enabled,
+          rolloutPercent: input.rolloutPercent,
+        })
+        return row
+      }),
+
+    delete: adminProcedure
+      .input(z.object({ key: z.string().min(1) }))
+      .mutation(async ({ ctx, input }) => {
+        await ctx.redbird.featureFlags.delete(input.key)
+        await writeAudit(ctx, 'feature_flag.delete', 'feature_flag', input.key)
+      }),
+  }),
+
   // ---- Orders ----
   orders: router({
     list: staffProcedure

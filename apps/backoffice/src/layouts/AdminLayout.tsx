@@ -57,6 +57,7 @@ const navGroups: NavGroup[] = [
       { to: '/staff', label: 'Staff' },
       { to: '/audit-log', label: 'Audit log' },
       { to: '/modules', label: 'Modules' },
+      { to: '/feature-flags', label: 'Feature flags' },
       { to: '/mailbox', label: 'Mailbox' },
       { to: '/settings', label: 'Settings' },
     ],

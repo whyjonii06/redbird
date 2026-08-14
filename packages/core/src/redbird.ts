@@ -21,6 +21,7 @@ import { productVariants } from './db/schema.js'
 import { type DownloadService, createDownloadService } from './downloads/service.js'
 import { EmailRegistry } from './email/registry.js'
 import type { EmailProvider, LocalEmailStore } from './email/types.js'
+import { type FeatureFlagService, createFeatureFlagService } from './feature-flags/service.js'
 import { type GiftCardService, createGiftCardService } from './gift-cards/service.js'
 import { type CategoryI18nService, createCategoryI18nService } from './i18n/category-service.js'
 import { type CmsI18nService, createCmsI18nService } from './i18n/cms-service.js'
@@ -87,6 +88,7 @@ export type Redbird = {
   readonly webhooks: WebhookService
   readonly productFeatures: ProductFeatureService
   readonly customerGroupsSvc: CustomerGroupService
+  readonly featureFlags: FeatureFlagService
   readonly localEmails: LocalEmailStore | null
   /** Mutable at runtime — admin.config.update can change these without a server restart. */
   readonly stockAlertConfig: { email: string | undefined; threshold: number }
@@ -216,6 +218,7 @@ export function createRedbird(config: RedbirdConfig): Redbird {
   const categorySvc = createCategoryService(db, plugins)
   const imageSvc = createImageService(db)
   const customerGroupSvc = createCustomerGroupService(db)
+  const featureFlagSvc = createFeatureFlagService(db)
   const cart = createCartService(db, plugins, stockSvc, currencySvc, customerGroupSvc)
   const orderSvc = createOrderService(db, plugins, stockSvc, payments)
   const customerSvc = createCustomerService(db)
@@ -349,6 +352,7 @@ export function createRedbird(config: RedbirdConfig): Redbird {
     webhooks: webhookSvc,
     productFeatures: productFeatureSvc,
     customerGroupsSvc: customerGroupSvc,
+    featureFlags: featureFlagSvc,
     get localEmails() {
       return localEmailStore
     },
