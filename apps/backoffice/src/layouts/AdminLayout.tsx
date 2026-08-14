@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useState } from 'react'
 import { Link, NavLink, Navigate, Outlet, useNavigate } from 'react-router-dom'
 import { clearSession, getAdminKey, getStaffRole, getStaffToken } from '../auth.js'
@@ -110,6 +111,7 @@ function loadExpanded(): Record<string, boolean> {
 
 export function AdminLayout() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { t, locale, setLocale } = useI18n()
   const navLabel = (label: string) => {
     const v = t(`nav.${label}`)
@@ -161,6 +163,7 @@ export function AdminLayout() {
 
   function logout() {
     clearSession()
+    queryClient.clear()
     navigate('/login', { replace: true })
   }
 

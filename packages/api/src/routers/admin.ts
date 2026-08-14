@@ -5,7 +5,7 @@ import { carts, storeSettings } from '@redbirdshop/core/schema'
 import { TRPCError } from '@trpc/server'
 import { desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
-import { adminProcedure, router } from '../trpc.js'
+import { adminProcedure, router, staffProcedure, warehouseProcedure } from '../trpc.js'
 
 export type NavItem = {
   id: string
@@ -278,7 +278,7 @@ export const adminRouter = router({
 
   // ---- Orders ----
   orders: router({
-    list: adminProcedure
+    list: staffProcedure
       .input(
         z
           .object({
@@ -306,7 +306,7 @@ export const adminRouter = router({
         })
       }),
 
-    count: adminProcedure
+    count: staffProcedure
       .input(
         z
           .object({
@@ -316,7 +316,7 @@ export const adminRouter = router({
       )
       .query(async ({ ctx, input }) => ctx.redbird.orders.count({ status: input?.status })),
 
-    byId: adminProcedure
+    byId: staffProcedure
       .input(z.object({ id: z.string().uuid() }))
       .query(async ({ ctx, input }) => {
         const order = await ctx.redbird.orders.get(input.id)
@@ -324,27 +324,27 @@ export const adminRouter = router({
         return order
       }),
 
-    markPaid: adminProcedure
+    markPaid: warehouseProcedure
       .input(z.object({ id: z.string().uuid() }))
       .mutation(async ({ ctx, input }) => ctx.redbird.orders.markPaid(input.id)),
 
-    markFulfilled: adminProcedure
+    markFulfilled: warehouseProcedure
       .input(z.object({ id: z.string().uuid() }))
       .mutation(async ({ ctx, input }) => ctx.redbird.orders.markFulfilled(input.id)),
 
-    cancel: adminProcedure
+    cancel: warehouseProcedure
       .input(z.object({ id: z.string().uuid() }))
       .mutation(async ({ ctx, input }) => ctx.redbird.orders.cancel(input.id)),
 
-    refund: adminProcedure
+    refund: warehouseProcedure
       .input(z.object({ id: z.string().uuid() }))
       .mutation(async ({ ctx, input }) => ctx.redbird.orders.refund(input.id)),
 
-    refundPartial: adminProcedure
+    refundPartial: warehouseProcedure
       .input(z.object({ id: z.string().uuid(), amount: z.number().int().positive() }))
       .mutation(async ({ ctx, input }) => ctx.redbird.orders.refundPartial(input.id, input.amount)),
 
-    setTracking: adminProcedure
+    setTracking: warehouseProcedure
       .input(
         z.object({
           id: z.string().uuid(),
@@ -605,7 +605,7 @@ export const adminRouter = router({
 
   // ---- Customers ----
   customers: router({
-    get: adminProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ ctx, input }) => {
+    get: staffProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ ctx, input }) => {
       const customer = await ctx.redbird.db.query.customers.findFirst({
         where: (c, { eq }) => eq(c.id, input.id),
         columns: { passwordHash: false },
@@ -615,7 +615,7 @@ export const adminRouter = router({
       return { ...customer, orders: customerOrders }
     }),
 
-    list: adminProcedure
+    list: staffProcedure
       .input(
         z
           .object({
@@ -745,7 +745,7 @@ export const adminRouter = router({
 
   // ---- Return requests ----
   returns: router({
-    list: adminProcedure
+    list: warehouseProcedure
       .input(
         z.object({ status: z.enum(['pending', 'approved', 'rejected']).optional() }).optional(),
       )
@@ -755,7 +755,7 @@ export const adminRouter = router({
         return ctx.redbird.returns.list(opts)
       }),
 
-    approve: adminProcedure
+    approve: warehouseProcedure
       .input(z.object({ id: z.string().uuid(), adminNote: z.string().optional() }))
       .mutation(async ({ ctx, input }) => {
         const req = await ctx.redbird.returns.approve(input.id, input.adminNote)
@@ -765,29 +765,29 @@ export const adminRouter = router({
         return req
       }),
 
-    reject: adminProcedure
+    reject: warehouseProcedure
       .input(z.object({ id: z.string().uuid(), adminNote: z.string().optional() }))
       .mutation(async ({ ctx, input }) => ctx.redbird.returns.reject(input.id, input.adminNote)),
   }),
 
   // ---- Stock management ----
   stock: router({
-    get: adminProcedure
+    get: warehouseProcedure
       .input(z.object({ variantId: z.string().uuid() }))
       .query(async ({ ctx, input }) => ctx.redbird.stock.get(input.variantId)),
 
-    set: adminProcedure
+    set: warehouseProcedure
       .input(z.object({ variantId: z.string().uuid(), quantity: z.number().int().min(0) }))
       .mutation(async ({ ctx, input }) => ctx.redbird.stock.set(input.variantId, input.quantity)),
 
-    adjust: adminProcedure
+    adjust: warehouseProcedure
       .input(z.object({ variantId: z.string().uuid(), delta: z.number().int() }))
       .mutation(async ({ ctx, input }) => ctx.redbird.stock.adjust(input.variantId, input.delta)),
   }),
 
   // ---- Order notes ----
   orderNotes: router({
-    add: adminProcedure
+    add: staffProcedure
       .input(z.object({ orderId: z.string().uuid(), note: z.string().min(1) }))
       .mutation(async ({ ctx, input }) => ctx.redbird.orders.addNote(input.orderId, input.note)),
   }),

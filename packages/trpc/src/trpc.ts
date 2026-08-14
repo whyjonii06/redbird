@@ -57,6 +57,16 @@ const isAdmin = t.middleware(({ ctx, next }) => {
 
 export const adminProcedure = t.procedure.use(isAdmin)
 
+/** Owner staff role OR master admin key — for staff management itself */
+const isOwner = t.middleware(({ ctx, next }) => {
+  if (!ctx.isAdmin && ctx.staffRole !== 'owner') {
+    throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Owner access required' })
+  }
+  return next()
+})
+
+export const ownerProcedure = t.procedure.use(isOwner)
+
 /** Warehouse staff role or higher OR master admin key */
 const isWarehouse = t.middleware(({ ctx, next }) => {
   const roles = ['owner', 'admin', 'warehouse'] as const

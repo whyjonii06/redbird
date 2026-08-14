@@ -1,7 +1,7 @@
 import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
 import { signStaffToken } from '../auth.js'
-import { adminProcedure, authLimitedProcedure, router, staffProcedure } from '../trpc.js'
+import { authLimitedProcedure, ownerProcedure, router, staffProcedure } from '../trpc.js'
 
 const roleEnum = z.enum(['owner', 'admin', 'warehouse', 'support'])
 
@@ -24,11 +24,11 @@ export const staffRouter = router({
     return member
   }),
 
-  /** List all staff — admin only */
-  list: adminProcedure.query(async ({ ctx }) => ctx.redbird.staff.list()),
+  /** List all staff — owner only */
+  list: ownerProcedure.query(async ({ ctx }) => ctx.redbird.staff.list()),
 
-  /** Create a staff member — admin only */
-  create: adminProcedure
+  /** Create a staff member — owner only */
+  create: ownerProcedure
     .input(
       z.object({
         email: z.string().email(),
@@ -48,8 +48,8 @@ export const staffRouter = router({
       }
     }),
 
-  /** Update role or active status — admin only */
-  update: adminProcedure
+  /** Update role or active status — owner only */
+  update: ownerProcedure
     .input(
       z.object({
         id: z.string().uuid(),
@@ -65,7 +65,7 @@ export const staffRouter = router({
     }),
 
   /** Delete a staff member permanently — owner only */
-  delete: adminProcedure
+  delete: ownerProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.redbird.staff.delete(input.id)

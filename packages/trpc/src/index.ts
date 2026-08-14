@@ -6,6 +6,7 @@ export {
   protectedProcedure,
   staffProcedure,
   adminProcedure,
+  ownerProcedure,
   warehouseProcedure,
   authLimitedProcedure,
   registerLimitedProcedure,
