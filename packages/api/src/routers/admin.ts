@@ -5,7 +5,14 @@ import { carts, storeSettings } from '@redbirdshop/core/schema'
 import { TRPCError } from '@trpc/server'
 import { desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
-import { adminProcedure, router, staffProcedure, warehouseProcedure } from '../trpc.js'
+import { writeAudit } from '../audit.js'
+import {
+  adminProcedure,
+  ownerProcedure,
+  router,
+  staffProcedure,
+  warehouseProcedure,
+} from '../trpc.js'
 
 export type NavItem = {
   id: string
@@ -334,15 +341,27 @@ export const adminRouter = router({
 
     cancel: warehouseProcedure
       .input(z.object({ id: z.string().uuid() }))
-      .mutation(async ({ ctx, input }) => ctx.redbird.orders.cancel(input.id)),
+      .mutation(async ({ ctx, input }) => {
+        const order = await ctx.redbird.orders.cancel(input.id)
+        await writeAudit(ctx, 'order.cancel', 'order', input.id)
+        return order
+      }),
 
     refund: warehouseProcedure
       .input(z.object({ id: z.string().uuid() }))
-      .mutation(async ({ ctx, input }) => ctx.redbird.orders.refund(input.id)),
+      .mutation(async ({ ctx, input }) => {
+        const order = await ctx.redbird.orders.refund(input.id)
+        await writeAudit(ctx, 'order.refund', 'order', input.id, { amount: order.totalAmount })
+        return order
+      }),
 
     refundPartial: warehouseProcedure
       .input(z.object({ id: z.string().uuid(), amount: z.number().int().positive() }))
-      .mutation(async ({ ctx, input }) => ctx.redbird.orders.refundPartial(input.id, input.amount)),
+      .mutation(async ({ ctx, input }) => {
+        const order = await ctx.redbird.orders.refundPartial(input.id, input.amount)
+        await writeAudit(ctx, 'order.refund_partial', 'order', input.id, { amount: input.amount })
+        return order
+      }),
 
     setTracking: warehouseProcedure
       .input(
@@ -762,12 +781,19 @@ export const adminRouter = router({
         try {
           await ctx.redbird.orders.refund(req.orderId)
         } catch {}
+        await writeAudit(ctx, 'return.approve', 'return_request', input.id, {
+          orderId: req.orderId,
+        })
         return req
       }),
 
     reject: warehouseProcedure
       .input(z.object({ id: z.string().uuid(), adminNote: z.string().optional() }))
-      .mutation(async ({ ctx, input }) => ctx.redbird.returns.reject(input.id, input.adminNote)),
+      .mutation(async ({ ctx, input }) => {
+        const req = await ctx.redbird.returns.reject(input.id, input.adminNote)
+        await writeAudit(ctx, 'return.reject', 'return_request', input.id)
+        return req
+      }),
   }),
 
   // ---- Stock management ----
@@ -1855,5 +1881,31 @@ export const adminRouter = router({
     const { seedDemoData } = await import('../seed.js')
     await seedDemoData(ctx.redbird, ctx.redbird.config.defaultCurrency)
     return { ok: true }
+  }),
+
+  // ---- Audit log — owner only, this is who-did-what-to-whom ----
+  auditLog: router({
+    list: ownerProcedure
+      .input(
+        z
+          .object({
+            entityType: z.string().optional(),
+            entityId: z.string().optional(),
+            action: z.string().optional(),
+            before: z.string().datetime().optional(),
+            limit: z.number().int().min(1).max(200).default(50),
+          })
+          .optional(),
+      )
+      .query(async ({ ctx, input }) => {
+        const opts: Parameters<typeof ctx.redbird.auditLog.list>[0] = {
+          limit: input?.limit ?? 50,
+        }
+        if (input?.entityType) opts.entityType = input.entityType
+        if (input?.entityId) opts.entityId = input.entityId
+        if (input?.action) opts.action = input.action
+        if (input?.before) opts.before = new Date(input.before)
+        return ctx.redbird.auditLog.list(opts)
+      }),
   }),
 })

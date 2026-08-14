@@ -1,5 +1,6 @@
 import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
+import { writeAudit } from '../audit.js'
 import { signStaffToken } from '../auth.js'
 import { authLimitedProcedure, ownerProcedure, router, staffProcedure } from '../trpc.js'
 
@@ -40,7 +41,12 @@ export const staffRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       try {
-        return await ctx.redbird.staff.create(input)
+        const member = await ctx.redbird.staff.create(input)
+        await writeAudit(ctx, 'staff.create', 'staff', member.id, {
+          email: member.email,
+          role: member.role,
+        })
+        return member
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Failed to create staff'
         if (msg.includes('already exists')) throw new TRPCError({ code: 'CONFLICT', message: msg })
@@ -61,14 +67,21 @@ export const staffRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input
-      return ctx.redbird.staff.update(id, data)
+      const member = await ctx.redbird.staff.update(id, data)
+      await writeAudit(ctx, 'staff.update', 'staff', id, data)
+      return member
     }),
 
   /** Delete a staff member permanently — owner only */
   delete: ownerProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
+      const member = await ctx.redbird.staff.get(input.id)
       await ctx.redbird.staff.delete(input.id)
+      await writeAudit(ctx, 'staff.delete', 'staff', input.id, {
+        email: member?.email,
+        role: member?.role,
+      })
       return { ok: true }
     }),
 })

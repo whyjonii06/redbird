@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm'
 import { type AbandonedCartService, createAbandonedCartService } from './abandoned-cart/service.js'
 import { type AddressService, createAddressService } from './addresses/service.js'
 import { type AttributeService, createAttributeService } from './attributes/service.js'
+import { type AuditLogService, createAuditLogService } from './audit-log/service.js'
 import { type BrandService, createBrandService } from './brands/service.js'
 import { type CartService, createCartService } from './cart/service.js'
 import { type CategoryService, createCategoryService } from './catalog/categories.js'
@@ -62,6 +63,7 @@ export type Redbird = {
   readonly abandonedCart: AbandonedCartService
   readonly staff: StaffService
   readonly attributes: AttributeService
+  readonly auditLog: AuditLogService
   readonly cms: CmsService
   readonly themeSections: ThemeSectionService
   readonly addresses: AddressService
@@ -169,6 +171,7 @@ export function createRedbird(config: RedbirdConfig): Redbird {
   const abandonedCartSvc = createAbandonedCartService(db, email)
   const staffSvc = createStaffService(db)
   const attributeSvc = createAttributeService(db)
+  const auditLogSvc = createAuditLogService(db)
   const cmsSvc = createCmsService(db)
   const themeSectionSvc = createThemeSectionService(db)
   const catalog = createCatalogService(db, plugins)
@@ -290,6 +293,7 @@ export function createRedbird(config: RedbirdConfig): Redbird {
     abandonedCart: abandonedCartSvc,
     staff: staffSvc,
     attributes: attributeSvc,
+    auditLog: auditLogSvc,
     cms: cmsSvc,
     themeSections: themeSectionSvc,
     addresses: addressSvc,

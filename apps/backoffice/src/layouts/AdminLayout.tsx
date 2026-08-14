@@ -52,6 +52,7 @@ const navGroups: NavGroup[] = [
     label: 'System',
     items: [
       { to: '/staff', label: 'Staff' },
+      { to: '/audit-log', label: 'Audit log' },
       { to: '/modules', label: 'Modules' },
       { to: '/mailbox', label: 'Mailbox' },
       { to: '/settings', label: 'Settings' },

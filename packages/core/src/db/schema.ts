@@ -1098,3 +1098,42 @@ export const webhookDeliveriesRelations = relations(webhookDeliveries, ({ one })
 export type Webhook = typeof webhooks.$inferSelect
 export type NewWebhook = typeof webhooks.$inferInsert
 export type WebhookDelivery = typeof webhookDeliveries.$inferSelect
+
+// ---------- Audit Log ----------
+
+/**
+ * Who performed the action. 'admin' is the master x-admin-key (no staff row),
+ * 'staff' is a row in `staff` (actorId set), 'system' is server-initiated
+ * (webhook retries, scheduled jobs) with no human actor.
+ */
+export const auditActorType = pgEnum('audit_actor_type', ['admin', 'staff', 'system'])
+
+export const auditLogs = pgTable(
+  'audit_logs',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    actorType: auditActorType().notNull(),
+    /** References staff.id when actorType = 'staff'; null otherwise. Not a FK
+     * so the log entry survives staff deletion — actorLabel keeps it readable. */
+    actorId: uuid(),
+    /** Snapshot of the actor's email/role at the time, so the entry stays
+     * meaningful even after the staff row is edited or deleted. */
+    actorLabel: text().notNull(),
+    /** Dot-namespaced action, e.g. "order.refund", "staff.delete". */
+    action: text().notNull(),
+    entityType: text().notNull(),
+    entityId: text(),
+    /** Free-form context (amounts, previous/new values, reasons). */
+    metadata: jsonb(),
+    ip: text(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('audit_logs_created_at_idx').on(t.createdAt),
+    index('audit_logs_entity_idx').on(t.entityType, t.entityId),
+    index('audit_logs_action_idx').on(t.action),
+  ],
+)
+
+export type AuditLog = typeof auditLogs.$inferSelect
+export type NewAuditLog = typeof auditLogs.$inferInsert

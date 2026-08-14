@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Suspense, useEffect, useState } from 'react'
 import { BrowserRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { AdminLayout } from './layouts/AdminLayout.js'
+import { AuditLogPage } from './pages/AuditLogPage.js'
 import { moduleRoutes } from './modules/registry.js'
 import { CategoriesPage } from './pages/CategoriesPage.js'
 import { CmsPage } from './pages/CmsPage.js'
@@ -53,6 +54,7 @@ export default function App() {
                 <Route path="promos" element={<PromosPage />} />
                 <Route path="returns" element={<ReturnsPage />} />
                 <Route path="staff" element={<StaffPage />} />
+                <Route path="audit-log" element={<AuditLogPage />} />
                 <Route path="categories" element={<CategoriesPage />} />
                 <Route path="cms" element={<CmsPage />} />
                 <Route path="modules" element={<ModulesPage />} />
