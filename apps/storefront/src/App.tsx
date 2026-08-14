@@ -27,6 +27,7 @@ import { ProductsPage } from './pages/ProductsPage.js'
 import { RegisterPage } from './pages/RegisterPage.js'
 import { ResetPasswordPage } from './pages/ResetPasswordPage.js'
 import { SearchPage } from './pages/SearchPage.js'
+import { UnsubscribePage } from './pages/UnsubscribePage.js'
 import { WishlistPage } from './pages/WishlistPage.js'
 import { makeTRPCClient, trpc } from './trpc.js'
 
@@ -87,6 +88,7 @@ export default function App() {
                             <Route path="/invoice/:number" element={<InvoicePage />} />
                             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                             <Route path="/reset-password" element={<ResetPasswordPage />} />
+                            <Route path="/unsubscribe" element={<UnsubscribePage />} />
                             <Route path="/category/:slug" element={<CategoryPage />} />
                             <Route path="/categories/:slug" element={<RedirectCategory />} />
                             <Route path="/pages/:slug" element={<CmsPageView />} />

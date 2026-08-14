@@ -65,6 +65,12 @@ export type { WebhookService, CreateWebhookInput, UpdateWebhookInput } from './w
 export type { BrandService, CreateBrandInput } from './brands/service.js'
 export type { CmsService } from './cms/service.js'
 export type { FeatureFlagService, UpsertFeatureFlagInput } from './feature-flags/service.js'
+export type {
+  CampaignService,
+  CampaignWithRecipientCounts,
+  CreateCampaignInput,
+  SendCampaignResult,
+} from './campaigns/service.js'
 export type { SupplierService, CreateSupplierInput, LinkProductInput } from './suppliers/service.js'
 export type { DownloadService } from './downloads/service.js'
 
@@ -143,6 +149,9 @@ export type {
   CmsTranslation,
   // Feature flags
   FeatureFlag,
+  // Email campaigns
+  Campaign,
+  CampaignRecipient,
 } from './db/schema.js'
 export type { CategoryWithTranslations } from './catalog/categories.js'
 export type { CmsPageWithTranslations } from './cms/service.js'

@@ -502,6 +502,56 @@ export const adminRouter = router({
       }),
   }),
 
+  // ---- Email campaigns ----
+  campaigns: router({
+    list: adminProcedure.query(({ ctx }) => ctx.redbird.campaigns.list()),
+
+    get: adminProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ ctx, input }) => {
+      const campaign = await ctx.redbird.campaigns.get(input.id)
+      if (!campaign) throw new TRPCError({ code: 'NOT_FOUND', message: 'Campaign not found' })
+      return campaign
+    }),
+
+    create: adminProcedure
+      .input(
+        z.object({
+          subject: z.string().min(1).max(300),
+          html: z.string().min(1),
+          audienceGroupId: z.string().uuid().optional(),
+        }),
+      )
+      .mutation(({ ctx, input }) => ctx.redbird.campaigns.create(input)),
+
+    update: adminProcedure
+      .input(
+        z.object({
+          id: z.string().uuid(),
+          subject: z.string().min(1).max(300),
+          html: z.string().min(1),
+          audienceGroupId: z.string().uuid().optional(),
+        }),
+      )
+      .mutation(({ ctx, input }) => ctx.redbird.campaigns.update(input.id, input)),
+
+    delete: adminProcedure
+      .input(z.object({ id: z.string().uuid() }))
+      .mutation(({ ctx, input }) => ctx.redbird.campaigns.delete(input.id)),
+
+    estimateAudience: adminProcedure
+      .input(z.object({ audienceGroupId: z.string().uuid().optional() }))
+      .query(({ ctx, input }) => ctx.redbird.campaigns.estimateAudience(input.audienceGroupId)),
+
+    send: adminProcedure
+      .input(z.object({ id: z.string().uuid() }))
+      .mutation(async ({ ctx, input }) => {
+        const result = await ctx.redbird.campaigns.send(input.id, {
+          unsubscribeBaseUrl: ctx.redbird.config.storefrontUrl,
+        })
+        await writeAudit(ctx, 'campaign.send', 'campaign', input.id, result)
+        return result
+      }),
+  }),
+
   // ---- Orders ----
   orders: router({
     list: staffProcedure

@@ -4,6 +4,7 @@ import { type AddressService, createAddressService } from './addresses/service.j
 import { type AttributeService, createAttributeService } from './attributes/service.js'
 import { type AuditLogService, createAuditLogService } from './audit-log/service.js'
 import { type BrandService, createBrandService } from './brands/service.js'
+import { type CampaignService, createCampaignService } from './campaigns/service.js'
 import { type CartService, createCartService } from './cart/service.js'
 import { type CategoryService, createCategoryService } from './catalog/categories.js'
 import { type ProductFeatureService, createProductFeatureService } from './catalog/features.js'
@@ -89,6 +90,7 @@ export type Redbird = {
   readonly productFeatures: ProductFeatureService
   readonly customerGroupsSvc: CustomerGroupService
   readonly featureFlags: FeatureFlagService
+  readonly campaigns: CampaignService
   readonly localEmails: LocalEmailStore | null
   /** Mutable at runtime — admin.config.update can change these without a server restart. */
   readonly stockAlertConfig: { email: string | undefined; threshold: number }
@@ -219,6 +221,7 @@ export function createRedbird(config: RedbirdConfig): Redbird {
   const imageSvc = createImageService(db)
   const customerGroupSvc = createCustomerGroupService(db)
   const featureFlagSvc = createFeatureFlagService(db)
+  const campaignSvc = createCampaignService(db, email)
   const cart = createCartService(db, plugins, stockSvc, currencySvc, customerGroupSvc)
   const orderSvc = createOrderService(db, plugins, stockSvc, payments)
   const customerSvc = createCustomerService(db)
@@ -353,6 +356,7 @@ export function createRedbird(config: RedbirdConfig): Redbird {
     productFeatures: productFeatureSvc,
     customerGroupsSvc: customerGroupSvc,
     featureFlags: featureFlagSvc,
+    campaigns: campaignSvc,
     get localEmails() {
       return localEmailStore
     },

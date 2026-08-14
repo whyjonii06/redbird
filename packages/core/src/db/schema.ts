@@ -26,10 +26,17 @@ export const customers = pgTable(
     passwordHash: text().notNull(),
     resetToken: text(),
     resetTokenExpiresAt: timestamp({ withTimezone: true }),
+    /** Opt-in only — required before any marketing campaign email can be sent to them. */
+    marketingOptIn: boolean().notNull().default(false),
+    /** One-click unsubscribe link token. Generated lazily on first campaign send. */
+    unsubscribeToken: text(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex('customers_email_idx').on(t.email)],
+  (t) => [
+    uniqueIndex('customers_email_idx').on(t.email),
+    uniqueIndex('customers_unsubscribe_token_idx').on(t.unsubscribeToken),
+  ],
 )
 
 // ---------- Products ----------
@@ -587,7 +594,10 @@ export const orderLineItemsRelations = relations(orderLineItems, ({ one }) => ({
 
 export type Customer = typeof customers.$inferSelect
 export type NewCustomer = typeof customers.$inferInsert
-export type PublicCustomer = Omit<Customer, 'passwordHash' | 'resetToken' | 'resetTokenExpiresAt'>
+export type PublicCustomer = Omit<
+  Customer,
+  'passwordHash' | 'resetToken' | 'resetTokenExpiresAt' | 'unsubscribeToken'
+>
 
 export type Product = typeof products.$inferSelect
 export type NewProduct = typeof products.$inferInsert
@@ -1314,4 +1324,64 @@ export const cmsPagesRelations = relations(cmsPages, ({ many }) => ({
 
 export const cmsTranslationsRelations = relations(cmsTranslations, ({ one }) => ({
   page: one(cmsPages, { fields: [cmsTranslations.pageId], references: [cmsPages.id] }),
+}))
+
+// ---------- Email campaigns ----------
+
+export const campaignStatus = pgEnum('campaign_status', ['draft', 'sending', 'sent'])
+export const campaignRecipientStatus = pgEnum('campaign_recipient_status', [
+  'pending',
+  'sent',
+  'failed',
+])
+
+export const campaigns = pgTable('campaigns', {
+  id: uuid().primaryKey().defaultRandom(),
+  subject: text().notNull(),
+  html: text().notNull(),
+  status: campaignStatus().notNull().default('draft'),
+  /** null = every opted-in customer; otherwise scoped to one customer group's members. */
+  audienceGroupId: uuid().references(() => customerGroups.id, { onDelete: 'set null' }),
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  sentAt: timestamp({ withTimezone: true }),
+})
+
+export const campaignRecipients = pgTable(
+  'campaign_recipients',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    campaignId: uuid()
+      .notNull()
+      .references(() => campaigns.id, { onDelete: 'cascade' }),
+    customerId: uuid()
+      .notNull()
+      .references(() => customers.id, { onDelete: 'cascade' }),
+    /** Snapshot at send time — stays correct even if the customer's email later changes. */
+    email: text().notNull(),
+    status: campaignRecipientStatus().notNull().default('pending'),
+    error: text(),
+    sentAt: timestamp({ withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex('campaign_recipients_campaign_customer_idx').on(t.campaignId, t.customerId),
+    index('campaign_recipients_campaign_id_idx').on(t.campaignId),
+  ],
+)
+
+export type Campaign = typeof campaigns.$inferSelect
+export type NewCampaign = typeof campaigns.$inferInsert
+export type CampaignRecipient = typeof campaignRecipients.$inferSelect
+
+export const campaignsRelations = relations(campaigns, ({ one, many }) => ({
+  audienceGroup: one(customerGroups, {
+    fields: [campaigns.audienceGroupId],
+    references: [customerGroups.id],
+  }),
+  recipients: many(campaignRecipients),
+}))
+
+export const campaignRecipientsRelations = relations(campaignRecipients, ({ one }) => ({
+  campaign: one(campaigns, { fields: [campaignRecipients.campaignId], references: [campaigns.id] }),
+  customer: one(customers, { fields: [campaignRecipients.customerId], references: [customers.id] }),
 }))

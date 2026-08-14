@@ -22,10 +22,16 @@ export function AccountPage() {
 
   const [deleteConfirm, setDeleteConfirm] = useState('')
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [marketingOptIn, setMarketingOptIn] = useState(customer?.marketingOptIn ?? false)
 
   const updateMut = trpc.customers.update.useMutation({
     onSuccess() {
       setEditing(false)
+    },
+  })
+  const optInMut = trpc.customers.update.useMutation({
+    onSuccess(updated) {
+      setMarketingOptIn(updated.marketingOptIn)
     },
   })
 
@@ -157,6 +163,32 @@ export function AccountPage() {
         )}
       </div>
 
+      {/* Marketing preferences */}
+      <div className="bg-white border border-gray-200 rounded-xl p-6 mb-8">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h2 className="font-semibold text-lg">Marketing emails</h2>
+            <p className="text-sm text-gray-500 mt-0.5">
+              Occasional promotions and product news. You can unsubscribe anytime.
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={marketingOptIn}
+            disabled={optInMut.isPending}
+            onClick={() => optInMut.mutate({ marketingOptIn: !marketingOptIn })}
+            className="shrink-0 w-11 h-6 rounded-full transition-colors disabled:opacity-50"
+            style={{ background: marketingOptIn ? 'var(--primary)' : '#d1d5db' }}
+          >
+            <span
+              className="block w-5 h-5 bg-white rounded-full shadow transition-transform"
+              style={{ transform: marketingOptIn ? 'translateX(22px)' : 'translateX(2px)' }}
+            />
+          </button>
+        </div>
+      </div>
+
       {/* Quick links */}
       <div className="grid grid-cols-2 gap-4 mb-8">
         <Link
@@ -212,7 +244,10 @@ export function AccountPage() {
                 {(order.status === 'paid' ||
                   order.status === 'fulfilled' ||
                   order.status === 'refunded') && (
-                  <ReturnRequestSection orderId={order.id} canRequest={order.status !== 'refunded'} />
+                  <ReturnRequestSection
+                    orderId={order.id}
+                    canRequest={order.status !== 'refunded'}
+                  />
                 )}
               </div>
             ))}

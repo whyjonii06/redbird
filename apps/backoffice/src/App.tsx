@@ -5,6 +5,7 @@ import { I18nProvider } from './i18n/index.js'
 import { AdminLayout } from './layouts/AdminLayout.js'
 import { moduleRoutes } from './modules/registry.js'
 import { AuditLogPage } from './pages/AuditLogPage.js'
+import { CampaignsPage } from './pages/CampaignsPage.js'
 import { CategoriesPage } from './pages/CategoriesPage.js'
 import { CmsPage } from './pages/CmsPage.js'
 import { CustomerDetailPage } from './pages/CustomerDetailPage.js'
@@ -56,6 +57,7 @@ export default function App() {
                   <Route path="customers/:id" element={<CustomerDetailPage />} />
                   <Route path="customer-groups" element={<CustomerGroupsPage />} />
                   <Route path="promos" element={<PromosPage />} />
+                  <Route path="campaigns" element={<CampaignsPage />} />
                   <Route path="returns" element={<ReturnsPage />} />
                   <Route path="reports" element={<ReportsPage />} />
                   <Route path="staff" element={<StaffPage />} />

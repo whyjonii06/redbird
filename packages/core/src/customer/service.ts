@@ -29,16 +29,25 @@ function toPublic(c: {
   email: string
   firstName: string | null
   lastName: string | null
+  marketingOptIn: boolean
+  unsubscribeToken: string | null
   createdAt: Date
   updatedAt: Date
   passwordHash: string
   resetToken: string | null
   resetTokenExpiresAt: Date | null
 }): PublicCustomer {
-  const { passwordHash: _h, resetToken: _t, resetTokenExpiresAt: _e, ...pub } = c
+  const {
+    passwordHash: _h,
+    resetToken: _t,
+    resetTokenExpiresAt: _e,
+    unsubscribeToken: _u,
+    ...pub
+  } = c
   void _h
   void _t
   void _e
+  void _u
   return pub
 }
 
@@ -52,6 +61,7 @@ export type RegisterInput = {
 export type UpdateCustomerInput = {
   firstName?: string | undefined
   lastName?: string | undefined
+  marketingOptIn?: boolean | undefined
 }
 
 export type CustomerService = {
@@ -143,6 +153,7 @@ export function createCustomerService(db: DbClient): CustomerService {
       const set: Record<string, unknown> = { updatedAt: new Date() }
       if (patch.firstName !== undefined) set.firstName = patch.firstName
       if (patch.lastName !== undefined) set.lastName = patch.lastName
+      if (patch.marketingOptIn !== undefined) set.marketingOptIn = patch.marketingOptIn
 
       const [updated] = await db.update(customers).set(set).where(eq(customers.id, id)).returning()
       if (!updated) throw new Error(`Customer ${id} not found`)

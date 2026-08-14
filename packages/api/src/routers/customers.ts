@@ -66,6 +66,7 @@ export const customersRouter = router({
       z.object({
         firstName: z.string().optional(),
         lastName: z.string().optional(),
+        marketingOptIn: z.boolean().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -124,6 +125,14 @@ export const customersRouter = router({
         const msg = err instanceof Error ? err.message : 'Reset failed'
         throw new TRPCError({ code: 'BAD_REQUEST', message: msg })
       }
+    }),
+
+  /** One-click unsubscribe from marketing emails via the link token. No auth required. */
+  unsubscribe: publicProcedure
+    .input(z.object({ token: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const ok = await ctx.redbird.campaigns.unsubscribe(input.token)
+      return { success: ok }
     }),
 
   /** GDPR — export all personal data for the current customer as JSON. */
