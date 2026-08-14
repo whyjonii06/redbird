@@ -5,6 +5,7 @@ import { useMeta } from '../App.js'
 import { useAuth } from '../AuthContext.js'
 import { useCurrency } from '../CurrencyContext.js'
 import { useWishlist } from '../WishlistContext.js'
+import { optimizedSrc, optimizedSrcSet } from '../optimizedImage.js'
 import { fmt, trpc } from '../trpc.js'
 
 type RouterOutput = inferRouterOutputs<AppRouter>
@@ -39,8 +40,11 @@ export function ProductCard({ product }: Props) {
           <div className="aspect-square bg-gray-100 overflow-hidden relative">
             {cover ? (
               <img
-                src={cover.url}
+                src={optimizedSrc(cover.url, 480)}
+                srcSet={optimizedSrcSet(cover.url, [240, 480, 720])}
+                sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
                 alt={cover.alt ?? product.name}
+                loading="lazy"
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
               />
             ) : (

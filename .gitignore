@@ -61,3 +61,6 @@ packages/api/redbird.config.ts
 VPS.txt
 nginx-redbirdshop.conf
 packages/api/themes/*.zip
+
+# User-uploaded images and their generated resized/reformatted variants
+packages/api/uploads/

@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { readFile as readFilePromise } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { join, resolve } from 'node:path'
 import type { Redbird, SellerConfig } from '@redbirdshop/core'
 import { createHTTPHandler } from '@trpc/server/adapters/standalone'
+import sharp from 'sharp'
 import { verifyStaffToken } from './auth.js'
 import { createContext } from './context.js'
 import { generateFacturXForOrder, generateFacturXPdf, generateInvoicePdf } from './invoice.js'
@@ -171,26 +173,85 @@ export function createApiServer(opts: ServerOptions) {
       return
     }
 
-    // ── Static file serving for uploaded images ──────────────────────────────
+    // ── Static file serving for uploaded images, with optional on-the-fly
+    // resize/format conversion via ?w=<px>&fmt=webp|avif|jpeg|png. Derived
+    // variants are cached to disk on first request so repeat hits (and other
+    // visitors requesting the same size) are a plain file read. ────────────
     if (url.startsWith('/uploads/') && req.method === 'GET') {
-      const filename = url.slice('/uploads/'.length)
+      const parsed = new URL(url, 'http://internal')
+      const filename = parsed.pathname.slice('/uploads/'.length)
       if (!filename || filename.includes('/') || filename.includes('..')) {
         res.writeHead(400)
         res.end()
         return
       }
       const filepath = join(uploadDir, filename)
-      try {
-        const content = readFileSync(filepath)
-        const ext = filename.split('.').pop()?.toLowerCase() ?? ''
+      const origExt = filename.split('.').pop()?.toLowerCase() ?? ''
+      const TRANSFORM_FORMATS = new Set(['webp', 'avif', 'jpeg', 'jpg', 'png'])
+      const wParam = parsed.searchParams.get('w')
+      const fmtParam = parsed.searchParams.get('fmt')
+      const width = wParam !== null ? Number.parseInt(wParam, 10) : null
+      const format = fmtParam && TRANSFORM_FORMATS.has(fmtParam) ? fmtParam : null
+
+      const wantsTransform = wParam !== null || format !== null
+
+      if (!wantsTransform) {
+        try {
+          const content = readFileSync(filepath)
+          res.setHeader('Access-Control-Allow-Origin', '*')
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+          res.writeHead(200, { 'Content-Type': IMAGE_MIME[origExt] ?? 'application/octet-stream' })
+          res.end(content)
+        } catch {
+          res.writeHead(404)
+          res.end()
+        }
+        return
+      }
+
+      if (width !== null && (!Number.isInteger(width) || width < 16 || width > 2000)) {
+        res.writeHead(400, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ error: 'w must be an integer between 16 and 2000' }))
+        return
+      }
+
+      const outFormat = format ?? (origExt === 'png' ? 'png' : 'webp')
+      const cacheDir = join(uploadDir, '.cache')
+      const cacheName = `${filename.replace(/\.[^.]+$/, '')}-${width ?? 'orig'}.${outFormat}`
+      const cachePath = join(cacheDir, cacheName)
+
+      const serve = (buf: Buffer) => {
         res.setHeader('Access-Control-Allow-Origin', '*')
         res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
-        res.writeHead(200, { 'Content-Type': IMAGE_MIME[ext] ?? 'application/octet-stream' })
-        res.end(content)
-      } catch {
-        res.writeHead(404)
-        res.end()
+        res.writeHead(200, { 'Content-Type': IMAGE_MIME[outFormat] ?? 'application/octet-stream' })
+        res.end(buf)
       }
+
+      try {
+        serve(readFileSync(cachePath))
+        return
+      } catch {
+        // Not cached yet — fall through to generate it.
+      }
+
+      readFilePromise(filepath)
+        .then(async (original) => {
+          let pipeline = sharp(original).rotate()
+          if (width !== null) pipeline = pipeline.resize({ width, withoutEnlargement: true })
+          if (outFormat === 'webp') pipeline = pipeline.webp({ quality: 82 })
+          else if (outFormat === 'avif') pipeline = pipeline.avif({ quality: 60 })
+          else if (outFormat === 'png') pipeline = pipeline.png()
+          else pipeline = pipeline.jpeg({ quality: 85 })
+
+          const out = await pipeline.toBuffer()
+          mkdirSync(cacheDir, { recursive: true })
+          writeFileSync(cachePath, out)
+          serve(out)
+        })
+        .catch(() => {
+          res.writeHead(404)
+          res.end()
+        })
       return
     }
 

@@ -7,6 +7,7 @@ import { useCurrency } from '../CurrencyContext.js'
 import { useWishlist } from '../WishlistContext.js'
 import { RedirectOrNotFound } from '../components/RedirectOrNotFound.js'
 import { useI18n } from '../i18n/index.js'
+import { optimizedSrc, optimizedSrcSet } from '../optimizedImage.js'
 import { Slot } from '../slots/registry.js'
 import { fmt, trpc } from '../trpc.js'
 import { useSeoMeta } from '../useSeoMeta.js'
@@ -175,7 +176,9 @@ export function ProductPage() {
                 className="block w-full h-full cursor-zoom-in"
               >
                 <img
-                  src={activeImage.url}
+                  src={optimizedSrc(activeImage.url, 800)}
+                  srcSet={optimizedSrcSet(activeImage.url, [400, 800, 1200])}
+                  sizes="(min-width: 768px) 50vw, 100vw"
                   alt={activeImage.alt ?? product.name}
                   className="w-full h-full object-cover transition-opacity duration-200"
                 />
@@ -212,7 +215,12 @@ export function ProductPage() {
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
-                  <img src={img.url} alt={img.alt ?? ''} className="w-full h-full object-cover" />
+                  <img
+                    src={optimizedSrc(img.url, 128)}
+                    alt={img.alt ?? ''}
+                    loading="lazy"
+                    className="w-full h-full object-cover"
+                  />
                 </button>
               ))}
             </div>
@@ -423,8 +431,8 @@ export function ProductPage() {
             ✕
           </button>
           <img
-            src={product.images[activeImageIdx]!.url}
-            alt={product.images[activeImageIdx]!.alt ?? product.name}
+            src={optimizedSrc(product.images[activeImageIdx]?.url ?? '', 1600)}
+            alt={product.images[activeImageIdx]?.alt ?? product.name}
             className="max-w-[90vw] max-h-[90vh] object-contain rounded-xl"
           />
           {/* Prev/Next si plusieurs images */}
@@ -483,8 +491,11 @@ function ProductTeaserGrid({ title, products }: { title: string; products: Produ
               <div className="aspect-square bg-gray-100 rounded-2xl overflow-hidden mb-3">
                 {img ? (
                   <img
-                    src={img.url}
+                    src={optimizedSrc(img.url, 320)}
+                    srcSet={optimizedSrcSet(img.url, [160, 320, 480])}
+                    sizes="(min-width: 640px) 25vw, 50vw"
                     alt={img.alt ?? p.name}
+                    loading="lazy"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
                 ) : (
