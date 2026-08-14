@@ -25,7 +25,16 @@ export type { ShippingProvider, ShippingRate, RelayPoint } from './shipping/type
 export type { StockInfo, StockService } from './stock/service.js'
 export type { ImageService, AddImageInput } from './catalog/images.js'
 export type { ProductWithDetails, VariantAttributeValueWithRelations } from './catalog/service.js'
-export type { PromoService, PromoValidation, CreatePromoInput, UpdatePromoInput } from './promos/service.js'
+export type {
+  PromoService,
+  PromoValidation,
+  CreatePromoInput,
+  UpdatePromoInput,
+  PromoType,
+  PromoBogoConfig,
+  PromoTier,
+  PromoLineItem,
+} from './promos/service.js'
 export type { I18nService, UpsertTranslationInput } from './i18n/service.js'
 export type { ReturnService, CreateReturnInput } from './returns/service.js'
 export type { AbandonedCartService, AbandonedCartResult } from './abandoned-cart/service.js'

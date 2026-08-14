@@ -780,12 +780,29 @@ export const adminRouter = router({
       .input(
         z.object({
           code: z.string().min(1),
-          type: z.enum(['percentage', 'fixed']),
-          value: z.number().int().min(1),
+          type: z.enum(['percentage', 'fixed', 'bogo', 'tiered']),
+          // Ignored for bogo/tiered — the DB column is NOT NULL so the client
+          // sends a filler value (0) for those types.
+          value: z.number().int().min(0),
           currency: z.string().length(3).optional(),
           minimumAmount: z.number().int().min(0).optional(),
           maxUses: z.number().int().min(1).optional(),
           expiresAt: z.string().datetime().optional(),
+          bogoConfig: z
+            .object({
+              buyQuantity: z.number().int().min(1),
+              getQuantity: z.number().int().min(1),
+              getDiscountPercent: z.number().int().min(1).max(100),
+            })
+            .optional(),
+          tiers: z
+            .array(
+              z.object({
+                minQuantity: z.number().int().min(1),
+                discountPercent: z.number().int().min(1).max(100),
+              }),
+            )
+            .optional(),
         }),
       )
       .mutation(async ({ ctx, input }) => {
@@ -797,6 +814,8 @@ export const adminRouter = router({
           minimumAmount: input.minimumAmount,
           maxUses: input.maxUses,
           expiresAt: input.expiresAt ? new Date(input.expiresAt) : undefined,
+          bogoConfig: input.bogoConfig,
+          tiers: input.tiers,
         })
       }),
 
@@ -804,17 +823,45 @@ export const adminRouter = router({
       .input(
         z.object({
           id: z.string().uuid(),
-          type: z.enum(['percentage', 'fixed']).optional(),
-          value: z.number().int().min(1).optional(),
+          type: z.enum(['percentage', 'fixed', 'bogo', 'tiered']).optional(),
+          value: z.number().int().min(0).optional(),
           currency: z.string().length(3).optional(),
           minimumAmount: z.number().int().min(0).nullable().optional(),
           maxUses: z.number().int().min(1).nullable().optional(),
           expiresAt: z.string().datetime().nullable().optional(),
           active: z.boolean().optional(),
+          bogoConfig: z
+            .object({
+              buyQuantity: z.number().int().min(1),
+              getQuantity: z.number().int().min(1),
+              getDiscountPercent: z.number().int().min(1).max(100),
+            })
+            .nullable()
+            .optional(),
+          tiers: z
+            .array(
+              z.object({
+                minQuantity: z.number().int().min(1),
+                discountPercent: z.number().int().min(1).max(100),
+              }),
+            )
+            .nullable()
+            .optional(),
         }),
       )
       .mutation(async ({ ctx, input }) => {
-        const { id, type, value, currency, active, minimumAmount, maxUses, expiresAt } = input
+        const {
+          id,
+          type,
+          value,
+          currency,
+          active,
+          minimumAmount,
+          maxUses,
+          expiresAt,
+          bogoConfig,
+          tiers,
+        } = input
         const patch: Parameters<typeof ctx.redbird.promos.update>[1] = {}
         if (type !== undefined) patch.type = type
         if (value !== undefined) patch.value = value
@@ -823,6 +870,8 @@ export const adminRouter = router({
         if (minimumAmount !== undefined) patch.minimumAmount = minimumAmount
         if (maxUses !== undefined) patch.maxUses = maxUses
         if (expiresAt !== undefined) patch.expiresAt = expiresAt ? new Date(expiresAt) : null
+        if (bogoConfig !== undefined) patch.bogoConfig = bogoConfig
+        if (tiers !== undefined) patch.tiers = tiers
         return ctx.redbird.promos.update(id, patch)
       }),
 

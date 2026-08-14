@@ -197,6 +197,13 @@
       "when": 1782000200000,
       "tag": "0028_audit_logs",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1782000300000,
+      "tag": "0029_advanced_promos",
+      "breakpoints": true
     }
   ]
 }

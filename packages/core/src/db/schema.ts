@@ -135,7 +135,7 @@ export const productFeatures = pgTable(
 
 // ---------- Promos ----------
 
-export const discountType = pgEnum('discount_type', ['percentage', 'fixed'])
+export const discountType = pgEnum('discount_type', ['percentage', 'fixed', 'bogo', 'tiered'])
 
 export const promoCodes = pgTable(
   'promo_codes',
@@ -143,7 +143,7 @@ export const promoCodes = pgTable(
     id: uuid().primaryKey().defaultRandom(),
     code: text().notNull(),
     type: discountType().notNull(),
-    /** Percentage: 0–100. Fixed: amount in smallest currency unit. */
+    /** Percentage: 0–100. Fixed: amount in smallest currency unit. Ignored for bogo/tiered. */
     value: integer().notNull(),
     currency: text(),
     /** Minimum cart subtotal in smallest currency unit to apply the code. */
@@ -154,6 +154,16 @@ export const promoCodes = pgTable(
     usedCount: integer().notNull().default(0),
     expiresAt: timestamp({ withTimezone: true }),
     active: boolean().notNull().default(true),
+    /** type = 'bogo' only: e.g. buy 2 get 1 at 50% off. */
+    bogoConfig: jsonb().$type<{
+      buyQuantity: number
+      getQuantity: number
+      /** Percentage off each "get" unit — 100 = free. */
+      getDiscountPercent: number
+    }>(),
+    /** type = 'tiered' only: cart-quantity breakpoints, e.g. 3+ units → 10% off,
+     * 5+ units → 15% off. The highest tier whose minQuantity is met applies. */
+    tiers: jsonb().$type<Array<{ minQuantity: number; discountPercent: number }>>(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },

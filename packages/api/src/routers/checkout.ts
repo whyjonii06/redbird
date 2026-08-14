@@ -64,16 +64,25 @@ export const checkoutRouter = router({
       return ctx.redbird.giftCards.validate(input.code, input.currency)
     }),
 
-  /** Validate a promo code against a subtotal. Returns discount info or invalid reason. */
+  /** Validate a promo code against a subtotal. Returns discount info or invalid reason.
+   * lineItems is needed to preview bogo/tiered codes — omit for plain percentage/fixed. */
   validatePromo: publicProcedure
     .input(
       z.object({
         code: z.string().min(1),
         subtotalCents: z.number().int().min(0),
+        lineItems: z
+          .array(
+            z.object({
+              unitPriceAmount: z.number().int().min(0),
+              quantity: z.number().int().min(1),
+            }),
+          )
+          .optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
-      return ctx.redbird.promos.validate(input.code, input.subtotalCents)
+      return ctx.redbird.promos.validate(input.code, input.subtotalCents, input.lineItems)
     }),
 
   createOrder: checkoutLimitedProcedure
@@ -133,7 +142,15 @@ export const checkoutRouter = router({
       // Promo code
       let promoDiscountAmount = 0
       if (input.promoCode) {
-        const validation = await ctx.redbird.promos.validate(input.promoCode, subtotal)
+        const lineItemsForPromo = cart.lineItems.map((li) => ({
+          unitPriceAmount: li.unitPriceAmount,
+          quantity: li.quantity,
+        }))
+        const validation = await ctx.redbird.promos.validate(
+          input.promoCode,
+          subtotal,
+          lineItemsForPromo,
+        )
         if (!validation.valid) {
           const msgs: Record<string, string> = {
             not_found: 'Promo code not found',
@@ -141,6 +158,7 @@ export const checkoutRouter = router({
             expired: 'Promo code has expired',
             max_uses_reached: 'Promo code has reached its usage limit',
             minimum_not_met: 'Cart total does not meet the minimum for this promo code',
+            line_items_required: 'This promo code requires cart items to evaluate',
           }
           throw new TRPCError({
             code: 'BAD_REQUEST',

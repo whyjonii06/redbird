@@ -143,7 +143,14 @@ function InfoStep({ onDone }: { onDone: (info: OrderInfo) => void }) {
   )
 
   const { data: promoValidation, isFetching: promoChecking } = trpc.checkout.validatePromo.useQuery(
-    { code: appliedPromo, subtotalCents: subtotal },
+    {
+      code: appliedPromo,
+      subtotalCents: subtotal,
+      lineItems: cart?.lineItems.map((li) => ({
+        unitPriceAmount: li.unitPriceAmount,
+        quantity: li.quantity,
+      })),
+    },
     { enabled: appliedPromo.length > 0 && subtotal > 0 },
   )
 

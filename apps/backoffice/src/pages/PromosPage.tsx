@@ -4,10 +4,12 @@ import { btnPrimary, inputCls } from '../components/ui.js'
 import { useI18n } from '../i18n/index.js'
 import { fmt, fmtDate, trpc } from '../trpc.js'
 
+type PromoType = 'percentage' | 'fixed' | 'bogo' | 'tiered'
+
 type PromoRow = {
   id: string
   code: string
-  type: 'percentage' | 'fixed'
+  type: PromoType
   value: number
   currency: string | null
   minimumAmount: number | null
@@ -15,16 +17,24 @@ type PromoRow = {
   usedCount: number
   expiresAt: string | null
   active: boolean
+  bogoConfig: { buyQuantity: number; getQuantity: number; getDiscountPercent: number } | null
+  tiers: Array<{ minQuantity: number; discountPercent: number }> | null
 }
 
+type TierRow = { minQuantity: string; discountPercent: string }
+
 type FormState = {
-  type: 'percentage' | 'fixed'
+  type: PromoType
   value: string
   currency: string
   minAmount: string
   maxUses: string
   expiresAt: string
   active: boolean
+  buyQuantity: string
+  getQuantity: string
+  getDiscountPercent: string
+  tiers: TierRow[]
 }
 
 const EMPTY_FORM: FormState = {
@@ -35,6 +45,10 @@ const EMPTY_FORM: FormState = {
   maxUses: '',
   expiresAt: '',
   active: true,
+  buyQuantity: '1',
+  getQuantity: '1',
+  getDiscountPercent: '100',
+  tiers: [{ minQuantity: '3', discountPercent: '10' }],
 }
 
 export function PromosPage() {
@@ -82,8 +96,45 @@ export function PromosPage() {
       maxUses: p.maxUses != null ? String(p.maxUses) : '',
       expiresAt: p.expiresAt ? new Date(p.expiresAt).toISOString().slice(0, 16) : '',
       active: p.active,
+      buyQuantity: p.bogoConfig ? String(p.bogoConfig.buyQuantity) : '1',
+      getQuantity: p.bogoConfig ? String(p.bogoConfig.getQuantity) : '1',
+      getDiscountPercent: p.bogoConfig ? String(p.bogoConfig.getDiscountPercent) : '100',
+      tiers: p.tiers?.length
+        ? p.tiers.map((t) => ({
+            minQuantity: String(t.minQuantity),
+            discountPercent: String(t.discountPercent),
+          }))
+        : EMPTY_FORM.tiers,
     })
     setShowCreate(false)
+  }
+
+  /** Shared value/bogoConfig/tiers payload derived from a form, keyed by type. */
+  function buildTypeFields(form: FormState) {
+    if (form.type === 'bogo') {
+      return {
+        value: 0,
+        bogoConfig: {
+          buyQuantity: Number.parseInt(form.buyQuantity, 10),
+          getQuantity: Number.parseInt(form.getQuantity, 10),
+          getDiscountPercent: Number.parseInt(form.getDiscountPercent, 10),
+        },
+      }
+    }
+    if (form.type === 'tiered') {
+      return {
+        value: 0,
+        tiers: form.tiers.map((t) => ({
+          minQuantity: Number.parseInt(t.minQuantity, 10),
+          discountPercent: Number.parseInt(t.discountPercent, 10),
+        })),
+      }
+    }
+    return {
+      value: Math.round(
+        form.type === 'percentage' ? Number(form.value) : Number.parseFloat(form.value) * 100,
+      ),
+    }
   }
 
   function handleCreate(e: React.FormEvent) {
@@ -91,17 +142,13 @@ export function PromosPage() {
     create.mutate({
       code: createCode.toUpperCase(),
       type: createForm.type,
-      value: Math.round(
-        createForm.type === 'percentage'
-          ? Number(createForm.value)
-          : Number.parseFloat(createForm.value) * 100,
-      ),
       currency: createForm.type === 'fixed' ? createForm.currency : undefined,
       minimumAmount: createForm.minAmount
         ? Math.round(Number.parseFloat(createForm.minAmount) * 100)
         : undefined,
       maxUses: createForm.maxUses ? Number.parseInt(createForm.maxUses, 10) : undefined,
       expiresAt: createForm.expiresAt ? new Date(createForm.expiresAt).toISOString() : undefined,
+      ...buildTypeFields(createForm),
     })
   }
 
@@ -111,11 +158,6 @@ export function PromosPage() {
     update.mutate({
       id: editId,
       type: editForm.type,
-      value: Math.round(
-        editForm.type === 'percentage'
-          ? Number(editForm.value)
-          : Number.parseFloat(editForm.value) * 100,
-      ),
       currency: editForm.type === 'fixed' ? editForm.currency : undefined,
       minimumAmount: editForm.minAmount
         ? Math.round(Number.parseFloat(editForm.minAmount) * 100)
@@ -123,6 +165,7 @@ export function PromosPage() {
       maxUses: editForm.maxUses ? Number.parseInt(editForm.maxUses, 10) : null,
       expiresAt: editForm.expiresAt ? new Date(editForm.expiresAt).toISOString() : null,
       active: editForm.active,
+      ...buildTypeFields(editForm),
     })
   }
 
@@ -250,7 +293,19 @@ export function PromosPage() {
                   <Badge value={p.type} />
                 </td>
                 <td className="px-5 py-3.5 text-gray-700">
-                  {p.type === 'percentage' ? `${p.value}%` : fmt(p.value, p.currency ?? 'EUR')}
+                  {p.type === 'percentage' && `${p.value}%`}
+                  {p.type === 'fixed' && fmt(p.value, p.currency ?? 'EUR')}
+                  {p.type === 'bogo' && p.bogoConfig && (
+                    <span className="font-mono text-xs">
+                      Buy {p.bogoConfig.buyQuantity} get {p.bogoConfig.getQuantity} @{' '}
+                      {p.bogoConfig.getDiscountPercent}% off
+                    </span>
+                  )}
+                  {p.type === 'tiered' && p.tiers && (
+                    <span className="font-mono text-xs">
+                      {p.tiers.map((t) => `${t.minQuantity}+ → ${t.discountPercent}%`).join(', ')}
+                    </span>
+                  )}
                 </td>
                 <td className="px-5 py-3.5 text-gray-600">
                   {p.usedCount}
@@ -314,6 +369,10 @@ function PromoFields({
     return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       onChange({ ...form, [field]: e.target.value })
   }
+  function setTier(index: number, field: keyof TierRow, value: string) {
+    const tiers = form.tiers.map((t, i) => (i === index ? { ...t, [field]: value } : t))
+    onChange({ ...form, tiers })
+  }
   return (
     <>
       <div>
@@ -321,24 +380,28 @@ function PromoFields({
         <select value={form.type} onChange={set('type')} className={inputCls}>
           <option value="percentage">Percentage (%)</option>
           <option value="fixed">Fixed amount</option>
+          <option value="bogo">Buy X get Y (BOGO)</option>
+          <option value="tiered">Quantity tiers</option>
         </select>
       </div>
-      <div>
-        <label className="block text-xs font-medium text-gray-500 mb-1">
-          Value {form.type === 'percentage' ? '(%)' : `(${form.currency})`}
-        </label>
-        <input
-          type="number"
-          step={form.type === 'percentage' ? '1' : '0.01'}
-          min="1"
-          max={form.type === 'percentage' ? '100' : undefined}
-          value={form.value}
-          onChange={set('value')}
-          className={inputCls}
-          required
-          placeholder={form.type === 'percentage' ? '20' : '10.00'}
-        />
-      </div>
+      {(form.type === 'percentage' || form.type === 'fixed') && (
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">
+            Value {form.type === 'percentage' ? '(%)' : `(${form.currency})`}
+          </label>
+          <input
+            type="number"
+            step={form.type === 'percentage' ? '1' : '0.01'}
+            min="1"
+            max={form.type === 'percentage' ? '100' : undefined}
+            value={form.value}
+            onChange={set('value')}
+            className={inputCls}
+            required
+            placeholder={form.type === 'percentage' ? '20' : '10.00'}
+          />
+        </div>
+      )}
       {form.type === 'fixed' && (
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">Currency</label>
@@ -348,6 +411,102 @@ function PromoFields({
             className={inputCls}
             maxLength={3}
           />
+        </div>
+      )}
+      {form.type === 'bogo' && (
+        <>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Buy quantity</label>
+            <input
+              type="number"
+              min="1"
+              value={form.buyQuantity}
+              onChange={set('buyQuantity')}
+              className={inputCls}
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Get quantity</label>
+            <input
+              type="number"
+              min="1"
+              value={form.getQuantity}
+              onChange={set('getQuantity')}
+              className={inputCls}
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">
+              Discount on "get" units (%)
+            </label>
+            <input
+              type="number"
+              min="1"
+              max="100"
+              value={form.getDiscountPercent}
+              onChange={set('getDiscountPercent')}
+              className={inputCls}
+              required
+              placeholder="100 = free"
+            />
+          </div>
+        </>
+      )}
+      {form.type === 'tiered' && (
+        <div className="col-span-2 space-y-2">
+          <label className="block text-xs font-medium text-gray-500">
+            Quantity tiers (highest matching tier applies)
+          </label>
+          {form.tiers.map((tier, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <input
+                type="number"
+                min="1"
+                value={tier.minQuantity}
+                onChange={(e) => setTier(i, 'minQuantity', e.target.value)}
+                className={inputCls}
+                placeholder="Min qty"
+                required
+              />
+              <span className="text-xs text-gray-400">units →</span>
+              <input
+                type="number"
+                min="1"
+                max="100"
+                value={tier.discountPercent}
+                onChange={(e) => setTier(i, 'discountPercent', e.target.value)}
+                className={inputCls}
+                placeholder="% off"
+                required
+              />
+              <span className="text-xs text-gray-400">%</span>
+              {form.tiers.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    onChange({ ...form, tiers: form.tiers.filter((_, idx) => idx !== i) })
+                  }
+                  className="text-xs text-red-400 hover:text-red-600"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() =>
+              onChange({
+                ...form,
+                tiers: [...form.tiers, { minQuantity: '', discountPercent: '' }],
+              })
+            }
+            className="text-xs text-indigo-600 hover:text-indigo-800"
+          >
+            + Add tier
+          </button>
         </div>
       )}
       <div>
