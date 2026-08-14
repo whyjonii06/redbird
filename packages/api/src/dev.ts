@@ -250,7 +250,25 @@ if (!isConfigured) {
           writeFileSync(ENV_PATH, buildEnv(payload, jwtSecret))
           writeFileSync(
             META_PATH,
-            JSON.stringify({ branding: payload.branding, theme: payload.theme }, null, 2),
+            JSON.stringify(
+              {
+                branding: payload.branding,
+                theme: payload.theme,
+                // Core catalog/customer features ship as modules for a uniform
+                // install/config UX, but they aren't optional add-ons the way
+                // Reviews or Webhooks are — default them on so a new shop's
+                // admin nav isn't missing brand/supplier/gift-card/loyalty
+                // management until someone discovers the Marketplace page.
+                moduleStates: {
+                  '@redbird/module-brands': 'active',
+                  '@redbird/module-suppliers': 'active',
+                  '@redbird/module-gift-cards': 'active',
+                  '@redbird/module-loyalty': 'active',
+                },
+              },
+              null,
+              2,
+            ),
           )
           writeFileSync(CONFIG_PATH, buildConfig(payload))
 
