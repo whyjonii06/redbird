@@ -6,6 +6,7 @@ import { useAddToCart } from '../CartContext.js'
 import { useCurrency } from '../CurrencyContext.js'
 import { useWishlist } from '../WishlistContext.js'
 import { RedirectOrNotFound } from '../components/RedirectOrNotFound.js'
+import { useI18n } from '../i18n/index.js'
 import { Slot } from '../slots/registry.js'
 import { fmt, trpc } from '../trpc.js'
 import { useSeoMeta } from '../useSeoMeta.js'
@@ -33,7 +34,8 @@ function StockBadge({ available }: { available: number | null | undefined }) {
 
 export function ProductPage() {
   const { slug } = useParams<{ slug: string }>()
-  const { data: product, isLoading, error } = trpc.catalog.bySlug.useQuery({ slug: slug! })
+  const { locale } = useI18n()
+  const { data: product, isLoading, error } = trpc.catalog.bySlug.useQuery({ slug: slug!, locale })
   const [selectedVariantId, setSelectedVariantId] = useState<string>()
   const [qty, setQty] = useState(1)
   const [added, setAdded] = useState(false)
@@ -422,8 +424,9 @@ export function ProductPage() {
 }
 
 function RelatedProductsSection({ productId }: { productId: string }) {
+  const { locale } = useI18n()
   const { data: related = [] } = trpc.catalog.related.useQuery(
-    { productId, limit: 4 },
+    { productId, limit: 4, locale },
     { enabled: Boolean(productId) },
   )
   const { currency, convert } = useCurrency()

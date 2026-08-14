@@ -218,6 +218,13 @@
       "when": 1782000500000,
       "tag": "0031_redirects",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1782000600000,
+      "tag": "0032_category_cms_translations",
+      "breakpoints": true
     }
   ]
 }

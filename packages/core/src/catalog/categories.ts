@@ -3,6 +3,7 @@ import type { DbClient } from '../db/client.js'
 import {
   type Brand,
   type Category,
+  type CategoryTranslation,
   type NewCategory,
   type Product,
   type ProductFeature,
@@ -21,13 +22,17 @@ import {
   stockLevels,
   variantAttributeValues,
 } from '../db/schema.js'
-import type { VariantAttributeValueWithRelations } from './service.js'
 import type { PluginRegistry } from '../plugins/registry.js'
+import type { VariantAttributeValueWithRelations } from './service.js'
+
+export type CategoryWithTranslations = Category & { translations: CategoryTranslation[] }
 
 export type CategoryService = {
-  list(opts?: { parentId?: string | null | undefined }): Promise<Category[]>
-  getBySlug(slug: string): Promise<Category | null>
-  getById(id: string): Promise<Category | null>
+  list(opts?: {
+    parentId?: string | null | undefined
+  }): Promise<CategoryWithTranslations[]>
+  getBySlug(slug: string): Promise<CategoryWithTranslations | null>
+  getById(id: string): Promise<CategoryWithTranslations | null>
   create(input: NewCategory): Promise<Category>
   update(id: string, patch: Partial<Omit<NewCategory, 'id'>>): Promise<Category>
   delete(id: string): Promise<void>
@@ -63,12 +68,14 @@ export function createCategoryService(db: DbClient, hooks: PluginRegistry): Cate
               : eq(categories.parentId, parentId)
             : undefined,
         orderBy: (c, { asc }) => [asc(c.name)],
+        with: { translations: true },
       })
     },
 
     async getBySlug(slug) {
       const row = await db.query.categories.findFirst({
         where: eq(categories.slug, slug),
+        with: { translations: true },
       })
       return row ?? null
     },
@@ -76,6 +83,7 @@ export function createCategoryService(db: DbClient, hooks: PluginRegistry): Cate
     async getById(id) {
       const row = await db.query.categories.findFirst({
         where: eq(categories.id, id),
+        with: { translations: true },
       })
       return row ?? null
     },
@@ -132,7 +140,9 @@ export function createCategoryService(db: DbClient, hooks: PluginRegistry): Cate
       if (rows.length === 0) return []
 
       const productIds = rows.map((r) => r.products.id)
-      const brandIds = [...new Set(rows.map((r) => r.products.brandId).filter((id): id is string => id !== null))]
+      const brandIds = [
+        ...new Set(rows.map((r) => r.products.brandId).filter((id): id is string => id !== null)),
+      ]
       const [allVariants, allImages, allTranslations, allBrands, allFeatures] = await Promise.all([
         db.query.productVariants.findMany({
           where: inArray(productVariants.productId, productIds),

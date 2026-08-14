@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom'
+import { useI18n } from '../../../i18n/index.js'
 import { trpc } from '../../../trpc.js'
 
 type Config = { title: string; categoryIds: string[] }
 
 export function CategoryShowcase({ config }: { config: Config }) {
-  const { data: allCats = [] } = trpc.categories.list.useQuery()
+  const { locale } = useI18n()
+  const { data: allCats = [] } = trpc.categories.list.useQuery({ locale })
   const cats =
     config.categoryIds?.length > 0
       ? allCats.filter((c) => config.categoryIds.includes(c.id))

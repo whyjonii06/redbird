@@ -2,6 +2,8 @@ import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
 import { publicProcedure, router } from '../trpc.js'
 
+const localeInput = z.string().min(2).max(10).optional()
+
 export const catalogRouter = router({
   list: publicProcedure
     .input(
@@ -12,6 +14,7 @@ export const catalogRouter = router({
           status: z.enum(['draft', 'active', 'archived']).optional(),
           sortBy: z.enum(['newest', 'price_asc', 'price_desc', 'name']).optional(),
           inStock: z.boolean().optional(),
+          locale: localeInput,
         })
         .optional(),
     )
@@ -22,7 +25,9 @@ export const catalogRouter = router({
         status: input?.status,
         sortBy: input?.sortBy,
       })
-      let result = products
+      let result = input?.locale
+        ? products.map((p) => ctx.redbird.i18n.translate(p, input.locale as string))
+        : products
 
       if (input?.inStock) {
         result = result.filter((p) =>
@@ -53,29 +58,38 @@ export const catalogRouter = router({
         q: z.string().min(1),
         limit: z.number().int().min(1).max(50).default(20),
         status: z.enum(['draft', 'active', 'archived']).default('active'),
+        locale: localeInput,
       }),
     )
     .query(async ({ ctx, input }) => {
-      return ctx.redbird.catalog.search(input.q, { limit: input.limit, status: input.status })
+      const results = await ctx.redbird.catalog.search(input.q, {
+        limit: input.limit,
+        status: input.status,
+      })
+      return input.locale
+        ? results.map((p) => ctx.redbird.i18n.translate(p, input.locale as string))
+        : results
     }),
 
   bySlug: publicProcedure
-    .input(z.object({ slug: z.string().min(1) }))
+    .input(z.object({ slug: z.string().min(1), locale: localeInput }))
     .query(async ({ ctx, input }) => {
       const product = await ctx.redbird.catalog.getProductBySlug(input.slug)
       if (!product) {
         throw new TRPCError({ code: 'NOT_FOUND', message: `Product "${input.slug}" not found` })
       }
-      return product
+      return input.locale ? ctx.redbird.i18n.translate(product, input.locale) : product
     }),
 
-  byId: publicProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ ctx, input }) => {
-    const product = await ctx.redbird.catalog.getProductById(input.id)
-    if (!product) {
-      throw new TRPCError({ code: 'NOT_FOUND', message: `Product ${input.id} not found` })
-    }
-    return product
-  }),
+  byId: publicProcedure
+    .input(z.object({ id: z.string().uuid(), locale: localeInput }))
+    .query(async ({ ctx, input }) => {
+      const product = await ctx.redbird.catalog.getProductById(input.id)
+      if (!product) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: `Product ${input.id} not found` })
+      }
+      return input.locale ? ctx.redbird.i18n.translate(product, input.locale) : product
+    }),
 
   related: publicProcedure
     .input(
@@ -83,6 +97,7 @@ export const catalogRouter = router({
         productId: z.string().uuid(),
         type: z.enum(['related', 'upsell', 'cross_sell']).optional(),
         limit: z.number().int().min(1).max(20).default(4),
+        locale: localeInput,
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -90,10 +105,13 @@ export const catalogRouter = router({
         input.productId,
         input.type ? { type: input.type } : {},
       )
-      return rels
+      const related = rels
         .slice(0, input.limit)
         .map((r) => r.relatedProduct)
         .filter((p): p is NonNullable<typeof p> => p !== null && p.status === 'active')
+      return input.locale
+        ? related.map((p) => ctx.redbird.i18n.translate(p, input.locale as string))
+        : related
     }),
 
   filter: publicProcedure
@@ -110,6 +128,7 @@ export const catalogRouter = router({
         sortBy: z.enum(['newest', 'price_asc', 'price_desc', 'name']).optional(),
         limit: z.number().int().min(1).max(100).default(12),
         offset: z.number().int().min(0).default(0),
+        locale: localeInput,
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -139,7 +158,10 @@ export const catalogRouter = router({
 
       // 3. Compute facets from this base (before brand/price/attribute filters)
       const brandMap = new Map<string, { id: string; name: string; count: number }>()
-      const attributeMap = new Map<string, { name: string; values: Map<string, { id: string; value: string; count: number }> }>()
+      const attributeMap = new Map<
+        string,
+        { name: string; values: Map<string, { id: string; value: string; count: number }> }
+      >()
       let minP = Number.POSITIVE_INFINITY
       let maxP = Number.NEGATIVE_INFINITY
       for (const p of base) {
@@ -216,7 +238,10 @@ export const catalogRouter = router({
       }
 
       const totalCount = filtered.length
-      const products = filtered.slice(input.offset, input.offset + input.limit)
+      const page = filtered.slice(input.offset, input.offset + input.limit)
+      const products = input.locale
+        ? page.map((p) => ctx.redbird.i18n.translate(p, input.locale as string))
+        : page
 
       return {
         products,
@@ -239,28 +264,37 @@ export const catalogRouter = router({
 
 export const categoriesRouter = router({
   list: publicProcedure
-    .input(z.object({ parentId: z.string().uuid().nullable().optional() }).optional())
+    .input(
+      z
+        .object({ parentId: z.string().uuid().nullable().optional(), locale: localeInput })
+        .optional(),
+    )
     .query(async ({ ctx, input }) => {
-      return ctx.redbird.categories.list(input ?? {})
+      const cats = await ctx.redbird.categories.list(input ?? {})
+      return input?.locale
+        ? cats.map((c) => ctx.redbird.categoryI18n.translate(c, input.locale as string))
+        : cats
     }),
 
   bySlug: publicProcedure
-    .input(z.object({ slug: z.string().min(1) }))
+    .input(z.object({ slug: z.string().min(1), locale: localeInput }))
     .query(async ({ ctx, input }) => {
       const category = await ctx.redbird.categories.getBySlug(input.slug)
       if (!category) {
         throw new TRPCError({ code: 'NOT_FOUND', message: `Category "${input.slug}" not found` })
       }
-      return category
+      return input.locale ? ctx.redbird.categoryI18n.translate(category, input.locale) : category
     }),
 
-  byId: publicProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ ctx, input }) => {
-    const category = await ctx.redbird.categories.getById(input.id)
-    if (!category) {
-      throw new TRPCError({ code: 'NOT_FOUND', message: `Category ${input.id} not found` })
-    }
-    return category
-  }),
+  byId: publicProcedure
+    .input(z.object({ id: z.string().uuid(), locale: localeInput }))
+    .query(async ({ ctx, input }) => {
+      const category = await ctx.redbird.categories.getById(input.id)
+      if (!category) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: `Category ${input.id} not found` })
+      }
+      return input.locale ? ctx.redbird.categoryI18n.translate(category, input.locale) : category
+    }),
 
   products: publicProcedure
     .input(
@@ -268,23 +302,25 @@ export const categoriesRouter = router({
         categoryId: z.string().uuid(),
         limit: z.number().int().min(1).max(100).default(20),
         offset: z.number().int().min(0).default(0),
+        locale: localeInput,
       }),
     )
     .query(async ({ ctx, input }) => {
-      return ctx.redbird.categories.listProducts(input.categoryId, {
+      const products = await ctx.redbird.categories.listProducts(input.categoryId, {
         limit: input.limit,
         offset: input.offset,
       })
+      return input.locale
+        ? products.map((p) => ctx.redbird.i18n.translate(p, input.locale as string))
+        : products
     }),
 })
 
 export const brandsRouter = router({
   list: publicProcedure.query(({ ctx }) => ctx.redbird.brands.list()),
-  get: publicProcedure
-    .input(z.object({ id: z.string().uuid() }))
-    .query(async ({ ctx, input }) => {
-      const brand = await ctx.redbird.brands.get(input.id)
-      if (!brand) throw new TRPCError({ code: 'NOT_FOUND', message: 'Brand not found' })
-      return brand
-    }),
+  get: publicProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ ctx, input }) => {
+    const brand = await ctx.redbird.brands.get(input.id)
+    if (!brand) throw new TRPCError({ code: 'NOT_FOUND', message: 'Brand not found' })
+    return brand
+  }),
 })

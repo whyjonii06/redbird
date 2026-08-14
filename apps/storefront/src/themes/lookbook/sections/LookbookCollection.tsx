@@ -1,12 +1,14 @@
 import { useRef } from 'react'
 import { Link } from 'react-router-dom'
+import { useI18n } from '../../../i18n/index.js'
 import { fmt, trpc } from '../../../trpc.js'
 
 type Config = { title: string; productIds: string[] }
 
 export function LookbookCollection({ config }: { config: Config }) {
   const ref = useRef<HTMLDivElement>(null)
-  const { data: products = [] } = trpc.catalog.list.useQuery({ status: 'active', limit: 8 })
+  const { locale } = useI18n()
+  const { data: products = [] } = trpc.catalog.list.useQuery({ status: 'active', limit: 8, locale })
 
   if (products.length === 0) return null
 

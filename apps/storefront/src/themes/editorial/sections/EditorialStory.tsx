@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { useI18n } from '../../../i18n/index.js'
 import { trpc } from '../../../trpc.js'
 import { fmt } from '../../../trpc.js'
 
@@ -15,8 +16,9 @@ type Config = {
 
 export function EditorialStory({ config }: { config: Config }) {
   const imgRight = config.imagePosition === 'right'
+  const { locale } = useI18n()
   const { data: product } = trpc.catalog.byId.useQuery(
-    { id: config.productId! },
+    { id: config.productId!, locale },
     { enabled: !!config.productId },
   )
 

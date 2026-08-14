@@ -1,11 +1,13 @@
 import { eq } from 'drizzle-orm'
 import type { DbClient } from '../db/client.js'
-import { type CmsPage, type NewCmsPage, cmsPages } from '../db/schema.js'
+import { type CmsPage, type CmsTranslation, type NewCmsPage, cmsPages } from '../db/schema.js'
+
+export type CmsPageWithTranslations = CmsPage & { translations: CmsTranslation[] }
 
 export type CmsService = {
-  list(opts?: { publishedOnly?: boolean }): Promise<CmsPage[]>
-  getBySlug(slug: string): Promise<CmsPage | null>
-  getById(id: string): Promise<CmsPage | null>
+  list(opts?: { publishedOnly?: boolean }): Promise<CmsPageWithTranslations[]>
+  getBySlug(slug: string): Promise<CmsPageWithTranslations | null>
+  getById(id: string): Promise<CmsPageWithTranslations | null>
   create(input: Omit<NewCmsPage, 'id' | 'createdAt' | 'updatedAt'>): Promise<CmsPage>
   update(
     id: string,
@@ -20,16 +22,23 @@ export function createCmsService(db: DbClient): CmsService {
       return db.query.cmsPages.findMany({
         where: publishedOnly ? eq(cmsPages.published, true) : undefined,
         orderBy: (p, { asc }) => [asc(p.position), asc(p.title)],
+        with: { translations: true },
       })
     },
 
     async getBySlug(slug) {
-      const row = await db.query.cmsPages.findFirst({ where: eq(cmsPages.slug, slug) })
+      const row = await db.query.cmsPages.findFirst({
+        where: eq(cmsPages.slug, slug),
+        with: { translations: true },
+      })
       return row ?? null
     },
 
     async getById(id) {
-      const row = await db.query.cmsPages.findFirst({ where: eq(cmsPages.id, id) })
+      const row = await db.query.cmsPages.findFirst({
+        where: eq(cmsPages.id, id),
+        with: { translations: true },
+      })
       return row ?? null
     },
 

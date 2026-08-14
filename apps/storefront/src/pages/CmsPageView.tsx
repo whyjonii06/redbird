@@ -1,17 +1,19 @@
 import { Link, useParams } from 'react-router-dom'
 import { useMeta } from '../App.js'
 import { RedirectOrNotFound } from '../components/RedirectOrNotFound.js'
+import { useI18n } from '../i18n/index.js'
 import { trpc } from '../trpc.js'
 import { useSeoMeta } from '../useSeoMeta.js'
 
 export function CmsPageView() {
   const { slug } = useParams<{ slug: string }>()
   const meta = useMeta()
+  const { locale } = useI18n()
   const {
     data: page,
     isLoading,
     error,
-  } = trpc.cms.bySlug.useQuery({ slug: slug! }, { enabled: Boolean(slug) })
+  } = trpc.cms.bySlug.useQuery({ slug: slug!, locale }, { enabled: Boolean(slug) })
 
   useSeoMeta(
     page

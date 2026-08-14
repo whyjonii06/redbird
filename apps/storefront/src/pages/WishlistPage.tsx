@@ -1,12 +1,14 @@
 import { Link } from 'react-router-dom'
 import type { WishlistProduct } from '../WishlistContext.js'
 import { useWishlist } from '../WishlistContext.js'
-import { type ProductSummary, ProductCard } from '../components/ProductCard.js'
+import { ProductCard, type ProductSummary } from '../components/ProductCard.js'
+import { useI18n } from '../i18n/index.js'
 import { trpc } from '../trpc.js'
 
 /** Utilisé pour les anonymes : charge les produits via catalog.list et filtre par IDs. */
 function WishlistProductsAnon({ ids }: { ids: string[] }) {
-  const { data } = trpc.catalog.list.useQuery({ limit: 100 })
+  const { locale } = useI18n()
+  const { data } = trpc.catalog.list.useQuery({ limit: 100, locale })
   const wishlisted = data?.filter((p) => ids.includes(p.id)) ?? []
 
   if (wishlisted.length === 0) return null

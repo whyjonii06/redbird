@@ -1,14 +1,17 @@
 import { Link } from 'react-router-dom'
 import { ProductCard } from '../../../components/ProductCard.js'
+import { useI18n } from '../../../i18n/index.js'
 import { trpc } from '../../../trpc.js'
 
 type Config = { title: string; productIds: string[]; columns: 2 | 3 | 4 }
 
 export function FeaturedProducts({ config }: { config: Config }) {
   const cols = config.columns ?? 4
+  const { locale } = useI18n()
   const { data: products = [], isLoading } = trpc.catalog.list.useQuery({
     status: 'active',
     limit: cols * 2,
+    locale,
   })
 
   if (products.length === 0 && !isLoading) return null

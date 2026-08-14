@@ -7,7 +7,8 @@ import { CartProvider } from './CartContext.js'
 import { CurrencyProvider } from './CurrencyContext.js'
 import { WishlistProvider } from './WishlistContext.js'
 import { Header } from './components/Header.js'
-import { I18nProvider } from './i18n/index.js'
+import { RedirectOrNotFound } from './components/RedirectOrNotFound.js'
+import { I18nProvider, useI18n } from './i18n/index.js'
 import { DEFAULT_META, type StoreMeta, applyMeta, fetchMeta } from './meta.js'
 import { AccountPage } from './pages/AccountPage.js'
 import { AddressBookPage } from './pages/AddressBookPage.js'
@@ -19,13 +20,12 @@ import { ForgotPasswordPage } from './pages/ForgotPasswordPage.js'
 import { HomePage } from './pages/HomePage.js'
 import { InvoicePage } from './pages/InvoicePage.js'
 import { LoginPage } from './pages/LoginPage.js'
+import { NotFoundPage } from './pages/NotFoundPage.js'
 import { OrderConfirmPage } from './pages/OrderConfirmPage.js'
 import { ProductPage } from './pages/ProductPage.js'
 import { ProductsPage } from './pages/ProductsPage.js'
 import { RegisterPage } from './pages/RegisterPage.js'
 import { ResetPasswordPage } from './pages/ResetPasswordPage.js'
-import { NotFoundPage } from './pages/NotFoundPage.js'
-import { RedirectOrNotFound } from './components/RedirectOrNotFound.js'
 import { SearchPage } from './pages/SearchPage.js'
 import { WishlistPage } from './pages/WishlistPage.js'
 import { makeTRPCClient, trpc } from './trpc.js'
@@ -56,50 +56,50 @@ export default function App() {
   return (
     <MetaContext.Provider value={meta}>
       <I18nProvider>
-       <trpc.Provider client={trpcClient} queryClient={queryClient}>
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <CurrencyProvider>
-            <WishlistProvider>
-              <CartProvider>
-                <BrowserRouter>
-                  <div className="min-h-screen bg-gray-50 flex flex-col">
-                    <Header />
-                    <main className="flex-1">
-                      <Routes>
-                        <Route path="/" element={<HomePage />} />
-                        <Route path="/products" element={<ProductsPage />} />
-                        <Route path="/products/:slug" element={<ProductPage />} />
-                        <Route path="/cart" element={<CartPage />} />
-                        <Route path="/checkout" element={<CheckoutPage />} />
-                        <Route path="/order/:number" element={<OrderConfirmPage />} />
-                        <Route path="/search" element={<SearchPage />} />
-                        <Route path="/wishlist" element={<WishlistPage />} />
-                        <Route path="/login" element={<LoginPage />} />
-                        <Route path="/register" element={<RegisterPage />} />
-                        <Route path="/account" element={<AccountPage />} />
-                        <Route path="/account/addresses" element={<AddressBookPage />} />
-                        <Route path="/invoice/:number" element={<InvoicePage />} />
-                        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-                        <Route path="/reset-password" element={<ResetPasswordPage />} />
-                        <Route path="/category/:slug" element={<CategoryPage />} />
-                        <Route path="/categories/:slug" element={<RedirectCategory />} />
-                        <Route path="/pages/:slug" element={<CmsPageView />} />
-                        <Route
-                          path="*"
-                          element={<RedirectOrNotFound fallback={<NotFoundPage />} />}
-                        />
-                      </Routes>
-                    </main>
-                    <StorefrontFooter />
-                  </div>
-                </BrowserRouter>
-              </CartProvider>
-            </WishlistProvider>
-            </CurrencyProvider>
-          </AuthProvider>
-        </QueryClientProvider>
-      </trpc.Provider>
+        <trpc.Provider client={trpcClient} queryClient={queryClient}>
+          <QueryClientProvider client={queryClient}>
+            <AuthProvider>
+              <CurrencyProvider>
+                <WishlistProvider>
+                  <CartProvider>
+                    <BrowserRouter>
+                      <div className="min-h-screen bg-gray-50 flex flex-col">
+                        <Header />
+                        <main className="flex-1">
+                          <Routes>
+                            <Route path="/" element={<HomePage />} />
+                            <Route path="/products" element={<ProductsPage />} />
+                            <Route path="/products/:slug" element={<ProductPage />} />
+                            <Route path="/cart" element={<CartPage />} />
+                            <Route path="/checkout" element={<CheckoutPage />} />
+                            <Route path="/order/:number" element={<OrderConfirmPage />} />
+                            <Route path="/search" element={<SearchPage />} />
+                            <Route path="/wishlist" element={<WishlistPage />} />
+                            <Route path="/login" element={<LoginPage />} />
+                            <Route path="/register" element={<RegisterPage />} />
+                            <Route path="/account" element={<AccountPage />} />
+                            <Route path="/account/addresses" element={<AddressBookPage />} />
+                            <Route path="/invoice/:number" element={<InvoicePage />} />
+                            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                            <Route path="/reset-password" element={<ResetPasswordPage />} />
+                            <Route path="/category/:slug" element={<CategoryPage />} />
+                            <Route path="/categories/:slug" element={<RedirectCategory />} />
+                            <Route path="/pages/:slug" element={<CmsPageView />} />
+                            <Route
+                              path="*"
+                              element={<RedirectOrNotFound fallback={<NotFoundPage />} />}
+                            />
+                          </Routes>
+                        </main>
+                        <StorefrontFooter />
+                      </div>
+                    </BrowserRouter>
+                  </CartProvider>
+                </WishlistProvider>
+              </CurrencyProvider>
+            </AuthProvider>
+          </QueryClientProvider>
+        </trpc.Provider>
       </I18nProvider>
     </MetaContext.Provider>
   )
@@ -107,7 +107,8 @@ export default function App() {
 
 function StorefrontFooter() {
   const meta = useMeta()
-  const { data: pages = [] } = trpc.cms.list.useQuery()
+  const { locale } = useI18n()
+  const { data: pages = [] } = trpc.cms.list.useQuery({ locale })
 
   return (
     <footer className="border-t border-gray-200 bg-white py-8 mt-16">

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { useI18n } from '../../../i18n/index.js'
 import { trpc } from '../../../trpc.js'
 
 type GridItem = {
@@ -13,8 +14,9 @@ type Config = { items: GridItem[] }
 export function LookbookGrid({ config }: { config: Config }) {
   const items = config.items ?? []
   const productIds = [...new Set(items.map((i) => i.productId).filter(Boolean))] as string[]
+  const { locale } = useI18n()
   const { data: products = [] } = trpc.catalog.list.useQuery(
-    { status: 'active', limit: 20 },
+    { status: 'active', limit: 20, locale },
     { enabled: productIds.length > 0 },
   )
   const productMap = Object.fromEntries(

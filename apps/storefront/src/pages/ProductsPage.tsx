@@ -2,12 +2,14 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { FilterPanel } from '../components/FilterPanel.js'
 import { ProductCard } from '../components/ProductCard.js'
+import { useI18n } from '../i18n/index.js'
 import { trpc } from '../trpc.js'
 
 const LIMIT = 12
 type SortBy = 'newest' | 'price_asc' | 'price_desc' | 'name'
 
 export function ProductsPage() {
+  const { locale } = useI18n()
   const [offset, setOffset] = useState(0)
   const [sortBy, setSortBy] = useState<SortBy>('newest')
   const [brandIds, setBrandIds] = useState<string[]>([])
@@ -23,9 +25,10 @@ export function ProductsPage() {
     minPrice: minPriceCents,
     maxPrice: maxPriceCents,
     inStock: inStock || undefined,
+    locale,
   })
 
-  const { data: categories = [] } = trpc.categories.list.useQuery()
+  const { data: categories = [] } = trpc.categories.list.useQuery({ locale })
 
   const products = data?.products ?? []
   const totalCount = data?.totalCount ?? 0

@@ -8,10 +8,19 @@ type NavType = 'category' | 'page' | 'custom'
 type NavItem = {
   id: string
   label: string
+  labels?: Record<string, string>
   type: NavType
   value: string
   children?: Omit<NavItem, 'children'>[]
 }
+
+// Matches apps/storefront/src/i18n's LOCALES — kept in sync manually since the
+// two apps don't share a locale package.
+const NAV_LOCALES: { code: string; label: string }[] = [
+  { code: 'fr', label: 'Français' },
+  { code: 'es', label: 'Español' },
+  { code: 'de', label: 'Deutsch' },
+]
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function uid() {
@@ -47,6 +56,7 @@ function ItemForm({
   const [type, setType] = useState<NavType>(item.type ?? 'custom')
   const [label, setLabel] = useState(item.label ?? '')
   const [value, setValue] = useState(item.value ?? '')
+  const [labels, setLabels] = useState<Record<string, string>>(item.labels ?? {})
 
   function handleTypeChange(t: NavType) {
     setType(t)
@@ -77,9 +87,13 @@ function ItemForm({
   function submit(e: React.FormEvent) {
     e.preventDefault()
     if (!label.trim() || !value.trim()) return
+    const cleanLabels = Object.fromEntries(
+      Object.entries(labels).filter(([, v]) => v.trim().length > 0),
+    )
     onSave({
       id: item.id ?? uid(),
       label: label.trim(),
+      ...(Object.keys(cleanLabels).length > 0 ? { labels: cleanLabels } : {}),
       type,
       value: value.trim(),
       ...(item.children ? { children: item.children } : {}),
@@ -181,6 +195,26 @@ function ItemForm({
               placeholder="ex : Nouveautés"
               className={inputCls}
             />
+          </div>
+
+          {/* Per-locale label overrides */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-2">
+              Traductions du libellé (optionnel)
+            </label>
+            <div className="space-y-2">
+              {NAV_LOCALES.map((l) => (
+                <div key={l.code} className="flex items-center gap-2">
+                  <span className="text-xs text-gray-400 w-8 shrink-0 uppercase">{l.code}</span>
+                  <input
+                    value={labels[l.code] ?? ''}
+                    onChange={(e) => setLabels({ ...labels, [l.code]: e.target.value })}
+                    placeholder={`${l.label} — laisser vide pour utiliser le libellé par défaut`}
+                    className={inputCls}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="flex gap-3 pt-1">

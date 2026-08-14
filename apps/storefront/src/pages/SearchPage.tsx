@@ -1,12 +1,14 @@
 import { useSearchParams } from 'react-router-dom'
 import { ProductCard } from '../components/ProductCard.js'
+import { useI18n } from '../i18n/index.js'
 import { trpc } from '../trpc.js'
 
 export function SearchPage() {
   const [params] = useSearchParams()
   const q = params.get('q') ?? ''
+  const { locale } = useI18n()
 
-  const { data, isLoading } = trpc.catalog.search.useQuery({ q }, { enabled: q.length > 0 })
+  const { data, isLoading } = trpc.catalog.search.useQuery({ q, locale }, { enabled: q.length > 0 })
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">

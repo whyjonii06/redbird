@@ -530,11 +530,8 @@ export const productImagesRelations = relations(productImages, ({ one }) => ({
   }),
 }))
 
-export const categoriesRelations = relations(categories, ({ one, many }) => ({
-  parent: one(categories, { fields: [categories.parentId], references: [categories.id] }),
-  children: many(categories),
-  productCategories: many(productCategories),
-}))
+// categoriesRelations is defined at the end of this file (after categoryTranslations),
+// so TypeScript's block-scoped const TDZ check doesn't flag a forward reference.
 
 export const productCategoriesRelations = relations(productCategories, ({ one }) => ({
   product: one(products, { fields: [productCategories.productId], references: [products.id] }),
@@ -1226,3 +1223,74 @@ export const redirects = pgTable(
 
 export type Redirect = typeof redirects.$inferSelect
 export type NewRedirect = typeof redirects.$inferInsert
+
+// ---------- Category & CMS translations ----------
+// Same shape as productTranslations — kept as separate tables (one per
+// translatable entity type) rather than a generic polymorphic table, so each
+// stays a plain FK with cascade delete instead of a loosely-typed (entityType,
+// entityId) pair.
+
+export const categoryTranslations = pgTable(
+  'category_translations',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    categoryId: uuid()
+      .notNull()
+      .references(() => categories.id, { onDelete: 'cascade' }),
+    /** BCP 47 locale tag, e.g. "fr", "fr-FR", "en-US" */
+    locale: text().notNull(),
+    name: text().notNull(),
+    description: text(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('category_translations_category_locale_idx').on(t.categoryId, t.locale),
+    index('category_translations_locale_idx').on(t.locale),
+  ],
+)
+
+export const cmsTranslations = pgTable(
+  'cms_translations',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    pageId: uuid()
+      .notNull()
+      .references(() => cmsPages.id, { onDelete: 'cascade' }),
+    locale: text().notNull(),
+    title: text().notNull(),
+    excerpt: text(),
+    content: text().notNull().default(''),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('cms_translations_page_locale_idx').on(t.pageId, t.locale),
+    index('cms_translations_locale_idx').on(t.locale),
+  ],
+)
+
+export type CategoryTranslation = typeof categoryTranslations.$inferSelect
+export type CmsTranslation = typeof cmsTranslations.$inferSelect
+
+export const categoriesRelations = relations(categories, ({ one, many }) => ({
+  parent: one(categories, { fields: [categories.parentId], references: [categories.id] }),
+  children: many(categories),
+  productCategories: many(productCategories),
+  translations: many(categoryTranslations),
+}))
+
+export const categoryTranslationsRelations = relations(categoryTranslations, ({ one }) => ({
+  category: one(categories, {
+    fields: [categoryTranslations.categoryId],
+    references: [categories.id],
+  }),
+}))
+
+export const cmsPagesRelations = relations(cmsPages, ({ many }) => ({
+  translations: many(cmsTranslations),
+}))
+
+export const cmsTranslationsRelations = relations(cmsTranslations, ({ one }) => ({
+  page: one(cmsPages, { fields: [cmsTranslations.pageId], references: [cmsPages.id] }),
+}))

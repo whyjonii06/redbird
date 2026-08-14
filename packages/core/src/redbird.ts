@@ -22,6 +22,8 @@ import { type DownloadService, createDownloadService } from './downloads/service
 import { EmailRegistry } from './email/registry.js'
 import type { EmailProvider, LocalEmailStore } from './email/types.js'
 import { type GiftCardService, createGiftCardService } from './gift-cards/service.js'
+import { type CategoryI18nService, createCategoryI18nService } from './i18n/category-service.js'
+import { type CmsI18nService, createCmsI18nService } from './i18n/cms-service.js'
 import { type I18nService, createI18nService } from './i18n/service.js'
 import type { LicenseInfo } from './license/types.js'
 import { verifyLicense } from './license/verify.js'
@@ -63,6 +65,8 @@ export type Redbird = {
   readonly stock: StockService
   readonly promos: PromoService
   readonly i18n: I18nService
+  readonly categoryI18n: CategoryI18nService
+  readonly cmsI18n: CmsI18nService
   readonly returns: ReturnService
   readonly abandonedCart: AbandonedCartService
   readonly staff: StaffService
@@ -175,6 +179,8 @@ export function createRedbird(config: RedbirdConfig): Redbird {
   const stockSvc = createStockService(db)
   const promoSvc = createPromoService(db)
   const i18nSvc = createI18nService(db)
+  const categoryI18nSvc = createCategoryI18nService(db)
+  const cmsI18nSvc = createCmsI18nService(db)
   const returnSvc = createReturnService(db)
   const abandonedCartSvc = createAbandonedCartService(db, email)
   const staffSvc = createStaffService(db)
@@ -321,6 +327,8 @@ export function createRedbird(config: RedbirdConfig): Redbird {
     stock: stockSvc,
     promos: promoSvc,
     i18n: i18nSvc,
+    categoryI18n: categoryI18nSvc,
+    cmsI18n: cmsI18nSvc,
     returns: returnSvc,
     abandonedCart: abandonedCartSvc,
     staff: staffSvc,

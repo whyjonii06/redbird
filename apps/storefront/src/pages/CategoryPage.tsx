@@ -4,6 +4,7 @@ import { useMeta } from '../App.js'
 import { FilterPanel } from '../components/FilterPanel.js'
 import { ProductCard } from '../components/ProductCard.js'
 import { RedirectOrNotFound } from '../components/RedirectOrNotFound.js'
+import { useI18n } from '../i18n/index.js'
 import { trpc } from '../trpc.js'
 import { useSeoMeta } from '../useSeoMeta.js'
 
@@ -13,6 +14,7 @@ type SortBy = 'newest' | 'price_asc' | 'price_desc' | 'name'
 export function CategoryPage() {
   const { slug } = useParams<{ slug: string }>()
   const meta = useMeta()
+  const { locale } = useI18n()
   const [offset, setOffset] = useState(0)
   const [sortBy, setSortBy] = useState<SortBy>('newest')
   const [brandIds, setBrandIds] = useState<string[]>([])
@@ -22,7 +24,7 @@ export function CategoryPage() {
   const [inStock, setInStock] = useState(false)
 
   const { data: category, isLoading: catLoading } = trpc.categories.bySlug.useQuery(
-    { slug: slug! },
+    { slug: slug!, locale },
     { enabled: Boolean(slug) },
   )
 
@@ -37,6 +39,7 @@ export function CategoryPage() {
       minPrice: minPriceCents,
       maxPrice: maxPriceCents,
       inStock: inStock || undefined,
+      locale,
     },
     { enabled: Boolean(category?.id) },
   )

@@ -18,6 +18,8 @@ import {
 export type NavItem = {
   id: string
   label: string
+  /** Optional per-locale label overrides, e.g. { fr: 'Nouveautés', es: 'Novedades' }. */
+  labels?: Record<string, string>
   type: 'category' | 'page' | 'custom'
   value: string
   children?: Omit<NavItem, 'children'>[]
@@ -1346,6 +1348,64 @@ export const adminRouter = router({
       .mutation(({ ctx, input }) => ctx.redbird.i18n.delete(input.productId, input.locale)),
   }),
 
+  // ---- Category translations (i18n) ----
+  categoryTranslations: router({
+    list: adminProcedure
+      .input(z.object({ categoryId: z.string().uuid() }))
+      .query(({ ctx, input }) => ctx.redbird.categoryI18n.list(input.categoryId)),
+
+    upsert: adminProcedure
+      .input(
+        z.object({
+          categoryId: z.string().uuid(),
+          locale: z.string().min(2).max(10),
+          name: z.string().min(1),
+          description: z.string().optional(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        const opts: Parameters<typeof ctx.redbird.categoryI18n.upsert>[2] = { name: input.name }
+        if (input.description !== undefined) opts.description = input.description
+        return ctx.redbird.categoryI18n.upsert(input.categoryId, input.locale, opts)
+      }),
+
+    delete: adminProcedure
+      .input(z.object({ categoryId: z.string().uuid(), locale: z.string().min(2) }))
+      .mutation(({ ctx, input }) =>
+        ctx.redbird.categoryI18n.delete(input.categoryId, input.locale),
+      ),
+  }),
+
+  // ---- CMS page translations (i18n) ----
+  cmsTranslations: router({
+    list: adminProcedure
+      .input(z.object({ pageId: z.string().uuid() }))
+      .query(({ ctx, input }) => ctx.redbird.cmsI18n.list(input.pageId)),
+
+    upsert: adminProcedure
+      .input(
+        z.object({
+          pageId: z.string().uuid(),
+          locale: z.string().min(2).max(10),
+          title: z.string().min(1),
+          excerpt: z.string().optional(),
+          content: z.string(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        const opts: Parameters<typeof ctx.redbird.cmsI18n.upsert>[2] = {
+          title: input.title,
+          content: input.content,
+        }
+        if (input.excerpt !== undefined) opts.excerpt = input.excerpt
+        return ctx.redbird.cmsI18n.upsert(input.pageId, input.locale, opts)
+      }),
+
+    delete: adminProcedure
+      .input(z.object({ pageId: z.string().uuid(), locale: z.string().min(2) }))
+      .mutation(({ ctx, input }) => ctx.redbird.cmsI18n.delete(input.pageId, input.locale)),
+  }),
+
   // ---- Brands ----
   brands: router({
     list: adminProcedure.query(({ ctx }) => ctx.redbird.brands.list()),
@@ -2095,6 +2155,7 @@ export const adminRouter = router({
           z.object({
             id: z.string(),
             label: z.string().min(1),
+            labels: z.record(z.string(), z.string()).optional(),
             type: z.enum(['category', 'page', 'custom']),
             value: z.string(),
             children: z
@@ -2102,6 +2163,7 @@ export const adminRouter = router({
                 z.object({
                   id: z.string(),
                   label: z.string().min(1),
+                  labels: z.record(z.string(), z.string()).optional(),
                   type: z.enum(['category', 'page', 'custom']),
                   value: z.string(),
                 }),

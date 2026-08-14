@@ -6,6 +6,76 @@ import { useCartData } from '../CartContext.js'
 import { useCurrency } from '../CurrencyContext.js'
 import { useWishlist } from '../WishlistContext.js'
 import { LOCALES, useI18n } from '../i18n/index.js'
+import { trpc } from '../trpc.js'
+
+type NavItem = {
+  id: string
+  label: string
+  labels?: Record<string, string>
+  type: 'category' | 'page' | 'custom'
+  value: string
+  children?: Omit<NavItem, 'children'>[]
+}
+
+function navLabel(item: Pick<NavItem, 'label' | 'labels'>, locale: string): string {
+  return item.labels?.[locale] ?? item.label
+}
+
+function navHref(item: Pick<NavItem, 'type' | 'value'>): string {
+  if (item.type === 'custom' && item.value.includes('://')) return item.value
+  return item.value
+}
+
+function NavLink({ item, locale }: { item: NavItem; locale: string }) {
+  const hasChildren = (item.children?.length ?? 0) > 0
+  const href = navHref(item)
+  const external = item.type === 'custom' && item.value.includes('://')
+
+  const linkClass =
+    'text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors flex items-center gap-1'
+
+  if (!hasChildren) {
+    return external ? (
+      <a href={href} className={linkClass} target="_blank" rel="noreferrer">
+        {navLabel(item, locale)}
+      </a>
+    ) : (
+      <Link to={href} className={linkClass}>
+        {navLabel(item, locale)}
+      </Link>
+    )
+  }
+
+  return (
+    <div className="relative group">
+      <span className={`${linkClass} cursor-default`}>
+        {navLabel(item, locale)}
+        <svg
+          aria-hidden="true"
+          className="w-3 h-3"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </span>
+      <div className="absolute left-0 top-full pt-2 hidden group-hover:block z-50">
+        <div className="bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[160px]">
+          {item.children!.map((child) => (
+            <Link
+              key={child.id}
+              to={navHref(child)}
+              className="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+            >
+              {navLabel(child, locale)}
+            </Link>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export function Header() {
   const meta = useMeta()
@@ -16,6 +86,7 @@ export function Header() {
   const { currency, setCurrency, supported } = useCurrency()
   const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState('')
+  const { data: navItems = [] } = trpc.navigation.get.useQuery()
 
   const itemCount = cart?.lineItems.reduce((n, li) => n + li.quantity, 0) ?? 0
   const cartHasItems = itemCount > 0
@@ -39,12 +110,18 @@ export function Header() {
 
         {/* Nav */}
         <nav className="hidden md:flex items-center gap-5">
-          <Link
-            to="/products"
-            className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
-          >
-            {t('header.products')}
-          </Link>
+          {navItems.length > 0 ? (
+            (navItems as NavItem[]).map((item) => (
+              <NavLink key={item.id} item={item} locale={locale} />
+            ))
+          ) : (
+            <Link
+              to="/products"
+              className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              {t('header.products')}
+            </Link>
+          )}
         </nav>
 
         {/* Search */}

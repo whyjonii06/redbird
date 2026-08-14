@@ -1,11 +1,13 @@
 import { Link } from 'react-router-dom'
+import { useI18n } from '../../../i18n/index.js'
 import { fmt, trpc } from '../../../trpc.js'
 
 type Config = { productId: string | null; quote: string; quoteAuthor: string }
 
 export function EditorialFeatured({ config }: { config: Config }) {
+  const { locale } = useI18n()
   const { data: product } = trpc.catalog.byId.useQuery(
-    { id: config.productId! },
+    { id: config.productId!, locale },
     { enabled: !!config.productId },
   )
 

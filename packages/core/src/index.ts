@@ -36,6 +36,11 @@ export type {
   PromoLineItem,
 } from './promos/service.js'
 export type { I18nService, UpsertTranslationInput } from './i18n/service.js'
+export type {
+  CategoryI18nService,
+  UpsertCategoryTranslationInput,
+} from './i18n/category-service.js'
+export type { CmsI18nService, UpsertCmsTranslationInput } from './i18n/cms-service.js'
 export type { ReturnService, CreateReturnInput } from './returns/service.js'
 export type { AbandonedCartService, AbandonedCartResult } from './abandoned-cart/service.js'
 export type { StaffService, StaffMember, StaffRole, CreateStaffInput } from './staff/service.js'
@@ -132,7 +137,12 @@ export type {
   WarehouseStock,
   // Redirects
   Redirect,
+  // Translations
+  CategoryTranslation,
+  CmsTranslation,
 } from './db/schema.js'
+export type { CategoryWithTranslations } from './catalog/categories.js'
+export type { CmsPageWithTranslations } from './cms/service.js'
 export type { ProductFeatureService, ProductFeatureInput } from './catalog/features.js'
 export type { CustomerGroupService } from './customer-groups/service.js'
 

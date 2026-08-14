@@ -5,10 +5,244 @@ import {
   btnLinkDanger,
   btnPrimary,
   btnSecondary,
+  btnSmPrimary,
+  btnSmSecondary,
   inputCls,
   parseApiError,
 } from '../components/ui.js'
 import { trpc } from '../trpc.js'
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-gray-700 mb-1">{label}</label>
+      {children}
+    </div>
+  )
+}
+
+const COMMON_LOCALES = [
+  { code: 'fr', label: 'French' },
+  { code: 'es', label: 'Spanish' },
+  { code: 'de', label: 'German' },
+  { code: 'it', label: 'Italian' },
+  { code: 'pt', label: 'Portuguese' },
+  { code: 'nl', label: 'Dutch' },
+  { code: 'pl', label: 'Polish' },
+  { code: 'ja', label: 'Japanese' },
+  { code: 'zh', label: 'Chinese' },
+  { code: 'ar', label: 'Arabic' },
+]
+
+function CmsTranslationsSection({ pageId }: { pageId: string }) {
+  const utils = trpc.useUtils()
+  const { data: translations = [] } = trpc.admin.cmsTranslations.list.useQuery({ pageId })
+
+  const [editLocale, setEditLocale] = useState<string | null>(null)
+  const [locale, setLocale] = useState('fr')
+  const [tTitle, setTTitle] = useState('')
+  const [tExcerpt, setTExcerpt] = useState('')
+  const [tContent, setTContent] = useState('')
+  const [showAdd, setShowAdd] = useState(false)
+
+  const upsertMut = trpc.admin.cmsTranslations.upsert.useMutation({
+    onSuccess: () => {
+      utils.admin.cmsTranslations.list.invalidate({ pageId })
+      setShowAdd(false)
+      setEditLocale(null)
+      setTTitle('')
+      setTExcerpt('')
+      setTContent('')
+    },
+  })
+  const deleteMut = trpc.admin.cmsTranslations.delete.useMutation({
+    onSuccess: () => utils.admin.cmsTranslations.list.invalidate({ pageId }),
+  })
+
+  function startEdit(t: {
+    locale: string
+    title: string
+    excerpt: string | null
+    content: string
+  }) {
+    setEditLocale(t.locale)
+    setTTitle(t.title)
+    setTExcerpt(t.excerpt ?? '')
+    setTContent(t.content)
+    setShowAdd(false)
+  }
+
+  function startAdd() {
+    setEditLocale(null)
+    setTTitle('')
+    setTExcerpt('')
+    setTContent('')
+    setShowAdd(true)
+  }
+
+  return (
+    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+          Translations
+        </h3>
+        {!showAdd && !editLocale && (
+          <button type="button" onClick={startAdd} className={btnLink}>
+            + Add translation
+          </button>
+        )}
+      </div>
+
+      {translations.length === 0 && !showAdd && (
+        <p className="text-sm text-gray-400">No translations yet.</p>
+      )}
+
+      {translations.map((t) =>
+        editLocale === t.locale ? (
+          <form
+            key={t.locale}
+            onSubmit={(e) => {
+              e.preventDefault()
+              const opts: Parameters<typeof upsertMut.mutate>[0] = {
+                pageId,
+                locale: t.locale,
+                title: tTitle,
+                content: tContent,
+              }
+              if (tExcerpt) opts.excerpt = tExcerpt
+              upsertMut.mutate(opts)
+            }}
+            className="border border-indigo-200 rounded-lg p-3 space-y-2 bg-white"
+          >
+            <p className="text-xs font-semibold text-indigo-700 uppercase">{t.locale}</p>
+            <Field label="Title">
+              <input
+                value={tTitle}
+                onChange={(e) => setTTitle(e.target.value)}
+                className={inputCls}
+                required
+              />
+            </Field>
+            <Field label="Excerpt">
+              <input
+                value={tExcerpt}
+                onChange={(e) => setTExcerpt(e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Content">
+              <textarea
+                value={tContent}
+                onChange={(e) => setTContent(e.target.value)}
+                rows={6}
+                className={inputCls}
+                required
+              />
+            </Field>
+            <div className="flex gap-2">
+              <button type="submit" disabled={upsertMut.isPending} className={btnSmPrimary}>
+                Save
+              </button>
+              <button type="button" onClick={() => setEditLocale(null)} className={btnSmSecondary}>
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : (
+          <div
+            key={t.locale}
+            className="flex items-start justify-between rounded-lg border border-gray-100 bg-white px-3 py-2"
+          >
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-gray-500 uppercase mb-0.5">{t.locale}</p>
+              <p className="text-sm font-medium text-gray-900">{t.title}</p>
+            </div>
+            <div className="flex gap-2 ml-3 flex-shrink-0">
+              <button type="button" onClick={() => startEdit(t)} className={btnLink}>
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm(`Delete ${t.locale} translation?`))
+                    deleteMut.mutate({ pageId, locale: t.locale })
+                }}
+                className={btnLinkDanger}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        ),
+      )}
+
+      {showAdd && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            const opts: Parameters<typeof upsertMut.mutate>[0] = {
+              pageId,
+              locale,
+              title: tTitle,
+              content: tContent,
+            }
+            if (tExcerpt) opts.excerpt = tExcerpt
+            upsertMut.mutate(opts)
+          }}
+          className="border border-indigo-200 rounded-lg p-3 space-y-2 bg-white"
+        >
+          <Field label="Language">
+            <select value={locale} onChange={(e) => setLocale(e.target.value)} className={inputCls}>
+              {COMMON_LOCALES.filter((l) => !translations.some((t) => t.locale === l.code)).map(
+                (l) => (
+                  <option key={l.code} value={l.code}>
+                    {l.label} ({l.code})
+                  </option>
+                ),
+              )}
+            </select>
+          </Field>
+          <Field label="Title">
+            <input
+              value={tTitle}
+              onChange={(e) => setTTitle(e.target.value)}
+              className={inputCls}
+              required
+            />
+          </Field>
+          <Field label="Excerpt">
+            <input
+              value={tExcerpt}
+              onChange={(e) => setTExcerpt(e.target.value)}
+              className={inputCls}
+            />
+          </Field>
+          <Field label="Content">
+            <textarea
+              value={tContent}
+              onChange={(e) => setTContent(e.target.value)}
+              rows={6}
+              className={inputCls}
+              required
+            />
+          </Field>
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              disabled={upsertMut.isPending || !tTitle || !tContent}
+              className={btnSmPrimary}
+            >
+              Add
+            </button>
+            <button type="button" onClick={() => setShowAdd(false)} className={btnSmSecondary}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
+  )
+}
 
 export function CmsPage() {
   const utils = trpc.useUtils()
@@ -247,6 +481,7 @@ function CmsForm({
           </button>
         </div>
       </form>
+      {existing && <CmsTranslationsSection pageId={existing.id} />}
     </div>
   )
 }
