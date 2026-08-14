@@ -71,6 +71,13 @@ export type {
   CreateCampaignInput,
   SendCampaignResult,
 } from './campaigns/service.js'
+export type {
+  SubscriptionService,
+  SubscriptionWithProduct,
+  CreateSubscriptionInput,
+  SubscriptionInterval,
+  RunRemindersResult,
+} from './subscriptions/service.js'
 export type { SupplierService, CreateSupplierInput, LinkProductInput } from './suppliers/service.js'
 export type { DownloadService } from './downloads/service.js'
 
@@ -152,6 +159,8 @@ export type {
   // Email campaigns
   Campaign,
   CampaignRecipient,
+  // Subscriptions
+  Subscription,
 } from './db/schema.js'
 export type { CategoryWithTranslations } from './catalog/categories.js'
 export type { CmsPageWithTranslations } from './cms/service.js'

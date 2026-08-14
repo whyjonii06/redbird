@@ -29,6 +29,7 @@ import { ReturnsPage } from './pages/ReturnsPage.js'
 import { SettingsPage } from './pages/SettingsPage.js'
 import { SetupPage } from './pages/SetupPage.js'
 import { StaffPage } from './pages/StaffPage.js'
+import { SubscriptionsPage } from './pages/SubscriptionsPage.js'
 import { ThemeEditorPage } from './pages/ThemeEditorPage.js'
 import { WarehousesPage } from './pages/WarehousesPage.js'
 import { makeTRPCClient, trpc } from './trpc.js'
@@ -58,6 +59,7 @@ export default function App() {
                   <Route path="customer-groups" element={<CustomerGroupsPage />} />
                   <Route path="promos" element={<PromosPage />} />
                   <Route path="campaigns" element={<CampaignsPage />} />
+                  <Route path="subscriptions" element={<SubscriptionsPage />} />
                   <Route path="returns" element={<ReturnsPage />} />
                   <Route path="reports" element={<ReportsPage />} />
                   <Route path="staff" element={<StaffPage />} />

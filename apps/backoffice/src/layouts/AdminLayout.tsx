@@ -46,6 +46,7 @@ const navGroups: NavGroup[] = [
     items: [
       { to: '/promos', label: 'Promos' },
       { to: '/campaigns', label: 'Campaigns' },
+      { to: '/subscriptions', label: 'Subscriptions' },
       { to: '/cms', label: 'CMS Pages' },
       { to: '/navigation', label: 'Navigation' },
       { to: '/redirects', label: 'Redirects' },

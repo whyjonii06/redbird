@@ -189,6 +189,8 @@ export function AccountPage() {
         </div>
       </div>
 
+      <SubscriptionsSection />
+
       {/* Quick links */}
       <div className="grid grid-cols-2 gap-4 mb-8">
         <Link
@@ -324,6 +326,89 @@ export function AccountPage() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+const INTERVAL_LABEL: Record<'weekly' | 'monthly' | 'yearly', string> = {
+  weekly: 'Weekly',
+  monthly: 'Monthly',
+  yearly: 'Yearly',
+}
+
+function SubscriptionsSection() {
+  const utils = trpc.useUtils()
+  const { data: subs = [], isLoading } = trpc.subscriptions.list.useQuery()
+
+  const pauseMut = trpc.subscriptions.pause.useMutation({
+    onSuccess: () => void utils.subscriptions.list.invalidate(),
+  })
+  const resumeMut = trpc.subscriptions.resume.useMutation({
+    onSuccess: () => void utils.subscriptions.list.invalidate(),
+  })
+  const cancelMut = trpc.subscriptions.cancel.useMutation({
+    onSuccess: () => void utils.subscriptions.list.invalidate(),
+  })
+
+  if (isLoading || subs.length === 0) return null
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-6 mb-8">
+      <h2 className="font-semibold text-lg mb-1">Subscriptions</h2>
+      <p className="text-sm text-gray-500 mb-4">
+        We'll email you a reminder to reorder — no auto-charge.
+      </p>
+      <div className="space-y-3">
+        {subs.map((s) => (
+          <div
+            key={s.id}
+            className="flex items-center justify-between border border-gray-100 rounded-lg px-4 py-3"
+          >
+            <div>
+              <p className="text-sm font-medium text-gray-900">
+                {s.quantity} × {s.productName}
+                {s.variantName && <span className="text-gray-400"> — {s.variantName}</span>}
+              </p>
+              <p className="text-xs text-gray-400">
+                {INTERVAL_LABEL[s.interval]} · {fmt(s.priceAmount, s.priceCurrency)} · next reminder{' '}
+                {new Date(s.nextRenewalAt).toLocaleDateString()}
+                {s.status !== 'active' && ` · ${s.status}`}
+              </p>
+            </div>
+            <div className="flex gap-3 shrink-0">
+              {s.status === 'active' && (
+                <button
+                  type="button"
+                  onClick={() => pauseMut.mutate({ id: s.id })}
+                  className="text-xs text-gray-500 hover:text-gray-800"
+                >
+                  Pause
+                </button>
+              )}
+              {s.status === 'paused' && (
+                <button
+                  type="button"
+                  onClick={() => resumeMut.mutate({ id: s.id })}
+                  className="text-xs text-[var(--primary)] hover:underline"
+                >
+                  Resume
+                </button>
+              )}
+              {s.status !== 'cancelled' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirm('Cancel this subscription?')) cancelMut.mutate({ id: s.id })
+                  }}
+                  className="text-xs text-red-500 hover:text-red-700"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

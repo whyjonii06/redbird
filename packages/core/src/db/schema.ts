@@ -1385,3 +1385,49 @@ export const campaignRecipientsRelations = relations(campaignRecipients, ({ one 
   campaign: one(campaigns, { fields: [campaignRecipients.campaignId], references: [campaigns.id] }),
   customer: one(customers, { fields: [campaignRecipients.customerId], references: [customers.id] }),
 }))
+
+// ---------- Subscriptions (recurring plan tracking + renewal reminders) ----------
+//
+// No payment provider in this codebase can charge a saved card off-session (see
+// packages/core/src/payments/types.ts — createPaymentIntent is one-shot only), so
+// this is honestly scoped as schedule tracking + a renewal reminder email with a
+// checkout link, not real auto-billing. Framed as such throughout — never claim
+// to auto-charge.
+
+export const subscriptionInterval = pgEnum('subscription_interval', ['weekly', 'monthly', 'yearly'])
+export const subscriptionStatus = pgEnum('subscription_status', ['active', 'paused', 'cancelled'])
+
+export const subscriptions = pgTable(
+  'subscriptions',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    customerId: uuid()
+      .notNull()
+      .references(() => customers.id, { onDelete: 'cascade' }),
+    variantId: uuid()
+      .notNull()
+      .references(() => productVariants.id, { onDelete: 'cascade' }),
+    quantity: integer().notNull().default(1),
+    interval: subscriptionInterval().notNull(),
+    status: subscriptionStatus().notNull().default('active'),
+    nextRenewalAt: timestamp({ withTimezone: true }).notNull(),
+    lastReminderSentAt: timestamp({ withTimezone: true }),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('subscriptions_customer_id_idx').on(t.customerId),
+    index('subscriptions_next_renewal_idx').on(t.nextRenewalAt),
+  ],
+)
+
+export type Subscription = typeof subscriptions.$inferSelect
+export type NewSubscription = typeof subscriptions.$inferInsert
+
+export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
+  customer: one(customers, { fields: [subscriptions.customerId], references: [customers.id] }),
+  variant: one(productVariants, {
+    fields: [subscriptions.variantId],
+    references: [productVariants.id],
+  }),
+}))

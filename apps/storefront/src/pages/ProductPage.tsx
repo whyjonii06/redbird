@@ -120,6 +120,15 @@ export function ProductPage() {
     setTimeout(() => setAdded(false), 2000)
   }
 
+  const [subInterval, setSubInterval] = useState<'weekly' | 'monthly' | 'yearly'>('monthly')
+  const [subscribed, setSubscribed] = useState(false)
+  const subscribeMut = trpc.subscriptions.create.useMutation({
+    onSuccess: () => {
+      setSubscribed(true)
+      setTimeout(() => setSubscribed(false), 3000)
+    },
+  })
+
   if (isLoading) {
     return (
       <div className="max-w-6xl mx-auto px-4 py-12">
@@ -402,6 +411,45 @@ export function ProductPage() {
           </button>
 
           {variant && <p className="text-xs text-gray-400">SKU: {variant.sku}</p>}
+
+          {/* Subscribe & save — schedule tracking + renewal reminders, not auto-charge */}
+          {customer && variant && stock?.available !== 0 && (
+            <div className="border border-gray-200 rounded-xl p-4">
+              <p className="text-sm font-semibold text-gray-700 mb-2">Subscribe to this item</p>
+              <p className="text-xs text-gray-400 mb-3">
+                Get a reminder email to reorder — no auto-charge, you place each order yourself.
+              </p>
+              <div className="flex items-center gap-3">
+                <select
+                  value={subInterval}
+                  onChange={(e) => setSubInterval(e.target.value as typeof subInterval)}
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                >
+                  <option value="weekly">Every week</option>
+                  <option value="monthly">Every month</option>
+                  <option value="yearly">Every year</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={() =>
+                    subscribeMut.mutate({
+                      variantId: variant.id,
+                      quantity: qty,
+                      interval: subInterval,
+                    })
+                  }
+                  disabled={subscribeMut.isPending}
+                  className="flex-1 border border-gray-300 rounded-lg py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  {subscribeMut.isPending
+                    ? 'Subscribing…'
+                    : subscribed
+                      ? '✓ Subscribed'
+                      : 'Subscribe'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

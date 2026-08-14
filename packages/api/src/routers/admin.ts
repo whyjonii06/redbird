@@ -552,6 +552,39 @@ export const adminRouter = router({
       }),
   }),
 
+  // ---- Subscriptions (schedule tracking + renewal reminders — not real auto-billing) ----
+  subscriptions: router({
+    list: adminProcedure.query(({ ctx }) => ctx.redbird.subscriptions.listAll()),
+
+    get: adminProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ ctx, input }) => {
+      const sub = await ctx.redbird.subscriptions.get(input.id)
+      if (!sub) throw new TRPCError({ code: 'NOT_FOUND', message: 'Subscription not found' })
+      return sub
+    }),
+
+    pause: adminProcedure
+      .input(z.object({ id: z.string().uuid() }))
+      .mutation(({ ctx, input }) => ctx.redbird.subscriptions.pause(input.id)),
+
+    resume: adminProcedure
+      .input(z.object({ id: z.string().uuid() }))
+      .mutation(({ ctx, input }) => ctx.redbird.subscriptions.resume(input.id)),
+
+    cancel: adminProcedure
+      .input(z.object({ id: z.string().uuid() }))
+      .mutation(({ ctx, input }) => ctx.redbird.subscriptions.cancel(input.id)),
+
+    /** Manually trigger the renewal-reminder run (also runs on a schedule — see ServerOptions). */
+    runReminders: adminProcedure.mutation(async ({ ctx }) => {
+      const result = await ctx.redbird.subscriptions.runReminders({
+        storeName: ctx.redbird.config.storeName,
+        storeUrl: ctx.redbird.config.storefrontUrl,
+      })
+      await writeAudit(ctx, 'subscriptions.run_reminders', 'subscription', undefined, result)
+      return result
+    }),
+  }),
+
   // ---- Orders ----
   orders: router({
     list: staffProcedure

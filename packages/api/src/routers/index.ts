@@ -15,6 +15,7 @@ import { redirectsRouter } from './redirects.js'
 import { returnsRouter } from './returns.js'
 import { reviewsRouter } from './reviews.js'
 import { staffRouter } from './staff.js'
+import { subscriptionsRouter } from './subscriptions.js'
 
 export const appRouter = router({
   catalog: catalogRouter,
@@ -29,6 +30,7 @@ export const appRouter = router({
   reviews: reviewsRouter,
   returns: returnsRouter,
   staff: staffRouter,
+  subscriptions: subscriptionsRouter,
   attributes: attributesRouter,
   downloads: downloadsRouter,
   loyalty: loyaltyRouter,

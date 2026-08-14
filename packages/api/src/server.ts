@@ -42,6 +42,8 @@ export type ServerOptions = {
   readonly trustProxy?: boolean
   /** Abandoned cart recovery: run every N minutes (default: disabled). Set to 0 to disable. */
   readonly abandonedCartIntervalMinutes?: number
+  /** Subscription renewal reminders: run every N minutes (default: disabled). Set to 0 to disable. */
+  readonly subscriptionReminderIntervalMinutes?: number
   /** Store URL for abandoned cart recovery emails (e.g. https://mystore.com). */
   readonly storeUrl?: string
   /** Public storefront base URL — used in sitemap.xml (e.g. https://mystore.com). */
@@ -706,6 +708,7 @@ export function createApiServer(opts: ServerOptions) {
 
   let boundPort = requestedPort
   let abandonedCartTimer: ReturnType<typeof setInterval> | null = null
+  let subscriptionReminderTimer: ReturnType<typeof setInterval> | null = null
 
   return {
     listen: () =>
@@ -748,6 +751,34 @@ export function createApiServer(opts: ServerOptions) {
             )
           }
 
+          // Start subscription renewal-reminder cron if configured
+          const subReminderMin = opts.subscriptionReminderIntervalMinutes ?? 0
+          if (subReminderMin > 0) {
+            subscriptionReminderTimer = setInterval(
+              () => {
+                const reminderOpts: Parameters<typeof opts.redbird.subscriptions.runReminders>[0] =
+                  {}
+                if (opts.storefrontUrl) reminderOpts.storeUrl = opts.storefrontUrl
+                const sn = opts.redbird.config.storeName
+                if (sn) reminderOpts.storeName = sn
+                opts.redbird.subscriptions
+                  .runReminders(reminderOpts)
+                  .then((result) => {
+                    if (result.due > 0 && log) {
+                      log.info(
+                        { due: result.due, reminded: result.reminded },
+                        'subscription renewal reminders',
+                      )
+                    }
+                  })
+                  .catch((err) => {
+                    if (log) log.error({ err }, 'subscription reminder cron error')
+                  })
+              },
+              subReminderMin * 60 * 1000,
+            )
+          }
+
           resolve()
         })
       }),
@@ -756,6 +787,10 @@ export function createApiServer(opts: ServerOptions) {
         if (abandonedCartTimer) {
           clearInterval(abandonedCartTimer)
           abandonedCartTimer = null
+        }
+        if (subscriptionReminderTimer) {
+          clearInterval(subscriptionReminderTimer)
+          subscriptionReminderTimer = null
         }
         server.close((err) => (err ? reject(err) : resolve()))
       }),

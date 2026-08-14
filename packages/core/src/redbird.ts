@@ -43,6 +43,7 @@ import { ShippingRegistry } from './shipping/registry.js'
 import type { ShippingProvider } from './shipping/types.js'
 import { type StaffService, createStaffService } from './staff/service.js'
 import { type StockService, createStockService } from './stock/service.js'
+import { type SubscriptionService, createSubscriptionService } from './subscriptions/service.js'
 import { type SupplierService, createSupplierService } from './suppliers/service.js'
 import { TaxRegistry } from './tax/registry.js'
 import type { TaxProvider } from './tax/types.js'
@@ -91,6 +92,7 @@ export type Redbird = {
   readonly customerGroupsSvc: CustomerGroupService
   readonly featureFlags: FeatureFlagService
   readonly campaigns: CampaignService
+  readonly subscriptions: SubscriptionService
   readonly localEmails: LocalEmailStore | null
   /** Mutable at runtime — admin.config.update can change these without a server restart. */
   readonly stockAlertConfig: { email: string | undefined; threshold: number }
@@ -222,6 +224,7 @@ export function createRedbird(config: RedbirdConfig): Redbird {
   const customerGroupSvc = createCustomerGroupService(db)
   const featureFlagSvc = createFeatureFlagService(db)
   const campaignSvc = createCampaignService(db, email)
+  const subscriptionSvc = createSubscriptionService(db, email)
   const cart = createCartService(db, plugins, stockSvc, currencySvc, customerGroupSvc)
   const orderSvc = createOrderService(db, plugins, stockSvc, payments)
   const customerSvc = createCustomerService(db)
@@ -357,6 +360,7 @@ export function createRedbird(config: RedbirdConfig): Redbird {
     customerGroupsSvc: customerGroupSvc,
     featureFlags: featureFlagSvc,
     campaigns: campaignSvc,
+    subscriptions: subscriptionSvc,
     get localEmails() {
       return localEmailStore
     },
