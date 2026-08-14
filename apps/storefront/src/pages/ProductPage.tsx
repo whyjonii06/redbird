@@ -365,6 +365,7 @@ export function ProductPage() {
 
       <Slot name="product.tab" productId={product.id} />
       <RelatedProductsSection productId={product.id} />
+      <AlsoBoughtSection productId={product.id} />
 
       {lightboxOpen && product.images[activeImageIdx] && (
         <div
@@ -423,21 +424,24 @@ export function ProductPage() {
   )
 }
 
-function RelatedProductsSection({ productId }: { productId: string }) {
-  const { locale } = useI18n()
-  const { data: related = [] } = trpc.catalog.related.useQuery(
-    { productId, limit: 4, locale },
-    { enabled: Boolean(productId) },
-  )
+type ProductTeaser = {
+  id: string
+  slug: string
+  name: string
+  images: { url: string; alt: string | null }[]
+  variants: { priceAmount: number; priceCurrency: string }[]
+}
+
+function ProductTeaserGrid({ title, products }: { title: string; products: ProductTeaser[] }) {
   const { currency, convert } = useCurrency()
 
-  if (related.length === 0) return null
+  if (products.length === 0) return null
 
   return (
     <div className="mt-16">
-      <h2 className="text-xl font-bold text-gray-900 mb-6">You may also like</h2>
+      <h2 className="text-xl font-bold text-gray-900 mb-6">{title}</h2>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
-        {related.map((p) => {
+        {products.map((p) => {
           const variant = p.variants[0]
           const img = p.images[0]
           return (
@@ -482,4 +486,24 @@ function RelatedProductsSection({ productId }: { productId: string }) {
       </div>
     </div>
   )
+}
+
+function RelatedProductsSection({ productId }: { productId: string }) {
+  const { locale } = useI18n()
+  const { data: related = [] } = trpc.catalog.related.useQuery(
+    { productId, limit: 4, locale },
+    { enabled: Boolean(productId) },
+  )
+
+  return <ProductTeaserGrid title="You may also like" products={related} />
+}
+
+function AlsoBoughtSection({ productId }: { productId: string }) {
+  const { locale } = useI18n()
+  const { data: alsoBought = [] } = trpc.catalog.alsoBought.useQuery(
+    { productId, limit: 4, locale },
+    { enabled: Boolean(productId) },
+  )
+
+  return <ProductTeaserGrid title="Customers also bought" products={alsoBought} />
 }

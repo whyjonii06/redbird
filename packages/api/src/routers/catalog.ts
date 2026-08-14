@@ -1,4 +1,6 @@
+import { productVariants } from '@redbirdshop/core/schema'
 import { TRPCError } from '@trpc/server'
+import { inArray } from 'drizzle-orm'
 import { z } from 'zod'
 import { publicProcedure, router } from '../trpc.js'
 
@@ -112,6 +114,77 @@ export const catalogRouter = router({
       return input.locale
         ? related.map((p) => ctx.redbird.i18n.translate(p, input.locale as string))
         : related
+    }),
+
+  /**
+   * Data-driven "customers also bought": products that co-occur with
+   * `productId` across past orders, ranked by number of distinct orders
+   * they were bought together in. Unlike `related`, this needs no manual
+   * curation — it's computed straight from order history.
+   */
+  alsoBought: publicProcedure
+    .input(
+      z.object({
+        productId: z.string().uuid(),
+        limit: z.number().int().min(1).max(20).default(4),
+        locale: localeInput,
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const sourceProduct = await ctx.redbird.catalog.getProductById(input.productId)
+      if (!sourceProduct || sourceProduct.variants.length === 0) return []
+      const sourceVariantIds = new Set(sourceProduct.variants.map((v) => v.id))
+
+      const lineItems = await ctx.redbird.db.query.orderLineItems.findMany({
+        columns: { orderId: true, variantId: true },
+      })
+
+      const ordersWithProduct = new Set(
+        lineItems
+          .filter((li) => li.variantId && sourceVariantIds.has(li.variantId))
+          .map((li) => li.orderId),
+      )
+      if (ordersWithProduct.size === 0) return []
+
+      // Count each co-occurring variant once per order (not once per line item).
+      const seenPerOrder = new Set<string>()
+      const coCount = new Map<string, number>()
+      for (const li of lineItems) {
+        if (!li.variantId || sourceVariantIds.has(li.variantId)) continue
+        if (!ordersWithProduct.has(li.orderId)) continue
+        const key = `${li.orderId}:${li.variantId}`
+        if (seenPerOrder.has(key)) continue
+        seenPerOrder.add(key)
+        coCount.set(li.variantId, (coCount.get(li.variantId) ?? 0) + 1)
+      }
+      if (coCount.size === 0) return []
+
+      const variants = await ctx.redbird.db.query.productVariants.findMany({
+        where: inArray(productVariants.id, [...coCount.keys()]),
+        columns: { id: true, productId: true },
+      })
+      const productScore = new Map<string, number>()
+      for (const v of variants) {
+        const score = coCount.get(v.id) ?? 0
+        productScore.set(v.productId, (productScore.get(v.productId) ?? 0) + score)
+      }
+      productScore.delete(input.productId)
+
+      const topIds = [...productScore.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, input.limit)
+        .map(([id]) => id)
+      if (topIds.length === 0) return []
+
+      const products = await ctx.redbird.catalog.listProducts({ limit: 10000, status: 'active' })
+      const byId = new Map(products.map((p) => [p.id, p]))
+      const result = topIds
+        .map((id) => byId.get(id))
+        .filter((p): p is NonNullable<typeof p> => p !== undefined)
+
+      return input.locale
+        ? result.map((p) => ctx.redbird.i18n.translate(p, input.locale as string))
+        : result
     }),
 
   filter: publicProcedure
