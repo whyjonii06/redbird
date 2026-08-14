@@ -7,6 +7,7 @@ import { useCurrency } from '../CurrencyContext.js'
 import { useWishlist } from '../WishlistContext.js'
 import { Slot } from '../slots/registry.js'
 import { fmt, trpc } from '../trpc.js'
+import { useSeoMeta } from '../useSeoMeta.js'
 
 function StockBadge({ available }: { available: number | null | undefined }) {
   if (available == null) return null
@@ -58,75 +59,39 @@ export function ProductPage() {
     return () => window.removeEventListener('keydown', handler)
   }, [lightboxOpen])
 
-  // SEO: update document meta on product load
-  useEffect(() => {
-    if (!product) return
-
-    const title = product.metaTitle ?? product.name
-    document.title = title
-
-    const setMeta = (nameOrProp: string, content: string, isProp = false) => {
-      const attr = isProp ? 'property' : 'name'
-      let el = document.querySelector<HTMLMetaElement>(`meta[${attr}="${nameOrProp}"]`)
-      if (!el) {
-        el = document.createElement('meta')
-        el.setAttribute(attr, nameOrProp)
-        document.head.appendChild(el)
-      }
-      el.setAttribute('content', content)
-    }
-
-    const desc = product.metaDescription ?? product.description?.slice(0, 160) ?? ''
-    setMeta('description', desc)
-    setMeta('og:title', title, true)
-    setMeta('og:description', desc, true)
-    setMeta('og:type', 'product', true)
-    const firstImg = product.images[0]?.url
-    if (firstImg) setMeta('og:image', firstImg, true)
-
-    let canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]')
-    if (!canonical) {
-      canonical = document.createElement('link')
-      canonical.setAttribute('rel', 'canonical')
-      document.head.appendChild(canonical)
-    }
-    canonical.setAttribute('href', window.location.href.split('?')[0]!)
-
-    // JSON-LD Product schema
-    const existingLd = document.getElementById('redbird-product-ld')
-    existingLd?.remove()
-    const ldScript = document.createElement('script')
-    ldScript.type = 'application/ld+json'
-    ldScript.id = 'redbird-product-ld'
-    const v = product.variants[0]
-    const ld: Record<string, unknown> = {
-      '@context': 'https://schema.org',
-      '@type': 'Product',
-      name: product.name,
-      ...(product.description ? { description: product.description } : {}),
-      image: product.images.map((img) => img.url),
-      ...(product.brand ? { brand: { '@type': 'Brand', name: product.brand.name } } : {}),
-      ...(v
-        ? {
-            offers: {
-              '@type': 'Offer',
-              price: (v.priceAmount / 100).toFixed(2),
-              priceCurrency: v.priceCurrency,
-              availability:
-                (v.stockLevel?.available ?? 1) > 0
-                  ? 'https://schema.org/InStock'
-                  : 'https://schema.org/OutOfStock',
-            },
-          }
-        : {}),
-    }
-    ldScript.text = JSON.stringify(ld)
-    document.head.appendChild(ldScript)
-
-    return () => {
-      document.getElementById('redbird-product-ld')?.remove()
-    }
-  }, [product])
+  // SEO: document meta + JSON-LD Product schema on product load
+  const firstVariant = product?.variants[0]
+  useSeoMeta(
+    product
+      ? {
+          title: product.metaTitle ?? product.name,
+          description: product.metaDescription ?? product.description?.slice(0, 160) ?? '',
+          ogType: 'product',
+          ogImage: product.images[0]?.url,
+          jsonLd: {
+            '@context': 'https://schema.org',
+            '@type': 'Product',
+            name: product.name,
+            ...(product.description ? { description: product.description } : {}),
+            image: product.images.map((img) => img.url),
+            ...(product.brand ? { brand: { '@type': 'Brand', name: product.brand.name } } : {}),
+            ...(firstVariant
+              ? {
+                  offers: {
+                    '@type': 'Offer',
+                    price: (firstVariant.priceAmount / 100).toFixed(2),
+                    priceCurrency: firstVariant.priceCurrency,
+                    availability:
+                      (firstVariant.stockLevel?.available ?? 1) > 0
+                        ? 'https://schema.org/InStock'
+                        : 'https://schema.org/OutOfStock',
+                  },
+                }
+              : {}),
+          },
+        }
+      : undefined,
+  )
 
   const { customer } = useAuth()
 

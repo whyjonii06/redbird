@@ -1,13 +1,32 @@
 import { Link, useParams } from 'react-router-dom'
+import { useMeta } from '../App.js'
 import { trpc } from '../trpc.js'
+import { useSeoMeta } from '../useSeoMeta.js'
 
 export function CmsPageView() {
   const { slug } = useParams<{ slug: string }>()
+  const meta = useMeta()
   const {
     data: page,
     isLoading,
     error,
   } = trpc.cms.bySlug.useQuery({ slug: slug! }, { enabled: Boolean(slug) })
+
+  useSeoMeta(
+    page
+      ? {
+          title: `${page.title} — ${meta.storeName}`,
+          description: page.excerpt ?? page.content.slice(0, 160),
+          ogType: 'article',
+          jsonLd: {
+            '@context': 'https://schema.org',
+            '@type': 'WebPage',
+            name: page.title,
+            ...(page.excerpt ? { description: page.excerpt } : {}),
+          },
+        }
+      : undefined,
+  )
 
   if (isLoading) {
     return (

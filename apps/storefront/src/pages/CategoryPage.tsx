@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useMeta } from '../App.js'
 import { FilterPanel } from '../components/FilterPanel.js'
 import { ProductCard } from '../components/ProductCard.js'
 import { trpc } from '../trpc.js'
+import { useSeoMeta } from '../useSeoMeta.js'
 
 const LIMIT = 12
 type SortBy = 'newest' | 'price_asc' | 'price_desc' | 'name'
@@ -39,10 +40,22 @@ export function CategoryPage() {
     { enabled: Boolean(category?.id) },
   )
 
-  useEffect(() => {
-    if (!category) return
-    document.title = `${category.name} — ${meta.storeName}`
-  }, [category, meta.storeName])
+  useSeoMeta(
+    category
+      ? {
+          title: `${category.name} — ${meta.storeName}`,
+          description: category.description ?? undefined,
+          ogType: 'website',
+          ogImage: category.imageUrl ?? undefined,
+          jsonLd: {
+            '@context': 'https://schema.org',
+            '@type': 'CollectionPage',
+            name: category.name,
+            ...(category.description ? { description: category.description } : {}),
+          },
+        }
+      : undefined,
+  )
 
   const products = data?.products ?? []
   const totalCount = data?.totalCount ?? 0
