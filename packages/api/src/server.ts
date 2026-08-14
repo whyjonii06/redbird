@@ -421,7 +421,7 @@ export function createApiServer(opts: ServerOptions) {
           res.end()
           return
         }
-        const pdf = generateInvoicePdf(order, storeName)
+        const pdf = await generateInvoicePdf(order, storeName)
         res.setHeader('Access-Control-Allow-Origin', '*')
         res.setHeader('Content-Disposition', `attachment; filename="invoice-${order.number}.pdf"`)
         res.writeHead(200, { 'Content-Type': 'application/pdf', 'Content-Length': pdf.length })

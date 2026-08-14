@@ -325,13 +325,10 @@ function renderDoc(doc: PdfDoc): Promise<Buffer> {
 }
 
 /** Plain visual invoice PDF. */
-export function generateInvoicePdf(order: OrderWithItems, storeName: string): Buffer {
-  const chunks: Buffer[] = []
+export function generateInvoicePdf(order: OrderWithItems, storeName: string): Promise<Buffer> {
   const doc = new PDFDocument({ margin: 50, size: 'A4' })
-  doc.on('data', (chunk: Buffer) => chunks.push(chunk))
   drawInvoiceBody(doc, order, storeName, order.number)
-  doc.end()
-  return Buffer.concat(chunks)
+  return renderDoc(doc)
 }
 
 /**
