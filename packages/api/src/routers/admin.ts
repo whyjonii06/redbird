@@ -620,6 +620,116 @@ export const adminRouter = router({
       }
       return rows.join('\n')
     }),
+
+    /**
+     * Bulk import products+variants from a CSV matching exportCsv's own
+     * format (id, slug, name, description, status, sku, variant_name,
+     * price, currency, stock) — round-trips with export, and `id` is
+     * accepted but ignored: rows are matched by slug (product) and sku
+     * (variant), so a plain hand-written CSV works too. Rows sharing a
+     * slug become one product with multiple variants. Never throws on a
+     * per-row problem — collects it into `errors` and keeps going, since a
+     * typo in row 40 of a 500-row import shouldn't abort the other 499.
+     */
+    importCsv: adminProcedure
+      .input(z.object({ csv: z.string().min(1) }))
+      .mutation(async ({ ctx, input }) => {
+        const { csvToRecords } = await import('../csv.js')
+        const records = csvToRecords(input.csv)
+
+        const groups: Array<{ slug: string; rows: Record<string, string>[] }> = []
+        for (const rec of records) {
+          const slug = rec.slug?.trim()
+          if (!slug) continue
+          const group = groups.find((g) => g.slug === slug)
+          if (group) group.rows.push(rec)
+          else groups.push({ slug, rows: [rec] })
+        }
+
+        const results: Array<{
+          slug: string
+          status: 'created' | 'updated' | 'error'
+          variantCount: number
+          message?: string
+        }> = []
+
+        for (const { slug, rows } of groups) {
+          const first = rows[0]
+          if (!first) continue
+          try {
+            const status = ['draft', 'active', 'archived'].includes(first.status ?? '')
+              ? (first.status as 'draft' | 'active' | 'archived')
+              : 'draft'
+            const productPatch = {
+              slug,
+              name: first.name?.trim() || slug,
+              description: first.description?.trim() || null,
+              status,
+            }
+
+            const existing = await ctx.redbird.catalog.getProductBySlug(slug)
+            const product = existing
+              ? await ctx.redbird.catalog.updateProduct(existing.id, productPatch)
+              : await ctx.redbird.catalog.createProduct(productPatch)
+
+            try {
+              let variantCount = 0
+              for (const row of rows) {
+                const sku = row.sku?.trim()
+                if (!sku) continue
+                const priceAmount = Math.round(Number.parseFloat(row.price || '0') * 100)
+                if (!Number.isFinite(priceAmount)) {
+                  throw new Error(`Row for SKU "${sku}" has an invalid price: "${row.price}"`)
+                }
+                const currency = (
+                  row.currency?.trim() || ctx.redbird.config.defaultCurrency
+                ).toUpperCase()
+                const variantName = row.variant_name?.trim() || 'Default'
+
+                const existingVariant = existing?.variants.find((v) => v.sku === sku)
+                const variant = existingVariant
+                  ? await ctx.redbird.catalog.updateVariant(existingVariant.id, {
+                      name: variantName,
+                      priceAmount,
+                      priceCurrency: currency,
+                    })
+                  : await ctx.redbird.catalog.addVariant({
+                      productId: product.id,
+                      sku,
+                      name: variantName,
+                      priceAmount,
+                      priceCurrency: currency,
+                    })
+                variantCount++
+
+                if (row.stock?.trim()) {
+                  const qty = Number.parseInt(row.stock, 10)
+                  if (Number.isFinite(qty) && qty >= 0) {
+                    await ctx.redbird.stock.set(variant.id, qty)
+                  }
+                }
+              }
+
+              results.push({ slug, status: existing ? 'updated' : 'created', variantCount })
+            } catch (err) {
+              // A newly-created product with a failed variant row would otherwise be
+              // left behind as an empty, invisible-in-the-error orphan — clean it up
+              // so "error" in the results actually means nothing was persisted.
+              if (!existing) await ctx.redbird.catalog.deleteProduct(product.id)
+              throw err
+            }
+          } catch (err) {
+            results.push({
+              slug,
+              status: 'error',
+              variantCount: 0,
+              message: err instanceof Error ? err.message : 'Import failed',
+            })
+          }
+        }
+
+        return { results }
+      }),
   }),
 
   // ---- Customers ----

@@ -65,6 +65,7 @@ export function ProductsPage() {
         </div>
         <div className="flex gap-2">
           <CsvExportButton />
+          <CsvImportButton />
           <Link
             to="/products/new"
             className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
@@ -284,5 +285,105 @@ function CsvExportButton() {
     >
       {isFetching ? t('common.exporting') : t('common.exportCsv')}
     </button>
+  )
+}
+
+type ImportResult = {
+  slug: string
+  status: 'created' | 'updated' | 'error'
+  variantCount: number
+  message?: string
+}
+
+function CsvImportButton() {
+  const utils = trpc.useUtils()
+  const [results, setResults] = useState<ImportResult[] | null>(null)
+
+  const importMut = trpc.admin.catalog.importCsv.useMutation({
+    onSuccess(data) {
+      setResults(data.results)
+      void utils.admin.catalog.list.invalidate()
+      void utils.admin.catalog.count.invalidate()
+    },
+  })
+
+  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const csv = reader.result
+      if (typeof csv === 'string') importMut.mutate({ csv })
+    }
+    reader.readAsText(file)
+  }
+
+  return (
+    <>
+      <input
+        type="file"
+        accept=".csv,text/csv"
+        onChange={handleFile}
+        className="hidden"
+        id="csv-import-input"
+      />
+      <label
+        htmlFor="csv-import-input"
+        className="cursor-pointer border border-gray-200 bg-gray-100 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+      >
+        {importMut.isPending ? 'Importing…' : 'Import CSV'}
+      </label>
+
+      {results && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-xl w-full shadow-xl max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">Import results</h3>
+              <button
+                type="button"
+                onClick={() => setResults(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">
+              {results.filter((r) => r.status === 'created').length} created,{' '}
+              {results.filter((r) => r.status === 'updated').length} updated,{' '}
+              {results.filter((r) => r.status === 'error').length} failed.
+            </p>
+            <div className="divide-y divide-gray-100">
+              {results.map((r) => (
+                <div key={r.slug} className="py-2 flex items-start justify-between gap-3 text-sm">
+                  <div>
+                    <p className="font-mono text-gray-900">{r.slug}</p>
+                    {r.message && <p className="text-xs text-red-600 mt-0.5">{r.message}</p>}
+                  </div>
+                  <span
+                    className={`shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${
+                      r.status === 'error'
+                        ? 'bg-red-100 text-red-700'
+                        : r.status === 'created'
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-blue-100 text-blue-700'
+                    }`}
+                  >
+                    {r.status === 'error' ? 'Error' : `${r.status} (${r.variantCount} variants)`}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => setResults(null)}
+              className="mt-4 w-full border border-gray-300 px-4 py-2 rounded-lg text-sm"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
