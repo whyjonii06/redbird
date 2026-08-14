@@ -5,6 +5,7 @@ import { carts, storeSettings } from '@redbirdshop/core/schema'
 import { TRPCError } from '@trpc/server'
 import { desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
+import { addressSchema } from '../address-schema.js'
 import { writeAudit } from '../audit.js'
 import {
   adminProcedure,
@@ -968,6 +969,67 @@ export const adminRouter = router({
     adjust: warehouseProcedure
       .input(z.object({ variantId: z.string().uuid(), delta: z.number().int() }))
       .mutation(async ({ ctx, input }) => ctx.redbird.stock.adjust(input.variantId, input.delta)),
+
+    byWarehouse: warehouseProcedure
+      .input(z.object({ variantId: z.string().uuid() }))
+      .query(async ({ ctx, input }) => ctx.redbird.warehouses.stockByVariant(input.variantId)),
+
+    setForWarehouse: warehouseProcedure
+      .input(
+        z.object({
+          warehouseId: z.string().uuid(),
+          variantId: z.string().uuid(),
+          quantity: z.number().int().min(0),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        await ctx.redbird.warehouses.setStock(input.warehouseId, input.variantId, input.quantity)
+        return ctx.redbird.warehouses.stockByVariant(input.variantId)
+      }),
+  }),
+
+  // ---- Warehouses ----
+  warehouses: router({
+    list: warehouseProcedure.query(async ({ ctx }) => ctx.redbird.warehouses.list()),
+
+    create: adminProcedure
+      .input(
+        z.object({
+          name: z.string().min(1),
+          code: z.string().min(1),
+          isDefault: z.boolean().optional(),
+          address: addressSchema.optional(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => ctx.redbird.warehouses.create(input)),
+
+    update: adminProcedure
+      .input(
+        z.object({
+          id: z.string().uuid(),
+          name: z.string().min(1).optional(),
+          code: z.string().min(1).optional(),
+          active: z.boolean().optional(),
+          isDefault: z.boolean().optional(),
+          address: addressSchema.nullable().optional(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        const patch: Parameters<typeof ctx.redbird.warehouses.update>[1] = {}
+        if (input.name !== undefined) patch.name = input.name
+        if (input.code !== undefined) patch.code = input.code
+        if (input.active !== undefined) patch.active = input.active
+        if (input.isDefault !== undefined) patch.isDefault = input.isDefault
+        if (input.address !== undefined) patch.address = input.address
+        return ctx.redbird.warehouses.update(input.id, patch)
+      }),
+
+    delete: adminProcedure
+      .input(z.object({ id: z.string().uuid() }))
+      .mutation(async ({ ctx, input }) => {
+        await ctx.redbird.warehouses.delete(input.id)
+        return { ok: true }
+      }),
   }),
 
   // ---- Order notes ----

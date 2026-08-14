@@ -11,8 +11,8 @@ import { type ImageService, createImageService } from './catalog/images.js'
 import { type CatalogService, createCatalogService } from './catalog/service.js'
 import { type CmsService, createCmsService } from './cms/service.js'
 import type { RedbirdConfig } from './config.js'
-import { type CustomerGroupService, createCustomerGroupService } from './customer-groups/service.js'
 import { type CurrencyService, createCurrencyService } from './currency/service.js'
+import { type CustomerGroupService, createCustomerGroupService } from './customer-groups/service.js'
 import { type CustomerService, createCustomerService } from './customer/service.js'
 import { type DbClient, createDbClient, isPgliteUrl } from './db/client.js'
 import { runPostgresMigrations } from './db/migrate-pg.js'
@@ -41,6 +41,7 @@ import { type SupplierService, createSupplierService } from './suppliers/service
 import { TaxRegistry } from './tax/registry.js'
 import type { TaxProvider } from './tax/types.js'
 import { type ThemeSectionService, createThemeSectionService } from './theme-sections/service.js'
+import { type WarehouseService, createWarehouseService } from './warehouses/service.js'
 import { type WebhookService, createWebhookService } from './webhooks/service.js'
 
 export type Redbird = {
@@ -66,6 +67,7 @@ export type Redbird = {
   readonly attributes: AttributeService
   readonly auditLog: AuditLogService
   readonly currency: CurrencyService
+  readonly warehouses: WarehouseService
   readonly cms: CmsService
   readonly themeSections: ThemeSectionService
   readonly addresses: AddressService
@@ -175,6 +177,7 @@ export function createRedbird(config: RedbirdConfig): Redbird {
   const attributeSvc = createAttributeService(db)
   const auditLogSvc = createAuditLogService(db)
   const currencySvc = createCurrencyService(db, config.defaultCurrency)
+  const warehouseSvc = createWarehouseService(db)
   const cmsSvc = createCmsService(db)
   const themeSectionSvc = createThemeSectionService(db)
   const catalog = createCatalogService(db, plugins)
@@ -298,6 +301,7 @@ export function createRedbird(config: RedbirdConfig): Redbird {
     attributes: attributeSvc,
     auditLog: auditLogSvc,
     currency: currencySvc,
+    warehouses: warehouseSvc,
     cms: cmsSvc,
     themeSections: themeSectionSvc,
     addresses: addressSvc,

@@ -23,6 +23,7 @@ const navGroups: NavGroup[] = [
     items: [
       { to: '/products', label: 'Products' },
       { to: '/categories', label: 'Categories' },
+      { to: '/warehouses', label: 'Warehouses' },
     ],
   },
   {

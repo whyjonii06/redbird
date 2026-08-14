@@ -216,6 +216,14 @@ export const productImages = pgTable(
 
 // ---------- Stock ----------
 
+/**
+ * `stockLevels` stays the single reservation pool used by cart/order flows
+ * (available/reserved/committed) — that logic is unchanged and still
+ * variant-scoped only. Warehouses add a WHERE dimension on top: `available`
+ * is kept equal to (sum of warehouseStock quantities) − reserved − committed,
+ * so the existing atomic reserve/release/commit code never has to know
+ * warehouses exist.
+ */
 export const stockLevels = pgTable(
   'stock_levels',
   {
@@ -230,6 +238,54 @@ export const stockLevels = pgTable(
   },
   (t) => [uniqueIndex('stock_levels_variant_id_idx').on(t.variantId)],
 )
+
+export const warehouses = pgTable(
+  'warehouses',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    name: text().notNull(),
+    code: text().notNull(),
+    address: jsonb().$type<Address>(),
+    active: boolean().notNull().default(true),
+    /** The warehouse new stock defaults to when a merchant hasn't picked one yet. */
+    isDefault: boolean().notNull().default(false),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('warehouses_code_idx').on(t.code)],
+)
+
+/** Physical quantity of a variant sitting in a given warehouse. */
+export const warehouseStock = pgTable(
+  'warehouse_stock',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    warehouseId: uuid()
+      .notNull()
+      .references(() => warehouses.id, { onDelete: 'cascade' }),
+    variantId: uuid()
+      .notNull()
+      .references(() => productVariants.id, { onDelete: 'cascade' }),
+    quantity: integer().notNull().default(0),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('warehouse_stock_warehouse_variant_idx').on(t.warehouseId, t.variantId),
+    index('warehouse_stock_variant_id_idx').on(t.variantId),
+  ],
+)
+
+export const warehouseStockRelations = relations(warehouseStock, ({ one }) => ({
+  warehouse: one(warehouses, { fields: [warehouseStock.warehouseId], references: [warehouses.id] }),
+  variant: one(productVariants, {
+    fields: [warehouseStock.variantId],
+    references: [productVariants.id],
+  }),
+}))
+
+export type Warehouse = typeof warehouses.$inferSelect
+export type NewWarehouse = typeof warehouses.$inferInsert
+export type WarehouseStock = typeof warehouseStock.$inferSelect
 
 // ---------- Address ----------
 

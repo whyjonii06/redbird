@@ -204,6 +204,13 @@
       "when": 1782000300000,
       "tag": "0029_advanced_promos",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1782000400000,
+      "tag": "0030_warehouses",
+      "breakpoints": true
     }
   ]
 }

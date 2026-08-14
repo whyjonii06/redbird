@@ -720,8 +720,58 @@ function StockCell({
               Cancel
             </button>
           </div>
+          <WarehouseBreakdown variantId={variantId} />
         </div>
       )}
+    </div>
+  )
+}
+
+function WarehouseBreakdown({ variantId }: { variantId: string }) {
+  const utils = trpc.useUtils()
+  const { data: warehouses = [] } = trpc.admin.warehouses.list.useQuery()
+  const { data: rows = [] } = trpc.admin.stock.byWarehouse.useQuery(
+    { variantId },
+    { enabled: warehouses.length > 0 },
+  )
+  const [edits, setEdits] = useState<Record<string, string>>({})
+
+  const setForWarehouseMut = trpc.admin.stock.setForWarehouse.useMutation({
+    onSuccess: () => {
+      utils.admin.stock.byWarehouse.invalidate({ variantId })
+      utils.admin.catalog.list.invalidate()
+    },
+  })
+
+  if (warehouses.length === 0) return null
+
+  return (
+    <div className="border-t border-gray-100 pt-3 space-y-2">
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">By warehouse</p>
+      {rows.map((row) => (
+        <div key={row.warehouseId} className="flex items-center gap-2">
+          <span className="flex-1 text-xs text-gray-600 truncate">{row.warehouseName}</span>
+          <input
+            type="number"
+            min="0"
+            value={edits[row.warehouseId] ?? String(row.quantity)}
+            onChange={(e) => setEdits({ ...edits, [row.warehouseId]: e.target.value })}
+            className="w-16 border border-gray-200 rounded-lg px-2 py-1 text-xs"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              const n = Number.parseInt(edits[row.warehouseId] ?? String(row.quantity), 10)
+              if (Number.isNaN(n) || n < 0) return
+              setForWarehouseMut.mutate({ warehouseId: row.warehouseId, variantId, quantity: n })
+            }}
+            disabled={setForWarehouseMut.isPending}
+            className="text-xs text-indigo-600 hover:text-indigo-800 disabled:opacity-50"
+          >
+            Save
+          </button>
+        </div>
+      ))}
     </div>
   )
 }

@@ -42,6 +42,12 @@ export type { StaffService, StaffMember, StaffRole, CreateStaffInput } from './s
 export type { AttributeService, AttributeWithValues } from './attributes/service.js'
 export type { AuditLogService, WriteAuditLogInput } from './audit-log/service.js'
 export type { CurrencyService, CurrencyConfig } from './currency/service.js'
+export type {
+  WarehouseService,
+  CreateWarehouseInput,
+  UpdateWarehouseInput,
+  WarehouseStockRow,
+} from './warehouses/service.js'
 export type { LoyaltyService } from './loyalty/service.js'
 export type { GiftCardService } from './gift-cards/service.js'
 export type { WebhookService, CreateWebhookInput, UpdateWebhookInput } from './webhooks/service.js'
@@ -115,6 +121,9 @@ export type {
   NewWishlist,
   // Audit log
   AuditLog,
+  // Warehouses
+  Warehouse,
+  WarehouseStock,
 } from './db/schema.js'
 export type { ProductFeatureService, ProductFeatureInput } from './catalog/features.js'
 export type { CustomerGroupService } from './customer-groups/service.js'

@@ -24,6 +24,7 @@ import { SettingsPage } from './pages/SettingsPage.js'
 import { NavigationPage } from './pages/NavigationPage.js'
 import { ThemeEditorPage } from './pages/ThemeEditorPage.js'
 import { SetupPage } from './pages/SetupPage.js'
+import { WarehousesPage } from './pages/WarehousesPage.js'
 import { StaffPage } from './pages/StaffPage.js'
 import { I18nProvider } from './i18n/index.js'
 import { makeTRPCClient, trpc } from './trpc.js'
@@ -56,6 +57,7 @@ export default function App() {
                 <Route path="staff" element={<StaffPage />} />
                 <Route path="audit-log" element={<AuditLogPage />} />
                 <Route path="categories" element={<CategoriesPage />} />
+                <Route path="warehouses" element={<WarehousesPage />} />
                 <Route path="cms" element={<CmsPage />} />
                 <Route path="modules" element={<ModulesPage />} />
                 <Route path="mailbox" element={<MailboxPage />} />
