@@ -17,6 +17,7 @@ import {
   products,
 } from '../db/schema.js'
 import type { PluginRegistry } from '../plugins/registry.js'
+import type { SearchService } from '../search/service.js'
 
 export type VariantAttributeValueWithRelations = {
   variantId: string
@@ -76,7 +77,11 @@ export type CatalogService = {
   removeRelation(id: string): Promise<void>
 }
 
-export function createCatalogService(db: DbClient, hooks: PluginRegistry): CatalogService {
+export function createCatalogService(
+  db: DbClient,
+  hooks: PluginRegistry,
+  search?: SearchService,
+): CatalogService {
   return {
     async listProducts({ limit = 20, offset = 0, status, sortBy } = {}) {
       return db.query.products.findMany({
@@ -97,6 +102,31 @@ export function createCatalogService(db: DbClient, hooks: PluginRegistry): Catal
     },
 
     async search(q, { limit = 20, status = 'active' } = {}) {
+      // Prefer the dedicated search engine when configured — falls back to the
+      // plain ILIKE query below if it's unset, unreachable, or errors.
+      const engineResult = await search?.search(q, { limit, status })
+      if (engineResult) {
+        if (engineResult.ids.length === 0) return []
+        const rows = await db.query.products.findMany({
+          where: inArray(products.id, engineResult.ids),
+          with: {
+            brand: true,
+            variants: {
+              with: {
+                stockLevel: true,
+                attributeValues: { with: { attributeValue: { with: { attribute: true } } } },
+              },
+            },
+            images: { orderBy: (img, { asc }) => [asc(img.position), asc(img.createdAt)] },
+            translations: true,
+            features: { orderBy: (f, { asc }) => [asc(f.position)] },
+          },
+        })
+        const byId = new Map(rows.map((r) => [r.id, r]))
+        // Preserve the engine's relevance ranking — a plain `inArray` query doesn't.
+        return engineResult.ids.map((id) => byId.get(id)).filter((r) => r !== undefined)
+      }
+
       const term = `%${q}%`
       return db.query.products.findMany({
         where: and(
@@ -109,7 +139,12 @@ export function createCatalogService(db: DbClient, hooks: PluginRegistry): Catal
         ),
         with: {
           brand: true,
-          variants: { with: { stockLevel: true, attributeValues: { with: { attributeValue: { with: { attribute: true } } } } } },
+          variants: {
+            with: {
+              stockLevel: true,
+              attributeValues: { with: { attributeValue: { with: { attribute: true } } } },
+            },
+          },
           images: { orderBy: (img, { asc }) => [asc(img.position), asc(img.createdAt)] },
           translations: true,
           features: { orderBy: (f, { asc }) => [asc(f.position)] },

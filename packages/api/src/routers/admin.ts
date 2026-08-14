@@ -988,6 +988,22 @@ export const adminRouter = router({
       }),
   }),
 
+  // ---- Search ----
+  search: router({
+    status: adminProcedure.query(({ ctx }) => ({ enabled: ctx.redbird.search.enabled })),
+
+    reindex: adminProcedure.mutation(async ({ ctx }) => {
+      if (!ctx.redbird.search.enabled) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'No search engine configured' })
+      }
+      await ctx.redbird.search.ensureIndex()
+      const all = await ctx.redbird.catalog.listProducts({ limit: 100000 })
+      const result = await ctx.redbird.search.indexAll(all)
+      await writeAudit(ctx, 'search.reindex', 'catalog', undefined, { count: result.count })
+      return result
+    }),
+  }),
+
   // ---- Warehouses ----
   warehouses: router({
     list: warehouseProcedure.query(async ({ ctx }) => ctx.redbird.warehouses.list()),

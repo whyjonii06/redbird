@@ -28,6 +28,13 @@ export type SellerConfig = {
   readonly email?: string
 }
 
+/** Dedicated search engine (Meilisearch) for product search. Optional — the
+ * catalog falls back to plain DB queries when unset or unreachable. */
+export type SearchConfig = {
+  readonly host: string
+  readonly apiKey?: string
+}
+
 export type RedbirdConfig = {
   /** Postgres URL for production. Omit (or use `file:./path`) for PGlite. */
   readonly databaseUrl?: string
@@ -53,6 +60,8 @@ export type RedbirdConfig = {
   /** Public storefront URL (no trailing slash), e.g. "https://shop.example.com".
    * Used to build absolute URLs in /sitemap.xml. Sitemap is omitted without it. */
   readonly storefrontUrl?: string
+  /** Dedicated search engine. Omit to use plain DB search (fine for small catalogs). */
+  readonly search?: SearchConfig
 }
 
 export function defineConfig(config: RedbirdConfig): RedbirdConfig {

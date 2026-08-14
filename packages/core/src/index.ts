@@ -48,6 +48,7 @@ export type {
   UpdateWarehouseInput,
   WarehouseStockRow,
 } from './warehouses/service.js'
+export type { SearchService, ProductForIndex } from './search/service.js'
 export type { LoyaltyService } from './loyalty/service.js'
 export type { GiftCardService } from './gift-cards/service.js'
 export type { WebhookService, CreateWebhookInput, UpdateWebhookInput } from './webhooks/service.js'

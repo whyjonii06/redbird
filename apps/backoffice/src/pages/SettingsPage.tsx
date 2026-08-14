@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useI18n } from '../i18n/index.js'
+import { type Theme, getTheme, setTheme } from '../theme.js'
 import { trpc } from '../trpc.js'
-import { getTheme, setTheme, type Theme } from '../theme.js'
 
 const THEMES: Array<{ id: Theme; label: string; desc: string }> = [
   { id: 'dark', label: 'Dark', desc: 'Near-black background, red accent' },
@@ -113,9 +113,7 @@ export function SettingsPage() {
           countryCode: seller.countryCode,
         },
         ...(seller.vatNumber ? { vatNumber: seller.vatNumber } : {}),
-        ...(seller.legalRegistrationId
-          ? { legalRegistrationId: seller.legalRegistrationId }
-          : {}),
+        ...(seller.legalRegistrationId ? { legalRegistrationId: seller.legalRegistrationId } : {}),
         ...(seller.email ? { email: seller.email } : {}),
       },
     })
@@ -194,7 +192,14 @@ export function SettingsPage() {
         email: s.email ?? '',
       })
     }
-  }, [data?.stockAlertEmail, data?.stockAlertThreshold, data?.licenseKey, data?.storeName, data?.branding?.tagline, data?.seller])
+  }, [
+    data?.stockAlertEmail,
+    data?.stockAlertThreshold,
+    data?.licenseKey,
+    data?.storeName,
+    data?.branding?.tagline,
+    data?.seller,
+  ])
 
   function handleTheme(t: Theme) {
     setTheme(t)
@@ -367,12 +372,20 @@ export function SettingsPage() {
               {data.defaultPaymentProvider ? (
                 <Row label={t('settings.paymentProvider')} value={data.defaultPaymentProvider} />
               ) : (
-                <Row label={t('settings.paymentProvider')} value={t('common.none')} configAnchor="Payment" />
+                <Row
+                  label={t('settings.paymentProvider')}
+                  value={t('common.none')}
+                  configAnchor="Payment"
+                />
               )}
               {data.defaultEmailProvider ? (
                 <Row label={t('settings.emailProvider')} value={data.defaultEmailProvider} />
               ) : (
-                <Row label={t('settings.emailProvider')} value={t('common.none')} configAnchor="Email" />
+                <Row
+                  label={t('settings.emailProvider')}
+                  value={t('common.none')}
+                  configAnchor="Email"
+                />
               )}
               <div
                 className="flex items-center px-5 py-4"
@@ -485,7 +498,10 @@ export function SettingsPage() {
           </p>
           <div className="flex flex-wrap items-end gap-4">
             <div>
-              <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--bo-muted)' }}>
+              <label
+                className="block text-xs font-medium mb-1.5"
+                style={{ color: 'var(--bo-muted)' }}
+              >
                 {t('settings.fec.from')}
               </label>
               <input
@@ -496,7 +512,10 @@ export function SettingsPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--bo-muted)' }}>
+              <label
+                className="block text-xs font-medium mb-1.5"
+                style={{ color: 'var(--bo-muted)' }}
+              >
                 {t('settings.fec.to')}
               </label>
               <input
@@ -583,7 +602,7 @@ export function SettingsPage() {
               onClick={() =>
                 alertMut.mutate({
                   stockAlertEmail: alertEmail,
-                  stockAlertThreshold: parseInt(alertThreshold, 10) || 5,
+                  stockAlertThreshold: Number.parseInt(alertThreshold, 10) || 5,
                 })
               }
               disabled={alertMut.isPending}
@@ -850,7 +869,75 @@ export function SettingsPage() {
       </section>
 
       <CurrencySection />
+      <SearchSection />
     </div>
+  )
+}
+
+function SearchSection() {
+  const { data: status, isLoading } = trpc.admin.search.status.useQuery()
+  const [result, setResult] = useState<{ count: number } | null>(null)
+
+  const reindexMut = trpc.admin.search.reindex.useMutation({
+    onSuccess: (data) => setResult(data),
+  })
+
+  if (isLoading) return null
+
+  return (
+    <section className="space-y-3">
+      <h2
+        className="text-xs font-semibold uppercase tracking-widest"
+        style={{ color: 'var(--bo-accent)' }}
+      >
+        Search
+      </h2>
+      <div
+        className="rounded-xl p-5 space-y-4"
+        style={{ background: 'var(--bo-bg2)', border: '1px solid var(--bo-border)' }}
+      >
+        {status?.enabled ? (
+          <>
+            <div className="flex items-center gap-2">
+              <span
+                className="text-xs font-bold px-2.5 py-1 rounded-full"
+                style={{ background: 'rgba(34,197,94,0.12)', color: '#22c55e' }}
+              >
+                CONNECTED
+              </span>
+              <p className="text-sm" style={{ color: 'var(--bo-muted)' }}>
+                Product search and filtering are served by the dedicated search engine.
+              </p>
+            </div>
+            {reindexMut.error && <p className="text-xs text-red-400">{reindexMut.error.message}</p>}
+            {result && (
+              <p className="text-xs font-medium" style={{ color: '#4ade80' }}>
+                Indexed {result.count} products.
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={() => reindexMut.mutate()}
+              disabled={reindexMut.isPending}
+              className="px-4 py-2 text-sm font-medium rounded-lg transition-all disabled:opacity-40"
+              style={{
+                background: 'var(--bo-bg3)',
+                border: '1px solid var(--bo-border2)',
+                color: 'var(--bo-text)',
+              }}
+            >
+              {reindexMut.isPending ? 'Reindexing…' : 'Reindex all products'}
+            </button>
+          </>
+        ) : (
+          <p className="text-sm" style={{ color: 'var(--bo-muted)' }}>
+            No dedicated search engine configured — product search falls back to a plain database
+            query, which is fine for smaller catalogs. Set <code>search</code> in redbird.config.ts
+            to connect one.
+          </p>
+        )}
+      </div>
+    </section>
   )
 }
 
@@ -900,9 +987,9 @@ function CurrencySection() {
         style={{ background: 'var(--bo-bg2)', border: '1px solid var(--bo-border)' }}
       >
         <p className="text-sm" style={{ color: 'var(--bo-muted)' }}>
-          Base currency is <strong>{config?.base ?? '…'}</strong> (fixed by your store config).
-          Add other currencies your storefront can display and charge in, with their rate relative
-          to 1 unit of the base currency.
+          Base currency is <strong>{config?.base ?? '…'}</strong> (fixed by your store config). Add
+          other currencies your storefront can display and charge in, with their rate relative to 1
+          unit of the base currency.
         </p>
         {isLoading ? (
           <p className="text-sm" style={{ color: 'var(--bo-muted)' }}>
@@ -960,9 +1047,7 @@ function CurrencySection() {
             </button>
           </div>
         )}
-        {setRatesMut.error && (
-          <p className="text-xs text-red-400">{setRatesMut.error.message}</p>
-        )}
+        {setRatesMut.error && <p className="text-xs text-red-400">{setRatesMut.error.message}</p>}
         {saved && (
           <p className="text-xs font-medium" style={{ color: '#4ade80' }}>
             Saved.

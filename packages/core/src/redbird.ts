@@ -42,6 +42,7 @@ import { TaxRegistry } from './tax/registry.js'
 import type { TaxProvider } from './tax/types.js'
 import { type ThemeSectionService, createThemeSectionService } from './theme-sections/service.js'
 import { type WarehouseService, createWarehouseService } from './warehouses/service.js'
+import { type SearchService, createSearchService } from './search/service.js'
 import { type WebhookService, createWebhookService } from './webhooks/service.js'
 
 export type Redbird = {
@@ -68,6 +69,7 @@ export type Redbird = {
   readonly auditLog: AuditLogService
   readonly currency: CurrencyService
   readonly warehouses: WarehouseService
+  readonly search: SearchService
   readonly cms: CmsService
   readonly themeSections: ThemeSectionService
   readonly addresses: AddressService
@@ -180,7 +182,28 @@ export function createRedbird(config: RedbirdConfig): Redbird {
   const warehouseSvc = createWarehouseService(db)
   const cmsSvc = createCmsService(db)
   const themeSectionSvc = createThemeSectionService(db)
-  const catalog = createCatalogService(db, plugins)
+  const searchSvc = createSearchService(config.search)
+  const catalog = createCatalogService(db, plugins, searchSvc)
+
+  // Keep the search index in sync with the catalog — an interceptor rather than a
+  // proper hook handler so a Meilisearch hiccup can never fail the product write
+  // itself (onEmit interceptor errors are always swallowed by the registry).
+  if (searchSvc.enabled) {
+    plugins.onEmit(async (name, ctx) => {
+      if (name === 'product.created' || name === 'product.updated') {
+        const { product } = ctx as { product: { id: string } }
+        const full = await catalog.getProductById(product.id)
+        if (full) await searchSvc.indexProduct(full)
+      } else if (name === 'product.deleted') {
+        const { productId } = ctx as { productId: string }
+        await searchSvc.deleteProduct(productId)
+      } else if (name === 'variant.created' || name === 'variant.updated') {
+        const { variant } = ctx as { variant: { productId: string } }
+        const full = await catalog.getProductById(variant.productId)
+        if (full) await searchSvc.indexProduct(full)
+      }
+    })
+  }
   const categorySvc = createCategoryService(db, plugins)
   const imageSvc = createImageService(db)
   const cart = createCartService(db, plugins, stockSvc, currencySvc)
@@ -302,6 +325,7 @@ export function createRedbird(config: RedbirdConfig): Redbird {
     auditLog: auditLogSvc,
     currency: currencySvc,
     warehouses: warehouseSvc,
+    search: searchSvc,
     cms: cmsSvc,
     themeSections: themeSectionSvc,
     addresses: addressSvc,
@@ -360,6 +384,13 @@ export function createRedbird(config: RedbirdConfig): Redbird {
         await runPostgresMigrations(db)
       }
       await plugins.setupAll(db)
+      if (searchSvc.enabled) {
+        try {
+          await searchSvc.ensureIndex()
+        } catch (err) {
+          console.warn('⚠ Search index setup failed — falling back to plain DB search.', err)
+        }
+      }
       // Verify license if key provided
       if (config.licenseKey) {
         licenseInfo = await verifyLicense(config.licenseKey, config.licenseServerUrl)
