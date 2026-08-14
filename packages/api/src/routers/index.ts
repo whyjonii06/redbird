@@ -6,6 +6,7 @@ import { cartRouter } from './cart.js'
 import { brandsRouter, catalogRouter, categoriesRouter } from './catalog.js'
 import { checkoutRouter } from './checkout.js'
 import { cmsRouter } from './cms.js'
+import { currencyRouter } from './currency.js'
 import { customersRouter } from './customers.js'
 import { downloadsRouter } from './downloads.js'
 import { loyaltyRouter } from './loyalty.js'
@@ -21,6 +22,7 @@ export const appRouter = router({
   cart: cartRouter,
   checkout: checkoutRouter,
   customers: customersRouter,
+  currency: currencyRouter,
   addresses: addressesRouter,
   reviews: reviewsRouter,
   returns: returnsRouter,

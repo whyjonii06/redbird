@@ -12,6 +12,7 @@ import { type CatalogService, createCatalogService } from './catalog/service.js'
 import { type CmsService, createCmsService } from './cms/service.js'
 import type { RedbirdConfig } from './config.js'
 import { type CustomerGroupService, createCustomerGroupService } from './customer-groups/service.js'
+import { type CurrencyService, createCurrencyService } from './currency/service.js'
 import { type CustomerService, createCustomerService } from './customer/service.js'
 import { type DbClient, createDbClient, isPgliteUrl } from './db/client.js'
 import { runPostgresMigrations } from './db/migrate-pg.js'
@@ -64,6 +65,7 @@ export type Redbird = {
   readonly staff: StaffService
   readonly attributes: AttributeService
   readonly auditLog: AuditLogService
+  readonly currency: CurrencyService
   readonly cms: CmsService
   readonly themeSections: ThemeSectionService
   readonly addresses: AddressService
@@ -172,12 +174,13 @@ export function createRedbird(config: RedbirdConfig): Redbird {
   const staffSvc = createStaffService(db)
   const attributeSvc = createAttributeService(db)
   const auditLogSvc = createAuditLogService(db)
+  const currencySvc = createCurrencyService(db, config.defaultCurrency)
   const cmsSvc = createCmsService(db)
   const themeSectionSvc = createThemeSectionService(db)
   const catalog = createCatalogService(db, plugins)
   const categorySvc = createCategoryService(db, plugins)
   const imageSvc = createImageService(db)
-  const cart = createCartService(db, plugins, stockSvc)
+  const cart = createCartService(db, plugins, stockSvc, currencySvc)
   const orderSvc = createOrderService(db, plugins, stockSvc, payments)
   const customerSvc = createCustomerService(db)
   const addressSvc = createAddressService(db)
@@ -294,6 +297,7 @@ export function createRedbird(config: RedbirdConfig): Redbird {
     staff: staffSvc,
     attributes: attributeSvc,
     auditLog: auditLogSvc,
+    currency: currencySvc,
     cms: cmsSvc,
     themeSections: themeSectionSvc,
     addresses: addressSvc,

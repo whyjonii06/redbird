@@ -848,7 +848,141 @@ export function SettingsPage() {
           </button>
         </div>
       </section>
+
+      <CurrencySection />
     </div>
+  )
+}
+
+function CurrencySection() {
+  const utils = trpc.useUtils()
+  const { data: config, isLoading } = trpc.admin.currency.get.useQuery()
+  const [rows, setRows] = useState<Array<{ code: string; rate: string }>>([])
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    if (!config) return
+    setRows(Object.entries(config.rates).map(([code, rate]) => ({ code, rate: String(rate) })))
+  }, [config])
+
+  const setRatesMut = trpc.admin.currency.setRates.useMutation({
+    onSuccess: () => {
+      utils.admin.currency.get.invalidate()
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    },
+  })
+
+  function updateRow(index: number, patch: Partial<{ code: string; rate: string }>) {
+    setRows(rows.map((r, i) => (i === index ? { ...r, ...patch } : r)))
+  }
+
+  function handleSave() {
+    const rates: Record<string, number> = {}
+    for (const r of rows) {
+      const code = r.code.trim().toUpperCase()
+      const rate = Number.parseFloat(r.rate)
+      if (code.length === 3 && rate > 0) rates[code] = rate
+    }
+    setRatesMut.mutate(rates)
+  }
+
+  return (
+    <section className="space-y-3">
+      <h2
+        className="text-xs font-semibold uppercase tracking-widest"
+        style={{ color: 'var(--bo-accent)' }}
+      >
+        Currencies
+      </h2>
+      <div
+        className="rounded-xl p-5 space-y-4"
+        style={{ background: 'var(--bo-bg2)', border: '1px solid var(--bo-border)' }}
+      >
+        <p className="text-sm" style={{ color: 'var(--bo-muted)' }}>
+          Base currency is <strong>{config?.base ?? '…'}</strong> (fixed by your store config).
+          Add other currencies your storefront can display and charge in, with their rate relative
+          to 1 unit of the base currency.
+        </p>
+        {isLoading ? (
+          <p className="text-sm" style={{ color: 'var(--bo-muted)' }}>
+            Loading…
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {rows.map((row, i) => (
+              <div key={`${row.code}-${i}`} className="flex items-center gap-2">
+                <input
+                  value={row.code}
+                  onChange={(e) => updateRow(i, { code: e.target.value.toUpperCase() })}
+                  maxLength={3}
+                  placeholder="USD"
+                  className="w-20 rounded-lg px-3 py-2 text-sm outline-none font-mono uppercase"
+                  style={{
+                    background: 'var(--bo-bg3)',
+                    border: '1px solid var(--bo-border)',
+                    color: 'var(--bo-text)',
+                  }}
+                />
+                <span className="text-xs" style={{ color: 'var(--bo-muted)' }}>
+                  = 1 {config?.base}
+                </span>
+                <input
+                  type="number"
+                  step="0.0001"
+                  min="0"
+                  value={row.rate}
+                  onChange={(e) => updateRow(i, { rate: e.target.value })}
+                  placeholder="1.08"
+                  className="w-28 rounded-lg px-3 py-2 text-sm outline-none"
+                  style={{
+                    background: 'var(--bo-bg3)',
+                    border: '1px solid var(--bo-border)',
+                    color: 'var(--bo-text)',
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setRows(rows.filter((_, idx) => idx !== i))}
+                  className="text-xs text-red-400 hover:text-red-300"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => setRows([...rows, { code: '', rate: '' }])}
+              className="text-xs"
+              style={{ color: 'var(--bo-accent)' }}
+            >
+              + Add currency
+            </button>
+          </div>
+        )}
+        {setRatesMut.error && (
+          <p className="text-xs text-red-400">{setRatesMut.error.message}</p>
+        )}
+        {saved && (
+          <p className="text-xs font-medium" style={{ color: '#4ade80' }}>
+            Saved.
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={setRatesMut.isPending}
+          className="px-4 py-2 text-sm font-medium rounded-lg transition-all disabled:opacity-40"
+          style={{
+            background: 'var(--bo-bg3)',
+            border: '1px solid var(--bo-border2)',
+            color: 'var(--bo-text)',
+          }}
+        >
+          {setRatesMut.isPending ? 'Saving…' : 'Save currencies'}
+        </button>
+      </div>
+    </section>
   )
 }
 

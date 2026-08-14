@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useMeta } from '../App.js'
 import { useAuth } from '../AuthContext.js'
 import { useCartData } from '../CartContext.js'
+import { useCurrency } from '../CurrencyContext.js'
 import { useWishlist } from '../WishlistContext.js'
 import { LOCALES, useI18n } from '../i18n/index.js'
 
@@ -12,10 +13,12 @@ export function Header() {
   const { data: cart } = useCartData()
   const { ids: wishlistIds } = useWishlist()
   const { t, locale, setLocale } = useI18n()
+  const { currency, setCurrency, supported } = useCurrency()
   const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState('')
 
   const itemCount = cart?.lineItems.reduce((n, li) => n + li.quantity, 0) ?? 0
+  const cartHasItems = itemCount > 0
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault()
@@ -146,6 +149,25 @@ export function Header() {
               </option>
             ))}
           </select>
+
+          {/* Currency switcher — locked while the cart has items already priced
+              in another currency, to avoid a cart mixing currencies silently. */}
+          {supported.length > 1 && (
+            <select
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value)}
+              disabled={cartHasItems}
+              aria-label="Currency"
+              title={cartHasItems ? 'Clear your cart to switch currency' : undefined}
+              className="text-sm bg-transparent text-gray-600 hover:text-gray-900 outline-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {supported.map((code) => (
+                <option key={code} value={code}>
+                  {code}
+                </option>
+              ))}
+            </select>
+          )}
 
           {/* Cart */}
           <button

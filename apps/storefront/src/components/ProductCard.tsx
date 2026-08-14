@@ -3,6 +3,7 @@ import type { inferRouterOutputs } from '@trpc/server'
 import { Link } from 'react-router-dom'
 import { useMeta } from '../App.js'
 import { useAuth } from '../AuthContext.js'
+import { useCurrency } from '../CurrencyContext.js'
 import { useWishlist } from '../WishlistContext.js'
 import { fmt, trpc } from '../trpc.js'
 
@@ -15,6 +16,8 @@ export function ProductCard({ product }: Props) {
   const { toggle, has } = useWishlist()
   const { customer } = useAuth()
   const meta = useMeta()
+  const { currency, convert } = useCurrency()
+  const displayPrice = (amount: number, from: string) => fmt(convert(amount, from), currency)
   const cover = product.images[0]
   const cheapestVariant =
     product.variants.length > 0
@@ -70,10 +73,10 @@ export function ProductCard({ product }: Props) {
                 <>
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="font-semibold text-sm" style={{ color: 'var(--primary)' }}>
-                      {fmt(groupPrice.priceAmount, groupPrice.priceCurrency)}
+                      {displayPrice(groupPrice.priceAmount, groupPrice.priceCurrency)}
                     </span>
                     <span className="text-xs line-through text-gray-400">
-                      {fmt(cheapestVariant.priceAmount, cheapestVariant.priceCurrency)}
+                      {displayPrice(cheapestVariant.priceAmount, cheapestVariant.priceCurrency)}
                     </span>
                     <span
                       className="text-xs font-medium px-1.5 py-0.5 rounded text-white"
@@ -91,7 +94,7 @@ export function ProductCard({ product }: Props) {
               ) : cheapestVariant ? (
                 <>
                   <p className="font-semibold text-sm text-gray-900">
-                    {fmt(cheapestVariant.priceAmount, cheapestVariant.priceCurrency)}
+                    {displayPrice(cheapestVariant.priceAmount, cheapestVariant.priceCurrency)}
                   </p>
                   {meta.priceDisplay !== 'none' && (
                     <p className="text-xs text-gray-400">

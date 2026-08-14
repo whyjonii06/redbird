@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useMeta } from '../App.js'
 import { useAuth } from '../AuthContext.js'
 import { useAddToCart } from '../CartContext.js'
+import { useCurrency } from '../CurrencyContext.js'
 import { useWishlist } from '../WishlistContext.js'
 import { Slot } from '../slots/registry.js'
 import { fmt, trpc } from '../trpc.js'
@@ -39,6 +40,8 @@ export function ProductPage() {
   const addToCart = useAddToCart()
   const { toggle, has } = useWishlist()
   const meta = useMeta()
+  const { currency, convert } = useCurrency()
+  const displayPrice = (amount: number, from: string) => fmt(convert(amount, from), currency)
 
   // Reset gallery when navigating between products
   useEffect(() => {
@@ -138,7 +141,7 @@ export function ProductPage() {
 
   async function handleAddToCart() {
     if (!variant) return
-    await addToCart(variant.id, variant.priceCurrency, qty)
+    await addToCart(variant.id, currency, qty)
     setAdded(true)
     setTimeout(() => setAdded(false), 2000)
   }
@@ -276,10 +279,10 @@ export function ProductPage() {
                 {groupPrice && groupPrice.priceAmount < variant.priceAmount ? (
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-2xl font-semibold" style={{ color: 'var(--primary)' }}>
-                      {fmt(groupPrice.priceAmount, groupPrice.priceCurrency)}
+                      {displayPrice(groupPrice.priceAmount, groupPrice.priceCurrency)}
                     </p>
                     <span className="text-lg line-through text-gray-400">
-                      {fmt(variant.priceAmount, variant.priceCurrency)}
+                      {displayPrice(variant.priceAmount, variant.priceCurrency)}
                     </span>
                     <span
                       className="text-xs font-medium px-2 py-0.5 rounded-full text-white"
@@ -290,7 +293,7 @@ export function ProductPage() {
                   </div>
                 ) : (
                   <p className="text-2xl font-semibold" style={{ color: 'var(--primary)' }}>
-                    {fmt(variant.priceAmount, variant.priceCurrency)}
+                    {displayPrice(variant.priceAmount, variant.priceCurrency)}
                   </p>
                 )}
                 {meta.priceDisplay !== 'none' && (
@@ -453,6 +456,7 @@ function RelatedProductsSection({ productId }: { productId: string }) {
     { productId, limit: 4 },
     { enabled: Boolean(productId) },
   )
+  const { currency, convert } = useCurrency()
 
   if (related.length === 0) return null
 
@@ -496,7 +500,7 @@ function RelatedProductsSection({ productId }: { productId: string }) {
               </p>
               {variant && (
                 <p className="text-sm mt-0.5" style={{ color: 'var(--primary)' }}>
-                  {fmt(variant.priceAmount, variant.priceCurrency)}
+                  {fmt(convert(variant.priceAmount, variant.priceCurrency), currency)}
                 </p>
               )}
             </a>

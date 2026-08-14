@@ -4,6 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-
 import { Link } from 'react-router-dom'
 import { AuthProvider } from './AuthContext.js'
 import { CartProvider } from './CartContext.js'
+import { CurrencyProvider } from './CurrencyContext.js'
 import { WishlistProvider } from './WishlistContext.js'
 import { Header } from './components/Header.js'
 import { I18nProvider } from './i18n/index.js'
@@ -57,6 +58,7 @@ export default function App() {
        <trpc.Provider client={trpcClient} queryClient={queryClient}>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
+            <CurrencyProvider>
             <WishlistProvider>
               <CartProvider>
                 <BrowserRouter>
@@ -90,6 +92,7 @@ export default function App() {
                 </BrowserRouter>
               </CartProvider>
             </WishlistProvider>
+            </CurrencyProvider>
           </AuthProvider>
         </QueryClientProvider>
       </trpc.Provider>

@@ -1950,6 +1950,18 @@ export const adminRouter = router({
     }),
   }),
 
+  // ---- Multi-currency ----
+  currency: router({
+    get: adminProcedure.query(async ({ ctx }) => ctx.redbird.currency.getConfig()),
+    setRates: adminProcedure
+      .input(z.record(z.string().length(3), z.number().positive()))
+      .mutation(async ({ ctx, input }) => {
+        await ctx.redbird.currency.setRates(input)
+        await writeAudit(ctx, 'currency.rates_update', 'store', undefined, { rates: input })
+        return ctx.redbird.currency.getConfig()
+      }),
+  }),
+
   // ---- Demo data ----
   navigation: router({
     get: adminProcedure.query(async ({ ctx }) => {

@@ -1,4 +1,5 @@
 import { and, eq, isNull } from 'drizzle-orm'
+import type { CurrencyService } from '../currency/service.js'
 import type { DbClient } from '../db/client.js'
 import {
   type Address,
@@ -47,6 +48,7 @@ export function createCartService(
   db: DbClient,
   hooks: PluginRegistry,
   stock?: StockService,
+  currency?: CurrencyService,
 ): CartService {
   async function loadCart(id: string): Promise<CartWithItems | null> {
     const row = await db.query.carts.findFirst({
@@ -140,9 +142,22 @@ export function createCartService(
         where: eq(productVariants.id, variantId),
       })
       if (!variant) throw new Error(`Variant ${variantId} not found`)
+
+      // Convert the variant's native price into the cart's currency so browsing
+      // in a different currency doesn't block adding to cart. Conversion happens
+      // once, at add time — the cart line item then holds a plain amount like any
+      // other, with no further currency logic downstream (checkout, tax, etc.).
+      let unitPriceAmount = variant.priceAmount
       if (variant.priceCurrency !== cart.currency) {
-        throw new Error(
-          `Variant currency ${variant.priceCurrency} does not match cart currency ${cart.currency}`,
+        if (!currency) {
+          throw new Error(
+            `Variant currency ${variant.priceCurrency} does not match cart currency ${cart.currency}`,
+          )
+        }
+        unitPriceAmount = await currency.convert(
+          variant.priceAmount,
+          variant.priceCurrency,
+          cart.currency,
         )
       }
 
@@ -166,8 +181,8 @@ export function createCartService(
             cartId,
             variantId,
             quantity,
-            unitPriceAmount: variant.priceAmount,
-            unitPriceCurrency: variant.priceCurrency,
+            unitPriceAmount,
+            unitPriceCurrency: cart.currency,
           })
           .returning()
         if (!created) throw new Error('Failed to create line item')
