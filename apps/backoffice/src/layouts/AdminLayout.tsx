@@ -31,6 +31,7 @@ const navGroups: NavGroup[] = [
     items: [
       { to: '/orders', label: 'Orders' },
       { to: '/returns', label: 'Returns' },
+      { to: '/reports', label: 'Reports' },
     ],
   },
   {

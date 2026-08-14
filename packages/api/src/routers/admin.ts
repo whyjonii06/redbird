@@ -1,12 +1,14 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { type FecEntry, generateFec } from '@redbirdshop/core'
-import { carts, storeSettings } from '@redbirdshop/core/schema'
+import type { DbClient } from '@redbirdshop/core'
+import { carts, customers, orders, storeSettings } from '@redbirdshop/core/schema'
 import { TRPCError } from '@trpc/server'
-import { desc, eq } from 'drizzle-orm'
+import { and, desc, eq, gte, inArray, lte, ne } from 'drizzle-orm'
 import { z } from 'zod'
 import { addressSchema } from '../address-schema.js'
 import { writeAudit } from '../audit.js'
+import { recordsToCsv } from '../csv.js'
 import {
   adminProcedure,
   ownerProcedure,
@@ -59,6 +61,49 @@ const STOREFRONT_THEMES = [
     pkg: '@redbird/storefront-b2b',
   },
 ]
+
+type BestSellerRow = {
+  sku: string
+  productName: string
+  variantName: string
+  quantitySold: number
+  revenue: number
+}
+
+/** Aggregates order line items (excluding cancelled orders) by SKU, sorted by quantity sold desc. */
+async function loadBestSellerRows(
+  db: DbClient,
+  from?: string,
+  to?: string,
+): Promise<BestSellerRow[]> {
+  const fromDate = from ? new Date(from) : null
+  const toDate = to ? new Date(`${to}T23:59:59.999Z`) : null
+  const rows = await db.query.orders.findMany({
+    where: and(
+      fromDate ? gte(orders.createdAt, fromDate) : undefined,
+      toDate ? lte(orders.createdAt, toDate) : undefined,
+      ne(orders.status, 'cancelled'),
+    ),
+    with: { lineItems: true },
+  })
+
+  const bySku = new Map<string, BestSellerRow>()
+  for (const o of rows) {
+    for (const li of o.lineItems) {
+      const entry = bySku.get(li.sku) ?? {
+        sku: li.sku,
+        productName: li.productName,
+        variantName: li.variantName,
+        quantitySold: 0,
+        revenue: 0,
+      }
+      entry.quantitySold += li.quantity
+      entry.revenue += li.totalAmount
+      bySku.set(li.sku, entry)
+    }
+  }
+  return [...bySku.values()].sort((a, b) => b.quantitySold - a.quantitySold)
+}
 
 export const adminRouter = router({
   // ---- Config (read-only view of server config) ----
@@ -284,6 +329,139 @@ export const adminRouter = router({
         ),
       }
     }),
+  }),
+
+  // ---- Reports (best-sellers, cohorts, CSV exports) ----
+  reports: router({
+    bestSellers: adminProcedure
+      .input(
+        z.object({
+          from: z.string().optional(),
+          to: z.string().optional(),
+          limit: z.number().int().min(1).max(200).default(20),
+        }),
+      )
+      .query(async ({ ctx, input }) => {
+        const rows = await loadBestSellerRows(ctx.redbird.db, input.from, input.to)
+        return rows.slice(0, input.limit)
+      }),
+
+    exportBestSellers: adminProcedure
+      .input(z.object({ from: z.string().optional(), to: z.string().optional() }).optional())
+      .query(async ({ ctx, input }) => {
+        const rows = await loadBestSellerRows(ctx.redbird.db, input?.from, input?.to)
+        const records = rows.map((r) => ({ ...r, revenue: (r.revenue / 100).toFixed(2) }))
+        return recordsToCsv(records, [
+          'sku',
+          'productName',
+          'variantName',
+          'quantitySold',
+          'revenue',
+        ])
+      }),
+
+    exportOrders: adminProcedure
+      .input(
+        z
+          .object({
+            from: z.string().optional(),
+            to: z.string().optional(),
+            status: z.enum(['pending', 'paid', 'fulfilled', 'cancelled', 'refunded']).optional(),
+          })
+          .optional(),
+      )
+      .query(async ({ ctx, input }) => {
+        const from = input?.from ? new Date(input.from) : null
+        const to = input?.to ? new Date(`${input.to}T23:59:59.999Z`) : null
+        const rows = await ctx.redbird.db.query.orders.findMany({
+          where: and(
+            from ? gte(orders.createdAt, from) : undefined,
+            to ? lte(orders.createdAt, to) : undefined,
+            input?.status ? eq(orders.status, input.status) : undefined,
+          ),
+          orderBy: (o, { desc: descOrder }) => [descOrder(o.createdAt)],
+        })
+        const records = rows.map((o) => ({
+          number: o.number,
+          date: o.createdAt.toISOString().slice(0, 10),
+          customerEmail: o.customerEmail,
+          status: o.status,
+          currency: o.currency,
+          total: (o.totalAmount / 100).toFixed(2),
+        }))
+        return recordsToCsv(records, [
+          'number',
+          'date',
+          'customerEmail',
+          'status',
+          'currency',
+          'total',
+        ])
+      }),
+
+    /**
+     * Monthly signup cohorts with order-retention: for each cohort (customers
+     * who signed up in a given calendar month), the % of that cohort that
+     * placed at least one order in each subsequent calendar month.
+     */
+    cohorts: adminProcedure
+      .input(z.object({ months: z.number().int().min(1).max(24).default(6) }).optional())
+      .query(async ({ ctx, input }) => {
+        const months = input?.months ?? 6
+        const now = new Date()
+        const startBoundary = new Date(
+          Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - months + 1, 1),
+        )
+
+        const cohortCustomers = await ctx.redbird.db.query.customers.findMany({
+          where: gte(customers.createdAt, startBoundary),
+          columns: { id: true, createdAt: true },
+        })
+        const customerIds = cohortCustomers.map((c) => c.id)
+        const customerOrders = customerIds.length
+          ? await ctx.redbird.db.query.orders.findMany({
+              where: and(inArray(orders.customerId, customerIds), ne(orders.status, 'cancelled')),
+              columns: { customerId: true, createdAt: true },
+            })
+          : []
+
+        const monthKey = (d: Date) =>
+          `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`
+        const monthIndex = (d: Date) => d.getUTCFullYear() * 12 + d.getUTCMonth()
+        const nowIdx = monthIndex(now)
+
+        const cohortIds = new Map<string, string[]>()
+        for (const c of cohortCustomers) {
+          const key = monthKey(c.createdAt)
+          const arr = cohortIds.get(key)
+          if (arr) arr.push(c.id)
+          else cohortIds.set(key, [c.id])
+        }
+
+        const ordersByCustomer = new Map<string, number[]>()
+        for (const o of customerOrders) {
+          if (!o.customerId) continue
+          const arr = ordersByCustomer.get(o.customerId)
+          const idx = monthIndex(o.createdAt)
+          if (arr) arr.push(idx)
+          else ordersByCustomer.set(o.customerId, [idx])
+        }
+
+        return [...cohortIds.entries()]
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([key, ids]) => {
+            const cohortIdx = monthIndex(new Date(`${key}-01T00:00:00Z`))
+            const retention: number[] = []
+            for (let offset = 0; cohortIdx + offset <= nowIdx; offset++) {
+              const targetIdx = cohortIdx + offset
+              const active = ids.filter((id) =>
+                (ordersByCustomer.get(id) ?? []).includes(targetIdx),
+              ).length
+              retention.push(ids.length ? Math.round((active / ids.length) * 100) : 0)
+            }
+            return { cohort: key, size: ids.length, retention }
+          })
+      }),
   }),
 
   // ---- Orders ----

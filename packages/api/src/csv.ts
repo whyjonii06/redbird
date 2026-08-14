@@ -66,6 +66,20 @@ export function parseCsv(text: string): string[][] {
   return rows.filter((r) => r.some((cell) => cell.trim() !== ''))
 }
 
+function toCsvField(value: unknown): string {
+  const s = value === null || value === undefined ? '' : String(value)
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+}
+
+/** Build an RFC4180 CSV string from records, in the given column order. */
+export function recordsToCsv(records: Record<string, unknown>[], columns: string[]): string {
+  const lines = [columns.join(',')]
+  for (const rec of records) {
+    lines.push(columns.map((col) => toCsvField(rec[col])).join(','))
+  }
+  return lines.join('\n')
+}
+
 /** Parse rows with a header into objects keyed by lowercased, trimmed header names. */
 export function csvToRecords(text: string): Record<string, string>[] {
   const rows = parseCsv(text)
