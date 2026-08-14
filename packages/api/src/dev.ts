@@ -441,6 +441,7 @@ if (!isConfigured) {
     // Only trust X-Forwarded-For when explicitly told the deployment sits behind a
     // reverse proxy that sets it itself (nginx, Cloudflare...) — see ServerOptions.
     trustProxy: process.env.TRUST_PROXY === '1',
+    ...(storeConfig.storefrontUrl ? { storefrontUrl: storeConfig.storefrontUrl } : {}),
   })
 
   await server.listen()

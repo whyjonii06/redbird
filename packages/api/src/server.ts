@@ -501,13 +501,17 @@ export function createApiServer(opts: ServerOptions) {
     // ── sitemap.xml ──────────────────────────────────────────────────────────
     if (url === '/sitemap.xml' && req.method === 'GET') {
       ;(async () => {
-        const [prods, cats] = await Promise.all([
+        const [prods, cats, pages] = await Promise.all([
           opts.redbird.db.query.products.findMany({
             columns: { slug: true, updatedAt: true },
             where: (p, { eq }) => eq(p.status, 'active'),
           }),
           opts.redbird.db.query.categories.findMany({
             columns: { slug: true },
+          }),
+          opts.redbird.db.query.cmsPages.findMany({
+            columns: { slug: true, updatedAt: true },
+            where: (p, { eq }) => eq(p.published, true),
           }),
         ])
         const base = opts.storefrontUrl ?? 'http://localhost:5173'
@@ -518,6 +522,10 @@ export function createApiServer(opts: ServerOptions) {
               `  <url><loc>${base}/products/${p.slug}</loc><lastmod>${p.updatedAt.toISOString().slice(0, 10)}</lastmod></url>`,
           ),
           ...cats.map((c) => `  <url><loc>${base}/categories/${c.slug}</loc></url>`),
+          ...pages.map(
+            (p) =>
+              `  <url><loc>${base}/pages/${p.slug}</loc><lastmod>${p.updatedAt.toISOString().slice(0, 10)}</lastmod></url>`,
+          ),
         ]
         const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>`
         res.setHeader('Access-Control-Allow-Origin', '*')

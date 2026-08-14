@@ -50,6 +50,9 @@ export type RedbirdConfig = {
   readonly licenseServerUrl?: string
   /** Seller legal identity — required to issue compliant (Factur-X) invoices. */
   readonly seller?: SellerConfig
+  /** Public storefront URL (no trailing slash), e.g. "https://shop.example.com".
+   * Used to build absolute URLs in /sitemap.xml. Sitemap is omitted without it. */
+  readonly storefrontUrl?: string
 }
 
 export function defineConfig(config: RedbirdConfig): RedbirdConfig {
