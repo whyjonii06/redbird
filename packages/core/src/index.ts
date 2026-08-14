@@ -49,6 +49,11 @@ export type {
   WarehouseStockRow,
 } from './warehouses/service.js'
 export type { SearchService, ProductForIndex } from './search/service.js'
+export type {
+  RedirectService,
+  CreateRedirectInput,
+  UpdateRedirectInput,
+} from './redirects/service.js'
 export type { LoyaltyService } from './loyalty/service.js'
 export type { GiftCardService } from './gift-cards/service.js'
 export type { WebhookService, CreateWebhookInput, UpdateWebhookInput } from './webhooks/service.js'
@@ -125,6 +130,8 @@ export type {
   // Warehouses
   Warehouse,
   WarehouseStock,
+  // Redirects
+  Redirect,
 } from './db/schema.js'
 export type { ProductFeatureService, ProductFeatureInput } from './catalog/features.js'
 export type { CustomerGroupService } from './customer-groups/service.js'

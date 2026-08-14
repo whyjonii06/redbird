@@ -25,6 +25,7 @@ import { NavigationPage } from './pages/NavigationPage.js'
 import { ThemeEditorPage } from './pages/ThemeEditorPage.js'
 import { SetupPage } from './pages/SetupPage.js'
 import { WarehousesPage } from './pages/WarehousesPage.js'
+import { RedirectsPage } from './pages/RedirectsPage.js'
 import { StaffPage } from './pages/StaffPage.js'
 import { I18nProvider } from './i18n/index.js'
 import { makeTRPCClient, trpc } from './trpc.js'
@@ -63,6 +64,7 @@ export default function App() {
                 <Route path="mailbox" element={<MailboxPage />} />
                 <Route path="marketplace" element={<MarketplacePage />} />
                 <Route path="navigation" element={<NavigationPage />} />
+                <Route path="redirects" element={<RedirectsPage />} />
                 <Route path="theme-editor" element={<ThemeEditorPage />} />
                 <Route path="settings" element={<SettingsPage />} />
                 {/* Module-contributed routes (lazy-loaded) */}

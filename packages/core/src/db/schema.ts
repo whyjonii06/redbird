@@ -1203,3 +1203,26 @@ export const auditLogs = pgTable(
 
 export type AuditLog = typeof auditLogs.$inferSelect
 export type NewAuditLog = typeof auditLogs.$inferInsert
+
+// ---------- SEO Redirects ----------
+
+export const redirectStatusCode = pgEnum('redirect_status_code', ['301', '302'])
+
+export const redirects = pgTable(
+  'redirects',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    /** Path only (no domain), always starting with "/", e.g. "/old-product-slug". */
+    fromPath: text().notNull(),
+    /** Absolute URL or path to send visitors to. */
+    toPath: text().notNull(),
+    statusCode: redirectStatusCode().notNull().default('301'),
+    active: boolean().notNull().default(true),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('redirects_from_path_idx').on(t.fromPath)],
+)
+
+export type Redirect = typeof redirects.$inferSelect
+export type NewRedirect = typeof redirects.$inferInsert

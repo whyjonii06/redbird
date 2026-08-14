@@ -25,6 +25,7 @@ import { ProductsPage } from './pages/ProductsPage.js'
 import { RegisterPage } from './pages/RegisterPage.js'
 import { ResetPasswordPage } from './pages/ResetPasswordPage.js'
 import { NotFoundPage } from './pages/NotFoundPage.js'
+import { RedirectOrNotFound } from './components/RedirectOrNotFound.js'
 import { SearchPage } from './pages/SearchPage.js'
 import { WishlistPage } from './pages/WishlistPage.js'
 import { makeTRPCClient, trpc } from './trpc.js'
@@ -84,7 +85,10 @@ export default function App() {
                         <Route path="/category/:slug" element={<CategoryPage />} />
                         <Route path="/categories/:slug" element={<RedirectCategory />} />
                         <Route path="/pages/:slug" element={<CmsPageView />} />
-                        <Route path="*" element={<NotFoundPage />} />
+                        <Route
+                          path="*"
+                          element={<RedirectOrNotFound fallback={<NotFoundPage />} />}
+                        />
                       </Routes>
                     </main>
                     <StorefrontFooter />

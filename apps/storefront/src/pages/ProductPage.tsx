@@ -5,6 +5,7 @@ import { useAuth } from '../AuthContext.js'
 import { useAddToCart } from '../CartContext.js'
 import { useCurrency } from '../CurrencyContext.js'
 import { useWishlist } from '../WishlistContext.js'
+import { RedirectOrNotFound } from '../components/RedirectOrNotFound.js'
 import { Slot } from '../slots/registry.js'
 import { fmt, trpc } from '../trpc.js'
 import { useSeoMeta } from '../useSeoMeta.js'
@@ -128,12 +129,16 @@ export function ProductPage() {
 
   if (error || !product) {
     return (
-      <div className="max-w-6xl mx-auto px-4 py-24 text-center">
-        <p className="text-xl font-semibold text-gray-900 mb-2">Product not found</p>
-        <Link to="/products" className="text-sm" style={{ color: 'var(--primary)' }}>
-          ← Back to products
-        </Link>
-      </div>
+      <RedirectOrNotFound
+        fallback={
+          <div className="max-w-6xl mx-auto px-4 py-24 text-center">
+            <p className="text-xl font-semibold text-gray-900 mb-2">Product not found</p>
+            <Link to="/products" className="text-sm" style={{ color: 'var(--primary)' }}>
+              ← Back to products
+            </Link>
+          </div>
+        }
+      />
     )
   }
 

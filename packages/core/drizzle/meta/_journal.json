@@ -211,6 +211,13 @@
       "when": 1782000400000,
       "tag": "0030_warehouses",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1782000500000,
+      "tag": "0031_redirects",
+      "breakpoints": true
     }
   ]
 }

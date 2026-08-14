@@ -10,6 +10,7 @@ import { currencyRouter } from './currency.js'
 import { customersRouter } from './customers.js'
 import { downloadsRouter } from './downloads.js'
 import { loyaltyRouter } from './loyalty.js'
+import { redirectsRouter } from './redirects.js'
 import { returnsRouter } from './returns.js'
 import { reviewsRouter } from './reviews.js'
 import { staffRouter } from './staff.js'
@@ -30,6 +31,7 @@ export const appRouter = router({
   attributes: attributesRouter,
   downloads: downloadsRouter,
   loyalty: loyaltyRouter,
+  redirects: redirectsRouter,
   admin: adminRouter,
 })
 

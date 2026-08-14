@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useMeta } from '../App.js'
 import { FilterPanel } from '../components/FilterPanel.js'
 import { ProductCard } from '../components/ProductCard.js'
+import { RedirectOrNotFound } from '../components/RedirectOrNotFound.js'
 import { trpc } from '../trpc.js'
 import { useSeoMeta } from '../useSeoMeta.js'
 
@@ -111,12 +112,19 @@ export function CategoryPage() {
 
   if (!category) {
     return (
-      <div className="max-w-6xl mx-auto px-4 py-24 text-center">
-        <p className="text-gray-400 text-lg">Category not found.</p>
-        <Link to="/products" className="mt-4 inline-block text-sm text-indigo-600 hover:underline">
-          Browse all products →
-        </Link>
-      </div>
+      <RedirectOrNotFound
+        fallback={
+          <div className="max-w-6xl mx-auto px-4 py-24 text-center">
+            <p className="text-gray-400 text-lg">Category not found.</p>
+            <Link
+              to="/products"
+              className="mt-4 inline-block text-sm text-indigo-600 hover:underline"
+            >
+              Browse all products →
+            </Link>
+          </div>
+        }
+      />
     )
   }
 

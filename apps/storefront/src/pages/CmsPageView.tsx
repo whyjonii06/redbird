@@ -1,5 +1,6 @@
 import { Link, useParams } from 'react-router-dom'
 import { useMeta } from '../App.js'
+import { RedirectOrNotFound } from '../components/RedirectOrNotFound.js'
 import { trpc } from '../trpc.js'
 import { useSeoMeta } from '../useSeoMeta.js'
 
@@ -47,12 +48,16 @@ export function CmsPageView() {
 
   if (error || !page) {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-24 text-center">
-        <p className="text-gray-400 text-lg">Page not found.</p>
-        <Link to="/" className="mt-4 inline-block text-sm text-indigo-600 hover:underline">
-          Back to home →
-        </Link>
-      </div>
+      <RedirectOrNotFound
+        fallback={
+          <div className="max-w-3xl mx-auto px-4 py-24 text-center">
+            <p className="text-gray-400 text-lg">Page not found.</p>
+            <Link to="/" className="mt-4 inline-block text-sm text-indigo-600 hover:underline">
+              Back to home →
+            </Link>
+          </div>
+        }
+      />
     )
   }
 

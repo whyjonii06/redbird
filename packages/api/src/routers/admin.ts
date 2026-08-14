@@ -1004,6 +1004,47 @@ export const adminRouter = router({
     }),
   }),
 
+  // ---- SEO Redirects ----
+  redirects: router({
+    list: adminProcedure.query(async ({ ctx }) => ctx.redbird.redirects.list()),
+
+    create: adminProcedure
+      .input(
+        z.object({
+          fromPath: z.string().min(1),
+          toPath: z.string().min(1),
+          statusCode: z.enum(['301', '302']).optional(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => ctx.redbird.redirects.create(input)),
+
+    update: adminProcedure
+      .input(
+        z.object({
+          id: z.string().uuid(),
+          fromPath: z.string().min(1).optional(),
+          toPath: z.string().min(1).optional(),
+          statusCode: z.enum(['301', '302']).optional(),
+          active: z.boolean().optional(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        const patch: Parameters<typeof ctx.redbird.redirects.update>[1] = {}
+        if (input.fromPath !== undefined) patch.fromPath = input.fromPath
+        if (input.toPath !== undefined) patch.toPath = input.toPath
+        if (input.statusCode !== undefined) patch.statusCode = input.statusCode
+        if (input.active !== undefined) patch.active = input.active
+        return ctx.redbird.redirects.update(input.id, patch)
+      }),
+
+    delete: adminProcedure
+      .input(z.object({ id: z.string().uuid() }))
+      .mutation(async ({ ctx, input }) => {
+        await ctx.redbird.redirects.delete(input.id)
+        return { ok: true }
+      }),
+  }),
+
   // ---- Warehouses ----
   warehouses: router({
     list: warehouseProcedure.query(async ({ ctx }) => ctx.redbird.warehouses.list()),

@@ -32,7 +32,9 @@ import type { PaymentProvider } from './payments/types.js'
 import { PluginRegistry } from './plugins/registry.js'
 import type { PluginDefinition } from './plugins/types.js'
 import { type PromoService, createPromoService } from './promos/service.js'
+import { type RedirectService, createRedirectService } from './redirects/service.js'
 import { type ReturnService, createReturnService } from './returns/service.js'
+import { type SearchService, createSearchService } from './search/service.js'
 import { ShippingRegistry } from './shipping/registry.js'
 import type { ShippingProvider } from './shipping/types.js'
 import { type StaffService, createStaffService } from './staff/service.js'
@@ -42,7 +44,6 @@ import { TaxRegistry } from './tax/registry.js'
 import type { TaxProvider } from './tax/types.js'
 import { type ThemeSectionService, createThemeSectionService } from './theme-sections/service.js'
 import { type WarehouseService, createWarehouseService } from './warehouses/service.js'
-import { type SearchService, createSearchService } from './search/service.js'
 import { type WebhookService, createWebhookService } from './webhooks/service.js'
 
 export type Redbird = {
@@ -70,6 +71,7 @@ export type Redbird = {
   readonly currency: CurrencyService
   readonly warehouses: WarehouseService
   readonly search: SearchService
+  readonly redirects: RedirectService
   readonly cms: CmsService
   readonly themeSections: ThemeSectionService
   readonly addresses: AddressService
@@ -180,6 +182,7 @@ export function createRedbird(config: RedbirdConfig): Redbird {
   const auditLogSvc = createAuditLogService(db)
   const currencySvc = createCurrencyService(db, config.defaultCurrency)
   const warehouseSvc = createWarehouseService(db)
+  const redirectSvc = createRedirectService(db)
   const cmsSvc = createCmsService(db)
   const themeSectionSvc = createThemeSectionService(db)
   const searchSvc = createSearchService(config.search)
@@ -326,6 +329,7 @@ export function createRedbird(config: RedbirdConfig): Redbird {
     currency: currencySvc,
     warehouses: warehouseSvc,
     search: searchSvc,
+    redirects: redirectSvc,
     cms: cmsSvc,
     themeSections: themeSectionSvc,
     addresses: addressSvc,

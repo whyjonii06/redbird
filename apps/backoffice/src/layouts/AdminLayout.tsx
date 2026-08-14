@@ -46,6 +46,7 @@ const navGroups: NavGroup[] = [
       { to: '/promos', label: 'Promos' },
       { to: '/cms', label: 'CMS Pages' },
       { to: '/navigation', label: 'Navigation' },
+      { to: '/redirects', label: 'Redirects' },
       { to: '/theme-editor', label: 'Theme Editor' },
     ],
   },
