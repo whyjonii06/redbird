@@ -134,15 +134,6 @@ function InfoStep({ onDone }: { onDone: (info: OrderInfo) => void }) {
     enabled: !!customer,
   })
 
-  const { data: taxPreview } = trpc.checkout.previewTax.useQuery(
-    {
-      subtotalCents: subtotal,
-      countryCode: form.countryCode.toUpperCase().slice(0, 2),
-      vatNumber: form.vatNumber || undefined,
-    },
-    { enabled: form.countryCode.length >= 2 && subtotal > 0 },
-  )
-
   const { data: shippingPreview } = trpc.checkout.previewShipping.useQuery(
     {
       cartId: cartId!,
@@ -161,6 +152,30 @@ function InfoStep({ onDone }: { onDone: (info: OrderInfo) => void }) {
       { code: appliedGiftCard, currency },
       { enabled: appliedGiftCard.length > 0 },
     )
+
+  // Mirrors the server's discount stacking (checkout.createOrder) so the tax preview — and
+  // the total shown before payment — reflect gift cards and loyalty points too, instead of
+  // only the promo code. Without this the total on screen doesn't match what order
+  // confirmation actually charges once those are applied.
+  const loyaltyDiscountAmount = loyaltyAccount ? loyaltyPointsToRedeem * loyaltyAccount.redeemRate : 0
+  const promoDiscountAmount = promoValidation?.valid ? promoValidation.discountAmount : 0
+  const previewShippingAmount = shippingPreview && !shippingPreview.free ? shippingPreview.amount : 0
+  const giftCardDiscountAmount = giftCardValidation?.valid
+    ? Math.min(
+        giftCardValidation.balance,
+        Math.max(0, subtotal + previewShippingAmount - loyaltyDiscountAmount - promoDiscountAmount),
+      )
+    : 0
+  const totalDiscountAmount = loyaltyDiscountAmount + promoDiscountAmount + giftCardDiscountAmount
+
+  const { data: taxPreview } = trpc.checkout.previewTax.useQuery(
+    {
+      subtotalCents: Math.max(0, subtotal - totalDiscountAmount),
+      countryCode: form.countryCode.toUpperCase().slice(0, 2),
+      vatNumber: form.vatNumber || undefined,
+    },
+    { enabled: form.countryCode.length >= 2 && subtotal > 0 },
+  )
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -392,7 +407,7 @@ function InfoStep({ onDone }: { onDone: (info: OrderInfo) => void }) {
           subtotal={subtotal}
           currency={currency}
           taxPreview={taxPreview ?? null}
-          promoValidation={promoValidation ?? null}
+          discountAmount={totalDiscountAmount}
           shippingPreview={shippingPreview ?? null}
         >
           {/* Promo code */}
@@ -716,10 +731,6 @@ type TaxPreview = {
   rateType: string
   reverseCharge: boolean
 } | null
-type PromoValidation =
-  | { valid: true; discountAmount: number }
-  | { valid: false; reason: string }
-  | null
 type ShippingPreview = {
   zone: string | null
   amount: number
@@ -732,21 +743,20 @@ function OrderSummary({
   subtotal,
   currency,
   taxPreview,
-  promoValidation,
+  discountAmount = 0,
   shippingPreview,
   children,
 }: {
   subtotal: number
   currency: string
   taxPreview?: TaxPreview
-  promoValidation?: PromoValidation
+  discountAmount?: number
   shippingPreview?: ShippingPreview
   children?: React.ReactNode
 }) {
   const meta = useMeta()
   const { data: cart } = useCartData()
   const taxAmount = taxPreview?.taxAmount ?? 0
-  const discountAmount = promoValidation?.valid ? promoValidation.discountAmount : 0
   const shippingAmount = shippingPreview && !shippingPreview.free ? shippingPreview.amount : 0
   const total = Math.max(0, subtotal + taxAmount + shippingAmount - discountAmount)
   return (
@@ -756,10 +766,11 @@ function OrderSummary({
       </h2>
       {cart && (
         <div className="space-y-3 mb-4">
-          {cart.lineItems.map((li, i) => (
+          {cart.lineItems.map((li) => (
             <div key={li.id} className="flex justify-between text-sm">
               <span className="text-gray-600 truncate pr-2">
-                Item #{i + 1} × {li.quantity}
+                {li.productName}
+                {li.variantName ? ` — ${li.variantName}` : ''} × {li.quantity}
               </span>
               <span className="font-medium text-gray-900 shrink-0">
                 {fmt(li.unitPriceAmount * li.quantity, li.unitPriceCurrency)}
