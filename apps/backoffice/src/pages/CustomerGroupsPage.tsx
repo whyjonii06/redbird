@@ -154,12 +154,14 @@ function GroupDetail({
   const [newVariantId, setNewVariantId] = useState('')
   const [newPrice, setNewPrice] = useState('')
   const [newCurrency, setNewCurrency] = useState('EUR')
+  const [newMinQty, setNewMinQty] = useState('1')
 
   const setPriceMut = trpc.admin.customerGroups.setPriceRule.useMutation({
     onSuccess: () => {
       void utils.admin.customerGroups.listPriceRules.invalidate({ groupId })
       setNewVariantId('')
       setNewPrice('')
+      setNewMinQty('1')
     },
   })
   const removePriceMut = trpc.admin.customerGroups.removePriceRule.useMutation({
@@ -184,6 +186,9 @@ function GroupDetail({
                   Variant ID
                 </th>
                 <th className="text-right py-2 text-xs font-semibold text-gray-400 uppercase">
+                  Min qty
+                </th>
+                <th className="text-right py-2 text-xs font-semibold text-gray-400 uppercase">
                   Price
                 </th>
                 <th className="py-2" />
@@ -195,6 +200,7 @@ function GroupDetail({
                   <td className="py-2.5 text-gray-500 font-mono text-xs">
                     {r.variantId.slice(0, 8)}…
                   </td>
+                  <td className="py-2.5 text-right text-gray-600">{r.minQuantity}+</td>
                   <td className="py-2.5 text-right font-medium text-gray-800">
                     {fmt(r.priceAmount, r.priceCurrency)}
                   </td>
@@ -212,23 +218,29 @@ function GroupDetail({
             </tbody>
           </table>
         ) : (
-          <p className="text-xs text-gray-400 mb-4">No price rules yet. Add one below.</p>
+          <p className="text-xs text-gray-400 mb-4">
+            No price rules yet. Add one below — set "Min qty" to 1 for the group's standard
+            wholesale price, or add several rows with higher quantities for volume tiers (e.g. 1+,
+            10+, 50+).
+          </p>
         )}
 
         <form
           onSubmit={(e) => {
             e.preventDefault()
             const cents = Math.round(Number.parseFloat(newPrice) * 100)
+            const minQuantity = Math.max(1, Number.parseInt(newMinQty, 10) || 1)
             if (newVariantId && !Number.isNaN(cents)) {
               setPriceMut.mutate({
                 groupId,
                 variantId: newVariantId,
                 priceAmount: cents,
                 priceCurrency: newCurrency,
+                minQuantity,
               })
             }
           }}
-          className="grid grid-cols-4 gap-2 items-end"
+          className="grid grid-cols-5 gap-2 items-end"
         >
           <div className="col-span-2">
             <label className="block text-xs text-gray-600 mb-1">Variant UUID</label>
@@ -238,6 +250,17 @@ function GroupDetail({
               placeholder="UUID from variants list"
               className={inputCls}
               pattern="[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">Min qty</label>
+            <input
+              type="number"
+              step="1"
+              min="1"
+              value={newMinQty}
+              onChange={(e) => setNewMinQty(e.target.value)}
+              className={inputCls}
             />
           </div>
           <div>
@@ -264,7 +287,7 @@ function GroupDetail({
           <button
             type="submit"
             disabled={setPriceMut.isPending || !newVariantId || !newPrice}
-            className={`col-span-4 ${btnPrimary}`}
+            className={`col-span-5 ${btnPrimary}`}
           >
             {setPriceMut.isPending ? 'Saving…' : 'Add / update price rule'}
           </button>

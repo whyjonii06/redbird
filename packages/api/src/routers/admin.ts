@@ -1909,6 +1909,7 @@ export const adminRouter = router({
           variantId: z.string().uuid(),
           priceAmount: z.number().int().min(0),
           priceCurrency: z.string().length(3),
+          minQuantity: z.number().int().min(1).default(1),
         }),
       )
       .mutation(({ ctx, input }) =>
@@ -1917,6 +1918,7 @@ export const adminRouter = router({
           input.variantId,
           input.priceAmount,
           input.priceCurrency,
+          input.minQuantity,
         ),
       ),
 

@@ -6,12 +6,19 @@ import { checkoutLimitedProcedure, publicProcedure, router } from '../trpc.js'
 const orderIdInput = z.object({ orderId: z.string().uuid() })
 
 export const checkoutRouter = router({
-  /** Returns the group price for a variant, or null if the customer has no special pricing. */
+  /**
+   * Returns the group price for a variant at the given quantity (the best B2B
+   * tier the customer qualifies for), or null if they have no special pricing.
+   */
   groupPrice: publicProcedure
-    .input(z.object({ variantId: z.string().uuid() }))
+    .input(z.object({ variantId: z.string().uuid(), quantity: z.number().int().min(1).default(1) }))
     .query(async ({ ctx, input }) => {
       if (!ctx.customerId) return null
-      return ctx.redbird.customerGroupsSvc.getGroupPrice(ctx.customerId, input.variantId)
+      return ctx.redbird.customerGroupsSvc.getGroupPrice(
+        ctx.customerId,
+        input.variantId,
+        input.quantity,
+      )
     }),
 
   /**

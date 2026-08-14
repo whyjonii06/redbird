@@ -1,9 +1,15 @@
+import { wishlists } from '@redbirdshop/core/schema'
 import { TRPCError } from '@trpc/server'
 import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
-import { wishlists } from '@redbirdshop/core/schema'
 import { signToken } from '../auth.js'
-import { authLimitedProcedure, protectedProcedure, publicProcedure, registerLimitedProcedure, router } from '../trpc.js'
+import {
+  authLimitedProcedure,
+  protectedProcedure,
+  publicProcedure,
+  registerLimitedProcedure,
+  router,
+} from '../trpc.js'
 
 export const customersRouter = router({
   register: registerLimitedProcedure
@@ -131,6 +137,26 @@ export const customersRouter = router({
     return { success: true }
   }),
 
+  /**
+   * B2B quantity-tier pricing table for a product, for the currently
+   * authenticated customer — empty if they're not in a group with rules for
+   * any of the product's variants (the normal case for retail customers).
+   */
+  tierPricing: protectedProcedure
+    .input(z.object({ productId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const product = await ctx.redbird.catalog.getProductById(input.productId)
+      if (!product) return []
+      const results = await Promise.all(
+        product.variants.map(async (v) => ({
+          variantId: v.id,
+          sku: v.sku,
+          tiers: await ctx.redbird.customerGroupsSvc.listApplicableTiers(ctx.customerId, v.id),
+        })),
+      )
+      return results.filter((r) => r.tiers.length > 0)
+    }),
+
   /** List orders for the currently authenticated customer. */
   orders: protectedProcedure
     .input(
@@ -173,7 +199,9 @@ export const customersRouter = router({
         if (!ctx.customerId) throw new TRPCError({ code: 'UNAUTHORIZED' })
         await ctx.redbird.db
           .delete(wishlists)
-          .where(and(eq(wishlists.customerId, ctx.customerId), eq(wishlists.productId, input.productId)))
+          .where(
+            and(eq(wishlists.customerId, ctx.customerId), eq(wishlists.productId, input.productId)),
+          )
         return { ok: true }
       }),
   }),

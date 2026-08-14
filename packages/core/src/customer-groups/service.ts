@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm'
+import { and, eq, inArray, lte } from 'drizzle-orm'
 import type { DbClient } from '../db/client.js'
 import {
   type CustomerGroup,
@@ -19,14 +19,36 @@ export type CustomerGroupService = {
   removeMember(groupId: string, customerId: string): Promise<void>
   listMembers(groupId: string): Promise<Array<{ customerId: string }>>
 
-  setPriceRule(groupId: string, variantId: string, priceAmount: number, priceCurrency: string): Promise<GroupPriceRule>
+  /** minQuantity defaults to 1 (the "standard" tier for this group). */
+  setPriceRule(
+    groupId: string,
+    variantId: string,
+    priceAmount: number,
+    priceCurrency: string,
+    minQuantity?: number,
+  ): Promise<GroupPriceRule>
   removePriceRule(id: string): Promise<void>
+  /** Ordered by variant, then ascending quantity tier. */
   listPriceRules(groupId: string): Promise<GroupPriceRule[]>
-  /** Returns the group-specific price for a variant for a given customer, or null if no rule applies. */
+  /**
+   * Returns the best group price for a variant at the given line-item quantity —
+   * the highest quantity tier the customer qualifies for, across all of their
+   * groups. Ties broken by lowest price. Null if no group/rule applies.
+   */
   getGroupPrice(
     customerId: string,
     variantId: string,
+    quantity?: number,
   ): Promise<{ priceAmount: number; priceCurrency: string } | null>
+  /**
+   * All quantity tiers this customer qualifies for on a variant, across their
+   * groups, merged into one ascending-quantity price ladder (lowest price wins
+   * on a tie). For displaying a "buy more, save more" table on the storefront.
+   */
+  listApplicableTiers(
+    customerId: string,
+    variantId: string,
+  ): Promise<Array<{ minQuantity: number; priceAmount: number; priceCurrency: string }>>
 }
 
 export function createCustomerGroupService(db: DbClient): CustomerGroupService {
@@ -66,10 +88,7 @@ export function createCustomerGroupService(db: DbClient): CustomerGroupService {
     },
 
     async addMember(groupId, customerId) {
-      await db
-        .insert(customerGroupMembers)
-        .values({ groupId, customerId })
-        .onConflictDoNothing()
+      await db.insert(customerGroupMembers).values({ groupId, customerId }).onConflictDoNothing()
     },
 
     async removeMember(groupId, customerId) {
@@ -91,12 +110,12 @@ export function createCustomerGroupService(db: DbClient): CustomerGroupService {
       return rows
     },
 
-    async setPriceRule(groupId, variantId, priceAmount, priceCurrency) {
+    async setPriceRule(groupId, variantId, priceAmount, priceCurrency, minQuantity = 1) {
       const [row] = await db
         .insert(groupPriceRules)
-        .values({ groupId, variantId, priceAmount, priceCurrency })
+        .values({ groupId, variantId, priceAmount, priceCurrency, minQuantity })
         .onConflictDoUpdate({
-          target: [groupPriceRules.groupId, groupPriceRules.variantId],
+          target: [groupPriceRules.groupId, groupPriceRules.variantId, groupPriceRules.minQuantity],
           set: { priceAmount, priceCurrency },
         })
         .returning()
@@ -111,25 +130,65 @@ export function createCustomerGroupService(db: DbClient): CustomerGroupService {
     async listPriceRules(groupId) {
       return db.query.groupPriceRules.findMany({
         where: eq(groupPriceRules.groupId, groupId),
+        orderBy: (r, { asc }) => [asc(r.variantId), asc(r.minQuantity)],
       })
     },
 
-    async getGroupPrice(customerId, variantId) {
+    async getGroupPrice(customerId, variantId, quantity = 1) {
       const memberships = await db.query.customerGroupMembers.findMany({
         where: eq(customerGroupMembers.customerId, customerId),
         columns: { groupId: true },
       })
       if (memberships.length === 0) return null
-
       const groupIds = memberships.map((m) => m.groupId)
-      for (const groupId of groupIds) {
-        const rule = await db.query.groupPriceRules.findFirst({
-          where: (r, { and, eq: eqFn }) =>
-            and(eqFn(r.groupId, groupId), eqFn(r.variantId, variantId)),
-        })
-        if (rule) return { priceAmount: rule.priceAmount, priceCurrency: rule.priceCurrency }
+
+      const rules = await db.query.groupPriceRules.findMany({
+        where: and(
+          inArray(groupPriceRules.groupId, groupIds),
+          eq(groupPriceRules.variantId, variantId),
+          lte(groupPriceRules.minQuantity, quantity),
+        ),
+      })
+      if (rules.length === 0) return null
+
+      // Prefer the highest quantity tier reached (most specific discount);
+      // tie-break by lowest price if multiple groups both qualify.
+      rules.sort((a, b) => b.minQuantity - a.minQuantity || a.priceAmount - b.priceAmount)
+      const best = rules[0]
+      if (!best) return null
+      return { priceAmount: best.priceAmount, priceCurrency: best.priceCurrency }
+    },
+
+    async listApplicableTiers(customerId, variantId) {
+      const memberships = await db.query.customerGroupMembers.findMany({
+        where: eq(customerGroupMembers.customerId, customerId),
+        columns: { groupId: true },
+      })
+      if (memberships.length === 0) return []
+      const groupIds = memberships.map((m) => m.groupId)
+
+      const rules = await db.query.groupPriceRules.findMany({
+        where: and(
+          inArray(groupPriceRules.groupId, groupIds),
+          eq(groupPriceRules.variantId, variantId),
+        ),
+      })
+      if (rules.length === 0) return []
+
+      const byMinQuantity = new Map<number, GroupPriceRule>()
+      for (const rule of rules) {
+        const existing = byMinQuantity.get(rule.minQuantity)
+        if (!existing || rule.priceAmount < existing.priceAmount) {
+          byMinQuantity.set(rule.minQuantity, rule)
+        }
       }
-      return null
+      return [...byMinQuantity.values()]
+        .sort((a, b) => a.minQuantity - b.minQuantity)
+        .map((r) => ({
+          minQuantity: r.minQuantity,
+          priceAmount: r.priceAmount,
+          priceCurrency: r.priceCurrency,
+        }))
     },
   }
 }

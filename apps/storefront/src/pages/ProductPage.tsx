@@ -103,9 +103,14 @@ export function ProductPage() {
     product?.variants[0]
 
   const { data: groupPrice } = trpc.checkout.groupPrice.useQuery(
-    { variantId: variant?.id ?? '' },
+    { variantId: variant?.id ?? '', quantity: qty },
     { enabled: !!variant?.id && !!customer },
   )
+  const { data: tierData } = trpc.customers.tierPricing.useQuery(
+    { productId: product?.id ?? '' },
+    { enabled: !!product?.id && !!customer },
+  )
+  const tiers = tierData?.find((t) => t.variantId === variant?.id)?.tiers ?? []
 
   async function handleAddToCart() {
     if (!variant) return
@@ -273,6 +278,35 @@ export function ProductPage() {
                     {meta.priceDisplay === 'incl_tax' ? 'Tax included' : 'Excl. tax'}
                   </p>
                 )}
+              </div>
+            )}
+            {tiers.length > 1 && (
+              <div className="mt-3 border border-gray-200 rounded-xl overflow-hidden max-w-xs">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="text-left px-3 py-1.5 text-xs font-semibold text-gray-500 uppercase">
+                        Quantity
+                      </th>
+                      <th className="text-right px-3 py-1.5 text-xs font-semibold text-gray-500 uppercase">
+                        Unit price
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tiers.map((tier) => (
+                      <tr
+                        key={tier.minQuantity}
+                        className={`border-t border-gray-100 ${qty >= tier.minQuantity ? 'bg-indigo-50' : ''}`}
+                      >
+                        <td className="px-3 py-1.5 text-gray-700">{tier.minQuantity}+</td>
+                        <td className="px-3 py-1.5 text-right font-medium text-gray-900">
+                          {displayPrice(tier.priceAmount, tier.priceCurrency)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
             {stock && (

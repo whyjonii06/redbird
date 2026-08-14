@@ -1,5 +1,6 @@
 import { and, eq, isNull } from 'drizzle-orm'
 import type { CurrencyService } from '../currency/service.js'
+import type { CustomerGroupService } from '../customer-groups/service.js'
 import type { DbClient } from '../db/client.js'
 import {
   type Address,
@@ -49,7 +50,35 @@ export function createCartService(
   hooks: PluginRegistry,
   stock?: StockService,
   currency?: CurrencyService,
+  groups?: CustomerGroupService,
 ): CartService {
+  /**
+   * Resolves the unit price for a variant at a given line-item quantity: a
+   * matching B2B group-quantity tier (if the cart belongs to a customer in a
+   * group with a rule for this variant) takes priority over the variant's own
+   * price, converted into the cart's currency either way.
+   */
+  async function resolveUnitPrice(
+    cart: Pick<Cart, 'customerId' | 'currency'>,
+    variant: typeof productVariants.$inferSelect,
+    quantity: number,
+  ): Promise<number> {
+    const groupPrice =
+      cart.customerId && groups
+        ? await groups.getGroupPrice(cart.customerId, variant.id, quantity)
+        : null
+
+    const amount = groupPrice?.priceAmount ?? variant.priceAmount
+    const sourceCurrency = groupPrice?.priceCurrency ?? variant.priceCurrency
+    if (sourceCurrency === cart.currency) return amount
+    if (!currency) {
+      throw new Error(
+        `Variant currency ${sourceCurrency} does not match cart currency ${cart.currency}`,
+      )
+    }
+    return currency.convert(amount, sourceCurrency, cart.currency)
+  }
+
   async function loadCart(id: string): Promise<CartWithItems | null> {
     const row = await db.query.carts.findFirst({
       where: eq(carts.id, id),
@@ -143,33 +172,21 @@ export function createCartService(
       })
       if (!variant) throw new Error(`Variant ${variantId} not found`)
 
-      // Convert the variant's native price into the cart's currency so browsing
-      // in a different currency doesn't block adding to cart. Conversion happens
-      // once, at add time — the cart line item then holds a plain amount like any
-      // other, with no further currency logic downstream (checkout, tax, etc.).
-      let unitPriceAmount = variant.priceAmount
-      if (variant.priceCurrency !== cart.currency) {
-        if (!currency) {
-          throw new Error(
-            `Variant currency ${variant.priceCurrency} does not match cart currency ${cart.currency}`,
-          )
-        }
-        unitPriceAmount = await currency.convert(
-          variant.priceAmount,
-          variant.priceCurrency,
-          cart.currency,
-        )
-      }
-
       await stock?.reserve(variantId, quantity)
 
       const existing = cart.lineItems.find((li) => li.variantId === variantId)
+      // Reprice off the final quantity (existing + added) so crossing a B2B
+      // quantity tier applies retroactively to the whole line, not just the
+      // newly-added units.
+      const finalQuantity = existing ? existing.quantity + quantity : quantity
+      const unitPriceAmount = await resolveUnitPrice(cart, variant, finalQuantity)
+
       let lineItem: CartLineItem
 
       if (existing) {
         const [updated] = await db
           .update(cartLineItems)
-          .set({ quantity: existing.quantity + quantity, updatedAt: new Date() })
+          .set({ quantity: finalQuantity, unitPriceAmount, updatedAt: new Date() })
           .where(eq(cartLineItems.id, existing.id))
           .returning()
         if (!updated) throw new Error('Failed to update line item')
@@ -209,16 +226,25 @@ export function createCartService(
 
     async updateItemQuantity(cartId, lineItemId, quantity) {
       if (quantity < 1) throw new Error('Quantity must be >= 1 (use removeItem to delete)')
-      const existing = await db.query.cartLineItems.findFirst({
-        where: and(eq(cartLineItems.id, lineItemId), eq(cartLineItems.cartId, cartId)),
-      })
+      const cart = await loadCartOrThrow(cartId)
+      const existing = cart.lineItems.find((li) => li.id === lineItemId)
       if (!existing) throw new Error(`Line item ${lineItemId} not found in cart ${cartId}`)
       const delta = quantity - existing.quantity
       if (delta > 0) await stock?.reserve(existing.variantId, delta)
       if (delta < 0) await stock?.release(existing.variantId, -delta)
+
+      // Reprice on every quantity change so crossing a B2B tier threshold
+      // (up or down) is always reflected.
+      const variant = await db.query.productVariants.findFirst({
+        where: eq(productVariants.id, existing.variantId),
+      })
+      const unitPriceAmount = variant
+        ? await resolveUnitPrice(cart, variant, quantity)
+        : existing.unitPriceAmount
+
       const [updated] = await db
         .update(cartLineItems)
-        .set({ quantity, updatedAt: new Date() })
+        .set({ quantity, unitPriceAmount, updatedAt: new Date() })
         .where(eq(cartLineItems.id, lineItemId))
         .returning()
       if (!updated) throw new Error(`Failed to update line item ${lineItemId}`)

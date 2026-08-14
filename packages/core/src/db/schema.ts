@@ -458,10 +458,16 @@ export const groupPriceRules = pgTable(
       .references(() => productVariants.id, { onDelete: 'cascade' }),
     priceAmount: integer().notNull(),
     priceCurrency: text().notNull(),
+    /** Quantity break: this price applies once the line item reaches this quantity. */
+    minQuantity: integer().notNull().default(1),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    uniqueIndex('group_price_rules_group_variant_idx').on(t.groupId, t.variantId),
+    uniqueIndex('group_price_rules_group_variant_qty_idx').on(
+      t.groupId,
+      t.variantId,
+      t.minQuantity,
+    ),
     index('group_price_rules_group_id_idx').on(t.groupId),
     index('group_price_rules_variant_id_idx').on(t.variantId),
   ],

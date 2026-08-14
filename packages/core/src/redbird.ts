@@ -215,7 +215,8 @@ export function createRedbird(config: RedbirdConfig): Redbird {
   }
   const categorySvc = createCategoryService(db, plugins)
   const imageSvc = createImageService(db)
-  const cart = createCartService(db, plugins, stockSvc, currencySvc)
+  const customerGroupSvc = createCustomerGroupService(db)
+  const cart = createCartService(db, plugins, stockSvc, currencySvc, customerGroupSvc)
   const orderSvc = createOrderService(db, plugins, stockSvc, payments)
   const customerSvc = createCustomerService(db)
   const addressSvc = createAddressService(db)
@@ -226,7 +227,6 @@ export function createRedbird(config: RedbirdConfig): Redbird {
   const giftCardSvc = createGiftCardService(db)
   const webhookSvc = createWebhookService(db)
   const productFeatureSvc = createProductFeatureService(db)
-  const customerGroupSvc = createCustomerGroupService(db)
 
   // Forward every plugin event to registered webhook endpoints (fire-and-forget)
   plugins.onEmit((event, payload) => webhookSvc.dispatch(event, payload))
