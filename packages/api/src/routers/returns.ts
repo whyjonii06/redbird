@@ -1,8 +1,10 @@
+import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
-import { adminProcedure, protectedProcedure, publicProcedure, router } from '../trpc.js'
+import { adminProcedure, protectedProcedure, router } from '../trpc.js'
 
 export const returnsRouter = router({
-  create: publicProcedure
+  /** Authenticated customers only — request a return on an order they own. */
+  create: protectedProcedure
     .input(
       z.object({
         orderId: z.string().uuid(),
@@ -10,6 +12,10 @@ export const returnsRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const order = await ctx.redbird.orders.get(input.orderId)
+      if (!order || order.customerId !== ctx.customerId) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Order not found' })
+      }
       return ctx.redbird.returns.create(input)
     }),
 

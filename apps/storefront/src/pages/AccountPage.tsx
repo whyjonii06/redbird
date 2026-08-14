@@ -209,6 +209,11 @@ export function AccountPage() {
                 {(order.status === 'paid' || order.status === 'fulfilled') && (
                   <OrderDownloads orderId={order.id} />
                 )}
+                {(order.status === 'paid' ||
+                  order.status === 'fulfilled' ||
+                  order.status === 'refunded') && (
+                  <ReturnRequestSection orderId={order.id} canRequest={order.status !== 'refunded'} />
+                )}
               </div>
             ))}
           </div>
@@ -334,6 +339,114 @@ function LoyaltySection() {
         </div>
       )}
     </div>
+  )
+}
+
+const RETURN_STATUS_LABEL: Record<string, string> = {
+  pending: 'Return requested — awaiting review',
+  approved: 'Return approved — refund issued',
+  rejected: 'Return request rejected',
+}
+
+const RETURN_STATUS_STYLE: Record<string, string> = {
+  pending: 'bg-amber-100 text-amber-700',
+  approved: 'bg-green-100 text-green-700',
+  rejected: 'bg-red-100 text-red-700',
+}
+
+function ReturnRequestSection({
+  orderId,
+  canRequest,
+}: {
+  orderId: string
+  canRequest: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const [reason, setReason] = useState('')
+  const utils = trpc.useUtils()
+
+  const { data: requests = [], isLoading } = trpc.returns.myRequests.useQuery()
+  const existing = requests.find((r) => r.orderId === orderId)
+
+  const createMut = trpc.returns.create.useMutation({
+    onSuccess() {
+      setOpen(false)
+      setReason('')
+      utils.returns.myRequests.invalidate()
+    },
+  })
+
+  if (isLoading) return null
+
+  if (existing) {
+    return (
+      <div className="mt-3">
+        <span
+          className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium ${RETURN_STATUS_STYLE[existing.status] ?? 'bg-gray-100 text-gray-600'}`}
+        >
+          {RETURN_STATUS_LABEL[existing.status] ?? existing.status}
+        </span>
+      </div>
+    )
+  }
+
+  if (!canRequest) return null
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="mt-3 text-xs text-[var(--primary)] hover:underline"
+      >
+        ↩ Request a return
+      </button>
+    )
+  }
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        createMut.mutate({ orderId, reason })
+      }}
+      className="mt-3 space-y-2"
+    >
+      <label htmlFor={`return-reason-${orderId}`} className="block text-xs text-gray-500">
+        Tell us why you'd like to return this order (at least 10 characters)
+      </label>
+      <textarea
+        id={`return-reason-${orderId}`}
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        minLength={10}
+        maxLength={1000}
+        required
+        rows={3}
+        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+        placeholder="E.g. the item arrived damaged, wrong size, changed my mind…"
+      />
+      {createMut.error && <p className="text-xs text-red-600">{createMut.error.message}</p>}
+      <div className="flex gap-2">
+        <button
+          type="submit"
+          disabled={reason.trim().length < 10 || createMut.isPending}
+          className="bg-[var(--primary)] text-white px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50"
+        >
+          {createMut.isPending ? 'Submitting…' : 'Submit return request'}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(false)
+            setReason('')
+          }}
+          className="border border-gray-300 px-3 py-1.5 rounded-lg text-xs"
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
   )
 }
 
