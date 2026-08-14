@@ -589,7 +589,15 @@ export function createApiServer(opts: ServerOptions) {
 
     // ── REST API v1 ───────────────────────────────────────────────────────────
     if (url.startsWith('/api/v1/')) {
-      handleRestRequest(req, res, opts.redbird).catch((err) => {
+      handleRestRequest(
+        req,
+        res,
+        opts.redbird,
+        jwtSecret,
+        opts.adminKey,
+        rateLimiters,
+        opts.trustProxy,
+      ).catch((err) => {
         if (!res.headersSent) {
           res.setHeader('Access-Control-Allow-Origin', '*')
           res.writeHead(500, { 'Content-Type': 'application/json' })

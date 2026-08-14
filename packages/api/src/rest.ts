@@ -1,5 +1,19 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Redbird } from '@redbirdshop/core'
+import type { RateLimiters } from '@redbirdshop/trpc'
+import { TRPCError } from '@trpc/server'
+import { createContext } from './context.js'
+import { appRouter } from './routers/index.js'
+
+const TRPC_HTTP_STATUS: Record<string, number> = {
+  BAD_REQUEST: 400,
+  UNAUTHORIZED: 401,
+  FORBIDDEN: 403,
+  NOT_FOUND: 404,
+  CONFLICT: 409,
+  TOO_MANY_REQUESTS: 429,
+  INTERNAL_SERVER_ERROR: 500,
+}
 
 function json(res: ServerResponse, status: number, data: unknown) {
   const body = JSON.stringify(data)
@@ -37,11 +51,21 @@ function parseBody(req: IncomingMessage): Promise<unknown> {
 
 /**
  * Handle a REST API request. Returns true if handled, false to fall through.
+ *
+ * Everything below /orders, /checkout and /customers/me delegates to the same
+ * tRPC procedures the storefront uses (via appRouter.createCaller) instead of
+ * reimplementing checkout/pricing logic a second time here — that logic is
+ * deliberately non-trivial (server-side price/tax recomputation, promo/gift-
+ * card/loyalty stacking) and duplicating it would be a real drift risk.
  */
 export async function handleRestRequest(
   req: IncomingMessage,
   res: ServerResponse,
   redbird: Redbird,
+  jwtSecret: string,
+  adminKey?: string | undefined,
+  rateLimiters?: RateLimiters | undefined,
+  trustProxy = false,
 ): Promise<boolean> {
   const url = req.url ?? ''
   const method = req.method ?? 'GET'
@@ -181,7 +205,51 @@ export async function handleRestRequest(
       json(res, 200, { data: null })
       return true
     }
+
+    // The remaining routes go through the tRPC caller (see the doc comment above).
+    const ctx = createContext(redbird, req, jwtSecret, adminKey, rateLimiters, trustProxy)
+    const caller = appRouter.createCaller(ctx)
+
+    // ── GET /api/v1/orders/:number ────────────────────────────────────────────
+    // Public by design, same as the tRPC procedure it delegates to: order
+    // numbers are high-entropy and treated as the "receipt lookup" token for
+    // guest order tracking, not something that needs a login.
+    const orderNumberMatch = path.match(/^\/orders\/([^/]+)$/)
+    if (orderNumberMatch && method === 'GET') {
+      const order = await caller.checkout.getByNumber({ number: orderNumberMatch[1]! })
+      json(res, 200, { data: order })
+      return true
+    }
+
+    // ── POST /api/v1/checkout ─────────────────────────────────────────────────
+    if (path === '/checkout' && method === 'POST') {
+      const body = await parseBody(req)
+      const order = await caller.checkout.createOrder(
+        body as Parameters<typeof caller.checkout.createOrder>[0],
+      )
+      json(res, 201, { data: order })
+      return true
+    }
+
+    // ── GET /api/v1/customers/me ──────────────────────────────────────────────
+    // Requires "Authorization: Bearer <customer JWT>" — same token the storefront uses.
+    if (path === '/customers/me' && method === 'GET') {
+      const customer = await caller.customers.me()
+      json(res, 200, { data: customer })
+      return true
+    }
+
+    // ── GET /api/v1/customers/me/orders ───────────────────────────────────────
+    if (path === '/customers/me/orders' && method === 'GET') {
+      const orders = await caller.customers.orders({})
+      json(res, 200, { data: orders })
+      return true
+    }
   } catch (err) {
+    if (err instanceof TRPCError) {
+      json(res, TRPC_HTTP_STATUS[err.code] ?? 500, { error: err.message })
+      return true
+    }
     const message = err instanceof Error ? err.message : 'Internal server error'
     json(res, 500, { error: message })
     return true
