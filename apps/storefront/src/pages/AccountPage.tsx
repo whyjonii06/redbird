@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useMeta } from '../App.js'
 import { useAuth } from '../AuthContext.js'
+import { useCartContext } from '../CartContext.js'
 import { fmt, trpc } from '../trpc.js'
 
 function downloadJson(data: unknown, filename: string) {
@@ -257,6 +258,7 @@ export function AccountPage() {
                     canRequest={order.status !== 'refunded'}
                   />
                 )}
+                {order.status !== 'pending' && <ReorderButton orderId={order.id} />}
               </div>
             ))}
           </div>
@@ -439,6 +441,53 @@ function SubscriptionsSection() {
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+function ReorderButton({ orderId }: { orderId: string }) {
+  const navigate = useNavigate()
+  const { setCartId } = useCartContext()
+  const utils = trpc.useUtils()
+
+  const reorderMut = trpc.customers.reorder.useMutation({
+    onSuccess: (result) => {
+      if (result.order) {
+        void utils.customers.orders.invalidate()
+      } else if (result.cartId) {
+        setCartId(result.cartId)
+        navigate('/checkout')
+      }
+    },
+  })
+
+  if (reorderMut.isSuccess && reorderMut.data.order) {
+    return (
+      <div className="mt-3 text-xs">
+        <p className="text-green-600 font-medium">
+          ✓ Reordered — order #{reorderMut.data.order.number} placed and charged.
+        </p>
+        {reorderMut.data.skippedLineItems.length > 0 && (
+          <p className="text-amber-600 mt-1">
+            Skipped (no longer available):{' '}
+            {reorderMut.data.skippedLineItems.map((i) => i.productName).join(', ')}
+          </p>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="mt-3">
+      <button
+        type="button"
+        onClick={() => reorderMut.mutate({ orderId })}
+        disabled={reorderMut.isPending}
+        className="text-xs text-[var(--primary)] hover:underline disabled:opacity-50"
+      >
+        {reorderMut.isPending ? 'Reordering…' : '↻ Reorder'}
+      </button>
+      {reorderMut.error && <p className="text-xs text-red-600 mt-1">{reorderMut.error.message}</p>}
     </div>
   )
 }

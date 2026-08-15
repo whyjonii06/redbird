@@ -180,6 +180,24 @@ export const customersRouter = router({
       return ctx.redbird.orders.list({ customerId: ctx.customerId, ...input })
     }),
 
+  /**
+   * One-click reorder of a past order. Rebuilds a cart from its line items
+   * at current prices/stock; if the customer has a default saved payment
+   * method, charges it immediately and returns the new paid order —
+   * otherwise returns a cart id for the client to send through normal
+   * checkout instead.
+   */
+  reorder: protectedProcedure
+    .input(z.object({ orderId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      try {
+        return await ctx.redbird.orders.reorder(input.orderId, ctx.customerId)
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Could not reorder'
+        throw new TRPCError({ code: 'BAD_REQUEST', message: msg })
+      }
+    }),
+
   wishlist: router({
     list: publicProcedure.query(async ({ ctx }) => {
       if (!ctx.customerId) return []

@@ -227,7 +227,7 @@ export function createRedbird(config: RedbirdConfig): Redbird {
   const featureFlagSvc = createFeatureFlagService(db)
   const campaignSvc = createCampaignService(db, email)
   const cart = createCartService(db, plugins, stockSvc, currencySvc, customerGroupSvc)
-  const orderSvc = createOrderService(db, plugins, stockSvc, payments)
+  const orderSvc = createOrderService(db, plugins, stockSvc, payments, cart)
   const subscriptionSvc = createSubscriptionService(db, email, cart, orderSvc, payments)
   const returnSvc = createReturnService(db, orderSvc, stockSvc)
   const customerSvc = createCustomerService(db)

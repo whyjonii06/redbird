@@ -1,4 +1,5 @@
 import { and, eq, sql } from 'drizzle-orm'
+import type { CartService } from '../cart/service.js'
 import type { DbClient } from '../db/client.js'
 import {
   type Address,
@@ -6,6 +7,7 @@ import {
   type OrderLineItem,
   carts,
   counters,
+  customerPaymentMethods,
   orderLineItems,
   orders,
 } from '../db/schema.js'
@@ -23,6 +25,15 @@ function isUniqueViolation(err: unknown): boolean {
 }
 
 export type OrderWithItems = Order & { lineItems: OrderLineItem[] }
+
+export type ReorderResult = {
+  /** Present when a saved payment method covered the charge — the new paid order. */
+  order: OrderWithItems | null
+  /** Present when there's no usable saved payment method (or the charge failed) — hand this cart to normal checkout instead. */
+  cartId: string | null
+  /** Line items from the original order that couldn't be re-added — removed product, out of stock, etc. */
+  skippedLineItems: Array<{ productName: string; reason: string }>
+}
 
 export type CreateOrderInput = {
   /** Required if not already set on the cart via cart.setEmail(). */
@@ -63,6 +74,14 @@ export type OrderService = {
   refundPartial(id: string, amount: number): Promise<Order>
   addNote(id: string, note: string): Promise<Order>
   setTracking(id: string, trackingNumber: string, trackingUrl?: string): Promise<Order>
+  /**
+   * Rebuilds a cart from a past order's line items at current prices/stock,
+   * skipping anything no longer available. If the customer has a default
+   * saved payment method that supports off-session charging, charges it
+   * immediately and returns the resulting paid order; otherwise returns the
+   * built cart id for the caller to hand off to normal checkout.
+   */
+  reorder(orderId: string, customerId: string): Promise<ReorderResult>
 }
 
 const VALID_TRANSITIONS: Record<Order['status'], ReadonlyArray<Order['status']>> = {
@@ -87,6 +106,7 @@ export function createOrderService(
   hooks: PluginRegistry,
   stock?: StockService,
   payments?: PaymentRegistry,
+  cart?: CartService,
 ): OrderService {
   async function loadOrder(id: string): Promise<OrderWithItems | null> {
     const row = await db.query.orders.findFirst({
@@ -122,7 +142,7 @@ export function createOrderService(
     return updated
   }
 
-  return {
+  const service: OrderService = {
     async createFromCart(cartId, input) {
       const MAX_ATTEMPTS = 5
       let result: OrderWithItems | undefined
@@ -420,5 +440,83 @@ export function createOrderService(
       if (!updated) throw new Error(`Order ${id} not found`)
       return updated
     },
+
+    async reorder(orderId, customerId) {
+      if (!cart) throw new Error('Reorder requires the cart service')
+      const original = await loadOrderOrThrow(orderId)
+      if (original.customerId !== customerId) {
+        throw new Error(`Order ${orderId} does not belong to this customer`)
+      }
+
+      const newCart = await cart.create({ currency: original.currency, customerId })
+      const skippedLineItems: ReorderResult['skippedLineItems'] = []
+      for (const li of original.lineItems) {
+        if (!li.variantId) {
+          skippedLineItems.push({ productName: li.productName, reason: 'no longer available' })
+          continue
+        }
+        try {
+          await cart.addItem(newCart.id, li.variantId, li.quantity)
+        } catch (err) {
+          skippedLineItems.push({
+            productName: li.productName,
+            reason: err instanceof Error ? err.message : 'unavailable',
+          })
+        }
+      }
+
+      const refreshedCart = await db.query.carts.findFirst({
+        where: eq(carts.id, newCart.id),
+        with: { lineItems: true },
+      })
+      if (!refreshedCart || refreshedCart.lineItems.length === 0) {
+        throw new Error('None of the items from this order are still available')
+      }
+
+      // Off-session charge against the customer's default saved payment
+      // method, if one exists and the provider supports it. Any failure —
+      // no payment method, unsupported provider, declined charge — falls
+      // back to handing the cart to normal checkout rather than throwing,
+      // since the cart itself was still built successfully.
+      const pm = await db.query.customerPaymentMethods.findFirst({
+        where: and(
+          eq(customerPaymentMethods.customerId, customerId),
+          eq(customerPaymentMethods.isDefault, true),
+        ),
+      })
+      const provider = pm && payments ? payments.get(pm.provider) : undefined
+      if (pm && provider?.chargeOffSession) {
+        const amount = refreshedCart.lineItems.reduce(
+          (sum, li) => sum + li.unitPriceAmount * li.quantity,
+          0,
+        )
+        try {
+          const intent = await provider.chargeOffSession({
+            customerRef: pm.providerCustomerId,
+            paymentMethodRef: pm.providerPaymentMethodId,
+            amount,
+            currency: original.currency,
+            metadata: { reorderOf: orderId },
+          })
+          if (intent.status === 'succeeded') {
+            const created = await service.createFromCart(newCart.id, {
+              customerEmail: original.customerEmail,
+            })
+            await service.setPaymentReference(created.id, provider.name, intent.id)
+            await service.markPaid(created.id)
+            // Re-fetch — createFromCart's own return value predates the
+            // paymentReference/markPaid mutations above.
+            const paid = await service.get(created.id)
+            if (!paid) throw new Error(`Order ${created.id} not found after markPaid`)
+            return { order: paid, cartId: null, skippedLineItems }
+          }
+        } catch {
+          // Falls through to the cartId-only result below.
+        }
+      }
+
+      return { order: null, cartId: newCart.id, skippedLineItems }
+    },
   }
+  return service
 }
