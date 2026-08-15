@@ -483,15 +483,22 @@ function ReturnRequestSection({
 }) {
   const [open, setOpen] = useState(false)
   const [reason, setReason] = useState('')
+  const [selected, setSelected] = useState<Record<string, number>>({})
   const utils = trpc.useUtils()
 
   const { data: requests = [], isLoading } = trpc.returns.myRequests.useQuery()
   const existing = requests.find((r) => r.orderId === orderId)
 
+  const { data: eligibleItems = [] } = trpc.returns.eligibleItems.useQuery(
+    { orderId },
+    { enabled: open },
+  )
+
   const createMut = trpc.returns.create.useMutation({
     onSuccess() {
       setOpen(false)
       setReason('')
+      setSelected({})
       utils.returns.myRequests.invalidate()
     },
   })
@@ -524,16 +531,73 @@ function ReturnRequestSection({
     )
   }
 
+  const items = Object.entries(selected)
+    .filter(([, qty]) => qty > 0)
+    .map(([lineItemId, quantity]) => ({ lineItemId, quantity }))
+
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault()
-        createMut.mutate({ orderId, reason })
+        createMut.mutate({ orderId, reason, items })
       }}
-      className="mt-3 space-y-2"
+      className="mt-3 space-y-3"
     >
+      {eligibleItems.length === 0 ? (
+        <p className="text-xs text-gray-500">Every item on this order has already been returned.</p>
+      ) : (
+        <div className="space-y-2">
+          <p className="block text-xs text-gray-500">What would you like to return?</p>
+          {eligibleItems.map((item) => {
+            const qty = selected[item.lineItemId] ?? 0
+            return (
+              <div
+                key={item.lineItemId}
+                className="flex items-center justify-between gap-3 border border-gray-200 rounded-lg px-3 py-2"
+              >
+                <div className="min-w-0">
+                  <p className="text-xs font-medium text-gray-900 truncate">
+                    {item.productName}
+                    {item.variantName && (
+                      <span className="text-gray-400"> — {item.variantName}</span>
+                    )}
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {fmt(item.unitPriceAmount, item.unitPriceCurrency)} · up to{' '}
+                    {item.returnableQuantity} unit{item.returnableQuantity === 1 ? '' : 's'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelected((s) => ({ ...s, [item.lineItemId]: Math.max(0, qty - 1) }))
+                    }
+                    className="w-6 h-6 rounded border border-gray-300 text-sm"
+                  >
+                    −
+                  </button>
+                  <span className="w-4 text-center text-sm">{qty}</span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelected((s) => ({
+                        ...s,
+                        [item.lineItemId]: Math.min(item.returnableQuantity, qty + 1),
+                      }))
+                    }
+                    className="w-6 h-6 rounded border border-gray-300 text-sm"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
       <label htmlFor={`return-reason-${orderId}`} className="block text-xs text-gray-500">
-        Tell us why you'd like to return this order (at least 10 characters)
+        Tell us why you'd like to return these items (at least 10 characters)
       </label>
       <textarea
         id={`return-reason-${orderId}`}
@@ -550,7 +614,7 @@ function ReturnRequestSection({
       <div className="flex gap-2">
         <button
           type="submit"
-          disabled={reason.trim().length < 10 || createMut.isPending}
+          disabled={reason.trim().length < 10 || items.length === 0 || createMut.isPending}
           className="bg-[var(--primary)] text-white px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50"
         >
           {createMut.isPending ? 'Submitting…' : 'Submit return request'}
@@ -560,6 +624,7 @@ function ReturnRequestSection({
           onClick={() => {
             setOpen(false)
             setReason('')
+            setSelected({})
           }}
           className="border border-gray-300 px-3 py-1.5 rounded-lg text-xs"
         >

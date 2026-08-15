@@ -41,7 +41,12 @@ export type {
   UpsertCategoryTranslationInput,
 } from './i18n/category-service.js'
 export type { CmsI18nService, UpsertCmsTranslationInput } from './i18n/cms-service.js'
-export type { ReturnService, CreateReturnInput } from './returns/service.js'
+export type {
+  ReturnService,
+  CreateReturnInput,
+  CreateReturnItemInput,
+  ReturnRequestWithItems,
+} from './returns/service.js'
 export type { AbandonedCartService, AbandonedCartResult } from './abandoned-cart/service.js'
 export type { StaffService, StaffMember, StaffRole, CreateStaffInput } from './staff/service.js'
 export type { AttributeService, AttributeWithValues } from './attributes/service.js'
@@ -113,6 +118,7 @@ export type {
   ProductTranslation,
   ProductReview,
   ReturnRequest,
+  ReturnRequestItem,
   // Loyalty
   LoyaltyAccount,
   LoyaltyTransaction,

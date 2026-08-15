@@ -668,13 +668,44 @@ export const returnRequests = pgTable(
   (t) => [index('return_requests_order_id_idx').on(t.orderId)],
 )
 
+export const returnRequestItems = pgTable(
+  'return_request_items',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    returnRequestId: uuid()
+      .notNull()
+      .references(() => returnRequests.id, { onDelete: 'cascade' }),
+    lineItemId: uuid()
+      .notNull()
+      .references(() => orderLineItems.id, { onDelete: 'cascade' }),
+    quantity: integer().notNull(),
+    /** Whether approving this item should add its quantity back to available stock. */
+    restock: boolean().notNull().default(true),
+  },
+  (t) => [index('return_request_items_return_id_idx').on(t.returnRequestId)],
+)
+
+export type ReturnRequestItem = typeof returnRequestItems.$inferSelect
+
 export const productReviewsRelations = relations(productReviews, ({ one }) => ({
   product: one(products, { fields: [productReviews.productId], references: [products.id] }),
   customer: one(customers, { fields: [productReviews.customerId], references: [customers.id] }),
 }))
 
-export const returnRequestsRelations = relations(returnRequests, ({ one }) => ({
+export const returnRequestsRelations = relations(returnRequests, ({ one, many }) => ({
   order: one(orders, { fields: [returnRequests.orderId], references: [orders.id] }),
+  items: many(returnRequestItems),
+}))
+
+export const returnRequestItemsRelations = relations(returnRequestItems, ({ one }) => ({
+  returnRequest: one(returnRequests, {
+    fields: [returnRequestItems.returnRequestId],
+    references: [returnRequests.id],
+  }),
+  lineItem: one(orderLineItems, {
+    fields: [returnRequestItems.lineItemId],
+    references: [orderLineItems.id],
+  }),
 }))
 
 // ---------- Staff ----------

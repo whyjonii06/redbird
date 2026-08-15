@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { type FecEntry, generateFec } from '@redbirdshop/core'
-import type { DbClient } from '@redbirdshop/core'
+import type { DbClient, ReturnRequestWithItems } from '@redbirdshop/core'
 import { carts, customers, orders, storeSettings } from '@redbirdshop/core/schema'
 import { TRPCError } from '@trpc/server'
 import { and, desc, eq, gte, inArray, lte, ne } from 'drizzle-orm'
@@ -1259,10 +1259,17 @@ export const adminRouter = router({
     approve: warehouseProcedure
       .input(z.object({ id: z.string().uuid(), adminNote: z.string().optional() }))
       .mutation(async ({ ctx, input }) => {
-        const req = await ctx.redbird.returns.approve(input.id, input.adminNote)
+        // approve() already issues the correct partial refund (computed from
+        // the actual returned line items) and restocks — it used to be
+        // followed by a full ctx.redbird.orders.refund() here, which refunded
+        // the *entire* order regardless of how much was actually returned.
+        let req: ReturnRequestWithItems
         try {
-          await ctx.redbird.orders.refund(req.orderId)
-        } catch {}
+          req = await ctx.redbird.returns.approve(input.id, input.adminNote)
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : 'Could not approve return request'
+          throw new TRPCError({ code: 'BAD_REQUEST', message: msg })
+        }
         await writeAudit(ctx, 'return.approve', 'return_request', input.id, {
           orderId: req.orderId,
         })

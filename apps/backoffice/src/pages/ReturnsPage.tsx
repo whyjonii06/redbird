@@ -75,6 +75,30 @@ export function ReturnsPage() {
                         </span>
                       </div>
                       <p className="text-sm text-gray-700 mt-2">{r.reason}</p>
+                      {r.items.length > 0 && (
+                        <ul className="mt-2 space-y-0.5">
+                          {r.items.map((item) => (
+                            <li key={item.id} className="text-xs text-gray-600">
+                              {item.quantity} × {item.lineItem?.productName ?? 'Unknown item'}
+                              {item.lineItem?.variantName && (
+                                <span className="text-gray-400">
+                                  {' '}
+                                  — {item.lineItem.variantName}
+                                </span>
+                              )}
+                              {item.lineItem?.sku && (
+                                <span className="text-gray-400 font-mono">
+                                  {' '}
+                                  ({item.lineItem.sku})
+                                </span>
+                              )}
+                              {!item.restock && (
+                                <span className="text-amber-600"> · no restock</span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                       {r.adminNote && (
                         <p className="text-xs text-gray-500 mt-1 italic">
                           Admin note: {r.adminNote}
