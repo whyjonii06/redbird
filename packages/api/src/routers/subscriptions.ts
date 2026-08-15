@@ -21,11 +21,18 @@ export const subscriptionsRouter = router({
         variantId: z.string().uuid(),
         quantity: z.number().int().min(1).max(20).default(1),
         interval: z.enum(['weekly', 'monthly', 'yearly']),
+        paymentMethodId: z.string().uuid().optional(),
       }),
     )
-    .mutation(({ ctx, input }) =>
-      ctx.redbird.subscriptions.create({ ...input, customerId: ctx.customerId }),
-    ),
+    .mutation(async ({ ctx, input }) => {
+      if (input.paymentMethodId) {
+        const methods = await ctx.redbird.paymentMethods.list(ctx.customerId)
+        if (!methods.some((m) => m.id === input.paymentMethodId)) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Payment method not found' })
+        }
+      }
+      return ctx.redbird.subscriptions.create({ ...input, customerId: ctx.customerId })
+    }),
 
   pause: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
@@ -46,5 +53,19 @@ export const subscriptionsRouter = router({
     .mutation(async ({ ctx, input }) => {
       await ownedSubscription(ctx, input.id)
       return ctx.redbird.subscriptions.cancel(input.id)
+    }),
+
+  /** Attach, switch, or clear (pass null) the saved card charged on renewal. */
+  setPaymentMethod: protectedProcedure
+    .input(z.object({ id: z.string().uuid(), paymentMethodId: z.string().uuid().nullable() }))
+    .mutation(async ({ ctx, input }) => {
+      await ownedSubscription(ctx, input.id)
+      if (input.paymentMethodId) {
+        const methods = await ctx.redbird.paymentMethods.list(ctx.customerId)
+        if (!methods.some((m) => m.id === input.paymentMethodId)) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Payment method not found' })
+        }
+      }
+      return ctx.redbird.subscriptions.setPaymentMethod(input.id, input.paymentMethodId)
     }),
 })

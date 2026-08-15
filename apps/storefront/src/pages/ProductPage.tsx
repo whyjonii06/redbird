@@ -121,7 +121,11 @@ export function ProductPage() {
   }
 
   const [subInterval, setSubInterval] = useState<'weekly' | 'monthly' | 'yearly'>('monthly')
+  const [subPaymentMethodId, setSubPaymentMethodId] = useState('')
   const [subscribed, setSubscribed] = useState(false)
+  const { data: paymentMethods = [] } = trpc.paymentMethods.list.useQuery(undefined, {
+    enabled: Boolean(customer),
+  })
   const subscribeMut = trpc.subscriptions.create.useMutation({
     onSuccess: () => {
       setSubscribed(true)
@@ -412,13 +416,30 @@ export function ProductPage() {
 
           {variant && <p className="text-xs text-gray-400">SKU: {variant.sku}</p>}
 
-          {/* Subscribe & save — schedule tracking + renewal reminders, not auto-charge */}
+          {/* Subscribe & save — auto-charges a saved card on renewal, or emails a reminder if none is picked */}
           {customer && variant && stock?.available !== 0 && (
             <div className="border border-gray-200 rounded-xl p-4">
               <p className="text-sm font-semibold text-gray-700 mb-2">Subscribe to this item</p>
               <p className="text-xs text-gray-400 mb-3">
-                Get a reminder email to reorder — no auto-charge, you place each order yourself.
+                {paymentMethods.length > 0
+                  ? 'Pick a saved card to auto-charge each cycle, or leave it as a reminder email.'
+                  : 'Get a reminder email to reorder — add a saved card in your account to enable auto-charge.'}
               </p>
+              {paymentMethods.length > 0 && (
+                <select
+                  value={subPaymentMethodId}
+                  onChange={(e) => setSubPaymentMethodId(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-3"
+                >
+                  <option value="">Reminder email only (no auto-charge)</option>
+                  {paymentMethods.map((pm) => (
+                    <option key={pm.id} value={pm.id}>
+                      {pm.brand ?? 'Card'} •••• {pm.last4}
+                      {pm.isDefault ? ' (default)' : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
               <div className="flex items-center gap-3">
                 <select
                   value={subInterval}
@@ -436,6 +457,7 @@ export function ProductPage() {
                       variantId: variant.id,
                       quantity: qty,
                       interval: subInterval,
+                      ...(subPaymentMethodId ? { paymentMethodId: subPaymentMethodId } : {}),
                     })
                   }
                   disabled={subscribeMut.isPending}

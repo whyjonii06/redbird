@@ -14,6 +14,7 @@ type Subscription = {
   status: 'active' | 'paused' | 'cancelled'
   nextRenewalAt: string
   lastReminderSentAt: string | null
+  paymentMethodId: string | null
 }
 
 const STATUS_CLASS: Record<Subscription['status'], string> = {
@@ -25,7 +26,12 @@ const STATUS_CLASS: Record<Subscription['status'], string> = {
 export function SubscriptionsPage() {
   const utils = trpc.useUtils()
   const { data: subs = [], isLoading } = trpc.admin.subscriptions.list.useQuery()
-  const [runResult, setRunResult] = useState<{ due: number; reminded: number } | null>(null)
+  const [runResult, setRunResult] = useState<{
+    due: number
+    charged: number
+    reminded: number
+    failed: number
+  } | null>(null)
 
   const pauseMut = trpc.admin.subscriptions.pause.useMutation({
     onSuccess: () => void utils.admin.subscriptions.list.invalidate(),
@@ -49,9 +55,9 @@ export function SubscriptionsPage() {
         <div>
           <h1 className="font-display text-2xl font-bold text-gray-900">Subscriptions</h1>
           <p className="text-sm text-gray-500 mt-0.5 max-w-2xl">
-            Recurring order schedules with renewal-reminder emails. This does not auto-charge — no
-            payment provider here supports off-session billing, so customers get a reminder email
-            with a reorder link each cycle instead.
+            Recurring order schedules. A subscription with a saved card attached auto-charges on
+            renewal and turns into a paid order; one without gets a reminder email with a reorder
+            link instead — same for a charge that gets declined.
           </p>
         </div>
         <button
@@ -66,8 +72,11 @@ export function SubscriptionsPage() {
 
       {runResult && (
         <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-2">
-          {runResult.due} due, {runResult.reminded} reminder{runResult.reminded === 1 ? '' : 's'}{' '}
-          sent.
+          {runResult.due} due, {runResult.charged} charged, {runResult.reminded} reminder
+          {runResult.reminded === 1 ? '' : 's'} sent
+          {runResult.failed > 0 &&
+            `, ${runResult.failed} charge${runResult.failed === 1 ? '' : 's'} failed`}
+          .
         </p>
       )}
 
@@ -95,6 +104,9 @@ export function SubscriptionsPage() {
                   Next renewal
                 </th>
                 <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                  Billing
+                </th>
+                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                   Status
                 </th>
                 <th className="px-5 py-3" />
@@ -116,6 +128,17 @@ export function SubscriptionsPage() {
                   <td className="px-5 py-3.5 text-gray-600 capitalize">{s.interval}</td>
                   <td className="px-5 py-3.5 text-gray-600 text-xs">
                     {new Date(s.nextRenewalAt).toLocaleDateString()}
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        s.paymentMethodId
+                          ? 'bg-indigo-100 text-indigo-700'
+                          : 'bg-gray-100 text-gray-500'
+                      }`}
+                    >
+                      {s.paymentMethodId ? 'Auto-charge' : 'Reminder'}
+                    </span>
                   </td>
                   <td className="px-5 py-3.5">
                     <span

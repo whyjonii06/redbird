@@ -345,6 +345,7 @@ const INTERVAL_LABEL: Record<'weekly' | 'monthly' | 'yearly', string> = {
 function SubscriptionsSection() {
   const utils = trpc.useUtils()
   const { data: subs = [], isLoading } = trpc.subscriptions.list.useQuery()
+  const { data: paymentMethods = [] } = trpc.paymentMethods.list.useQuery()
 
   const pauseMut = trpc.subscriptions.pause.useMutation({
     onSuccess: () => void utils.subscriptions.list.invalidate(),
@@ -355,6 +356,9 @@ function SubscriptionsSection() {
   const cancelMut = trpc.subscriptions.cancel.useMutation({
     onSuccess: () => void utils.subscriptions.list.invalidate(),
   })
+  const setPaymentMethodMut = trpc.subscriptions.setPaymentMethod.useMutation({
+    onSuccess: () => void utils.subscriptions.list.invalidate(),
+  })
 
   if (isLoading || subs.length === 0) return null
 
@@ -362,24 +366,44 @@ function SubscriptionsSection() {
     <div className="bg-white border border-gray-200 rounded-xl p-6 mb-8">
       <h2 className="font-semibold text-lg mb-1">Subscriptions</h2>
       <p className="text-sm text-gray-500 mb-4">
-        We'll email you a reminder to reorder — no auto-charge.
+        Auto-charges a saved card each cycle when one's attached, otherwise we email a reminder.
       </p>
       <div className="space-y-3">
         {subs.map((s) => (
           <div
             key={s.id}
-            className="flex items-center justify-between border border-gray-100 rounded-lg px-4 py-3"
+            className="flex items-center justify-between border border-gray-100 rounded-lg px-4 py-3 gap-4"
           >
-            <div>
+            <div className="min-w-0">
               <p className="text-sm font-medium text-gray-900">
                 {s.quantity} × {s.productName}
                 {s.variantName && <span className="text-gray-400"> — {s.variantName}</span>}
               </p>
               <p className="text-xs text-gray-400">
-                {INTERVAL_LABEL[s.interval]} · {fmt(s.priceAmount, s.priceCurrency)} · next reminder{' '}
+                {INTERVAL_LABEL[s.interval]} · {fmt(s.priceAmount, s.priceCurrency)} · next{' '}
+                {s.paymentMethodId ? 'charge' : 'reminder'}{' '}
                 {new Date(s.nextRenewalAt).toLocaleDateString()}
                 {s.status !== 'active' && ` · ${s.status}`}
               </p>
+              {paymentMethods.length > 0 && (
+                <select
+                  value={s.paymentMethodId ?? ''}
+                  onChange={(e) =>
+                    setPaymentMethodMut.mutate({
+                      id: s.id,
+                      paymentMethodId: e.target.value || null,
+                    })
+                  }
+                  className="mt-1.5 text-xs border border-gray-200 rounded px-2 py-1"
+                >
+                  <option value="">Reminder email only</option>
+                  {paymentMethods.map((pm) => (
+                    <option key={pm.id} value={pm.id}>
+                      Auto-charge {pm.brand ?? 'card'} •••• {pm.last4}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
             <div className="flex gap-3 shrink-0">
               {s.status === 'active' && (
@@ -658,6 +682,9 @@ function StripeSetupForm({
   )
 }
 
+// Base ids — a random suffix is appended on pick so each attach gets a
+// globally-unique id, same as a real Stripe payment method id would be
+// (the DB enforces uniqueness per provider+payment-method-id).
 const DEMO_CARDS = [
   { label: 'Visa •••• 4242', id: 'pm_demo_visa_4242' },
   { label: 'Mastercard •••• 5555', id: 'pm_demo_mastercard_5555' },
@@ -686,7 +713,7 @@ function DemoCardPicker({
             key={c.id}
             type="button"
             disabled={pending}
-            onClick={() => onPick(c.id)}
+            onClick={() => onPick(`${c.id}_${crypto.randomUUID().slice(0, 8)}`)}
             className="text-left text-sm border border-gray-200 rounded-lg px-3 py-2 hover:border-[var(--primary)] disabled:opacity-50"
           >
             {c.label}

@@ -236,9 +236,11 @@ export function stripe(input: StripeConfig) {
 
   async function getPaymentMethod(paymentMethodRef: string): Promise<SavedPaymentMethod> {
     if (config.dryRun) {
-      // Demo cards use a `pm_demo_<brand>_<last4>` convention so the UI can
-      // exercise different card brands without a real Stripe account.
-      const [, brand, last4] = paymentMethodRef.match(/^pm_demo_(\w+)_(\d{4})$/) ?? []
+      // Demo cards use a `pm_demo_<brand>_<last4>[_<uniquifier>]` convention
+      // so the UI can exercise different card brands without a real Stripe
+      // account — the trailing uniquifier keeps each attach globally unique,
+      // same as a real Stripe payment method id would be.
+      const [, brand, last4] = paymentMethodRef.match(/^pm_demo_(\w+)_(\d{4})/) ?? []
       return {
         id: paymentMethodRef,
         brand: brand ?? 'visa',
