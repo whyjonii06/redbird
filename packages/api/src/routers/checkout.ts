@@ -131,11 +131,11 @@ export const checkoutRouter = router({
             message: 'You must be logged in to use loyalty points',
           })
         }
-        const cfg = ctx.redbird.config.loyalty ?? {}
-        if (cfg.enabled === false) {
+        const cfg = ctx.redbird.loyaltyConfig
+        if (!cfg.enabled) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: 'Loyalty program is disabled' })
         }
-        const redeemRate = cfg.redeemRate ?? 1
+        const redeemRate = cfg.redeemRate
         const loyaltyBalance = await ctx.redbird.loyalty.getBalance(ctx.customerId)
         if (loyaltyBalance < loyaltyPoints) {
           throw new TRPCError({

@@ -7,12 +7,12 @@ export const loyaltyRouter = router({
       ctx.redbird.loyalty.getOrCreateAccount(ctx.customerId!),
       ctx.redbird.loyalty.getTransactions(ctx.customerId!, { limit: 20 }),
     ])
-    const cfg = ctx.redbird.config.loyalty ?? {}
+    const cfg = ctx.redbird.loyaltyConfig
     return {
       balance: account.balance,
-      redeemRate: cfg.redeemRate ?? 1,
-      earnRate: cfg.earnRate ?? 1,
-      enabled: cfg.enabled !== false,
+      redeemRate: cfg.redeemRate,
+      earnRate: cfg.earnRate,
+      enabled: cfg.enabled,
       transactions: txs,
     }
   }),
@@ -20,7 +20,7 @@ export const loyaltyRouter = router({
   preview: publicProcedure
     .input(z.object({ points: z.number().int().min(1) }))
     .query(({ ctx, input }) => {
-      const redeemRate = ctx.redbird.config.loyalty?.redeemRate ?? 1
+      const redeemRate = ctx.redbird.loyaltyConfig.redeemRate
       return { cents: ctx.redbird.loyalty.previewRedeem(input.points, redeemRate) }
     }),
 })

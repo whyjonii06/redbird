@@ -67,6 +67,10 @@ export function SettingsPage() {
   const [alertEmail, setAlertEmail] = useState('')
   const [alertThreshold, setAlertThreshold] = useState('5')
   const [alertSaved, setAlertSaved] = useState(false)
+  const [loyaltyEnabled, setLoyaltyEnabled] = useState(true)
+  const [loyaltyEarnRate, setLoyaltyEarnRate] = useState('1')
+  const [loyaltyRedeemRate, setLoyaltyRedeemRate] = useState('1')
+  const [loyaltySaved, setLoyaltySaved] = useState(false)
   const [licenseKey, setLicenseKey] = useState('')
   const [licenseSaved, setLicenseSaved] = useState(false)
   const [storeName, setStoreName] = useState('')
@@ -130,6 +134,13 @@ export function SettingsPage() {
       setTimeout(() => setAlertSaved(false), 3000)
     },
   })
+  const loyaltyMut = trpc.admin.config.update.useMutation({
+    onSuccess: () => {
+      setLoyaltySaved(true)
+      setTimeout(() => setLoyaltySaved(false), 3000)
+      void configQuery.refetch()
+    },
+  })
   const licenseMut = trpc.admin.config.update.useMutation({
     onSuccess: () => {
       setLicenseSaved(true)
@@ -175,6 +186,9 @@ export function SettingsPage() {
   useEffect(() => {
     if (data?.stockAlertEmail !== undefined) setAlertEmail(data.stockAlertEmail)
     if (data?.stockAlertThreshold !== undefined) setAlertThreshold(String(data.stockAlertThreshold))
+    if (data?.loyaltyEnabled !== undefined) setLoyaltyEnabled(data.loyaltyEnabled)
+    if (data?.loyaltyEarnRate !== undefined) setLoyaltyEarnRate(String(data.loyaltyEarnRate))
+    if (data?.loyaltyRedeemRate !== undefined) setLoyaltyRedeemRate(String(data.loyaltyRedeemRate))
     if (data?.licenseKey !== undefined) setLicenseKey(data.licenseKey)
     if (data?.storeName !== undefined) setStoreName(data.storeName)
     if (data?.branding?.tagline !== undefined) setTagline(data.branding.tagline)
@@ -195,6 +209,9 @@ export function SettingsPage() {
   }, [
     data?.stockAlertEmail,
     data?.stockAlertThreshold,
+    data?.loyaltyEnabled,
+    data?.loyaltyEarnRate,
+    data?.loyaltyRedeemRate,
     data?.licenseKey,
     data?.storeName,
     data?.branding?.tagline,
@@ -612,6 +629,109 @@ export function SettingsPage() {
               {alertMut.isPending ? 'Saving…' : 'Save'}
             </button>
             {alertSaved && (
+              <span className="text-xs font-medium" style={{ color: '#4ade80' }}>
+                Saved.
+              </span>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Loyalty program */}
+      <section className="space-y-3">
+        <h2
+          className="text-xs font-semibold uppercase tracking-widest"
+          style={{ color: 'var(--bo-accent)' }}
+        >
+          Loyalty program
+        </h2>
+        <div
+          className="rounded-xl p-5 space-y-4"
+          style={{ background: 'var(--bo-bg2)', border: '1px solid var(--bo-border)' }}
+        >
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="loyalty-enabled"
+              checked={loyaltyEnabled}
+              onChange={(e) => setLoyaltyEnabled(e.target.checked)}
+              className="rounded"
+            />
+            <label
+              htmlFor="loyalty-enabled"
+              className="text-sm"
+              style={{ color: 'var(--bo-text)' }}
+            >
+              Enabled — customers earn points on paid orders and can redeem them at checkout
+            </label>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label
+                className="block text-xs font-medium mb-1.5"
+                style={{ color: 'var(--bo-muted)' }}
+              >
+                Earn rate
+              </label>
+              <input
+                type="number"
+                min={0}
+                step="0.1"
+                value={loyaltyEarnRate}
+                onChange={(e) => setLoyaltyEarnRate(e.target.value)}
+                className="w-32 rounded-lg px-3 py-2 text-sm outline-none"
+                style={{
+                  background: 'var(--bo-bg3)',
+                  border: '1px solid var(--bo-border)',
+                  color: 'var(--bo-text)',
+                }}
+              />
+              <p className="text-xs mt-1" style={{ color: 'var(--bo-muted)' }}>
+                Points earned per €1 spent on a paid order.
+              </p>
+            </div>
+            <div>
+              <label
+                className="block text-xs font-medium mb-1.5"
+                style={{ color: 'var(--bo-muted)' }}
+              >
+                Redeem rate
+              </label>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                value={loyaltyRedeemRate}
+                onChange={(e) => setLoyaltyRedeemRate(e.target.value)}
+                className="w-32 rounded-lg px-3 py-2 text-sm outline-none"
+                style={{
+                  background: 'var(--bo-bg3)',
+                  border: '1px solid var(--bo-border)',
+                  color: 'var(--bo-text)',
+                }}
+              />
+              <p className="text-xs mt-1" style={{ color: 'var(--bo-muted)' }}>
+                Cents discounted per point redeemed at checkout.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() =>
+                loyaltyMut.mutate({
+                  loyaltyEnabled,
+                  loyaltyEarnRate: Number.parseFloat(loyaltyEarnRate) || 0,
+                  loyaltyRedeemRate: Number.parseFloat(loyaltyRedeemRate) || 0,
+                })
+              }
+              disabled={loyaltyMut.isPending}
+              className="px-4 py-2 text-sm font-medium rounded-lg transition-all disabled:opacity-50"
+              style={{ background: 'var(--bo-accent)', color: '#fff' }}
+            >
+              {loyaltyMut.isPending ? 'Saving…' : 'Save'}
+            </button>
+            {loyaltySaved && (
               <span className="text-xs font-medium" style={{ color: '#4ade80' }}>
                 Saved.
               </span>

@@ -142,6 +142,12 @@ export const adminRouter = router({
         stockAlertThreshold:
           (meta.stockAlertThreshold as number | undefined) ??
           ctx.redbird.stockAlertConfig.threshold,
+        loyaltyEnabled:
+          (meta.loyaltyEnabled as boolean | undefined) ?? ctx.redbird.loyaltyConfig.enabled,
+        loyaltyEarnRate:
+          (meta.loyaltyEarnRate as number | undefined) ?? ctx.redbird.loyaltyConfig.earnRate,
+        loyaltyRedeemRate:
+          (meta.loyaltyRedeemRate as number | undefined) ?? ctx.redbird.loyaltyConfig.redeemRate,
         licenseKey: (meta.licenseKey as string | undefined) ?? '',
         unsplashAccessKey: process.env.UNSPLASH_ACCESS_KEY ?? '',
         seller:
@@ -175,6 +181,9 @@ export const adminRouter = router({
             .optional(),
           stockAlertEmail: z.string().optional(),
           stockAlertThreshold: z.number().int().min(0).optional(),
+          loyaltyEnabled: z.boolean().optional(),
+          loyaltyEarnRate: z.number().min(0).optional(),
+          loyaltyRedeemRate: z.number().min(0).optional(),
           licenseKey: z.string().optional(),
           seller: z
             .object({
@@ -214,6 +223,18 @@ export const adminRouter = router({
         if (input.stockAlertThreshold !== undefined) {
           updated.stockAlertThreshold = input.stockAlertThreshold
           ctx.redbird.stockAlertConfig.threshold = input.stockAlertThreshold
+        }
+        if (input.loyaltyEnabled !== undefined) {
+          updated.loyaltyEnabled = input.loyaltyEnabled
+          ctx.redbird.loyaltyConfig.enabled = input.loyaltyEnabled
+        }
+        if (input.loyaltyEarnRate !== undefined) {
+          updated.loyaltyEarnRate = input.loyaltyEarnRate
+          ctx.redbird.loyaltyConfig.earnRate = input.loyaltyEarnRate
+        }
+        if (input.loyaltyRedeemRate !== undefined) {
+          updated.loyaltyRedeemRate = input.loyaltyRedeemRate
+          ctx.redbird.loyaltyConfig.redeemRate = input.loyaltyRedeemRate
         }
         if (input.licenseKey !== undefined) {
           updated.licenseKey = input.licenseKey

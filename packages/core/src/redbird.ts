@@ -96,6 +96,7 @@ export type Redbird = {
   readonly localEmails: LocalEmailStore | null
   /** Mutable at runtime — admin.config.update can change these without a server restart. */
   readonly stockAlertConfig: { email: string | undefined; threshold: number }
+  readonly loyaltyConfig: { enabled: boolean; earnRate: number; redeemRate: number }
   readonly license: LicenseInfo | null
   /** Hot-register a plugin at runtime (no restart needed). Dispatches to all relevant registries. */
   installPlugin(plugin: unknown): void
@@ -301,10 +302,15 @@ export function createRedbird(config: RedbirdConfig): Redbird {
     }
   })
 
-  const loyaltyConfig = config.loyalty ?? {}
-  const loyaltyEnabled = loyaltyConfig.enabled !== false
-  const loyaltyEarnRate = loyaltyConfig.earnRate ?? 1
-  const loyaltyRedeemRate = loyaltyConfig.redeemRate ?? 1
+  const loyaltyConfigInput = config.loyalty ?? {}
+  // Mutable — admin.config.update can change these without a server restart,
+  // same pattern as stockAlertConfig. Every reader below closes over this same
+  // object, so a runtime edit takes effect immediately for all of them.
+  const loyaltyConfig = {
+    enabled: loyaltyConfigInput.enabled !== false,
+    earnRate: loyaltyConfigInput.earnRate ?? 1,
+    redeemRate: loyaltyConfigInput.redeemRate ?? 1,
+  }
 
   // Internal hook: auto-generate download tokens + earn loyalty points when an order is paid
   plugins.register({
@@ -312,8 +318,13 @@ export function createRedbird(config: RedbirdConfig): Redbird {
     hooks: {
       'order.paid': async ({ order }) => {
         await downloadSvc.generateTokensForOrder(order.id)
-        if (loyaltyEnabled && order.customerId) {
-          await loyaltySvc.earn(order.customerId, order.id, order.totalAmount, loyaltyEarnRate)
+        if (loyaltyConfig.enabled && order.customerId) {
+          await loyaltySvc.earn(
+            order.customerId,
+            order.id,
+            order.totalAmount,
+            loyaltyConfig.earnRate,
+          )
         }
       },
     },
@@ -365,6 +376,7 @@ export function createRedbird(config: RedbirdConfig): Redbird {
       return localEmailStore
     },
     stockAlertConfig,
+    loyaltyConfig,
     get license() {
       return licenseInfo
     },
