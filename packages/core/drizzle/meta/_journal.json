@@ -159,96 +159,103 @@
     {
       "idx": 22,
       "version": "7",
+      "when": 1750320000000,
+      "tag": "0022_theme_sections",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
       "when": 1750340000000,
       "tag": "0023_category_image",
       "breakpoints": true
     },
     {
-      "idx": 23,
+      "idx": 24,
       "version": "7",
       "when": 1750360000000,
       "tag": "0024_store_settings",
       "breakpoints": true
     },
     {
-      "idx": 24,
+      "idx": 25,
       "version": "7",
       "when": 1781982000000,
       "tag": "0025_invoice_numbering",
       "breakpoints": true
     },
     {
-      "idx": 25,
+      "idx": 26,
       "version": "7",
       "when": 1782000000000,
       "tag": "0026_tax_rates",
       "breakpoints": true
     },
     {
-      "idx": 26,
+      "idx": 27,
       "version": "7",
       "when": 1782000100000,
       "tag": "0027_payment_reference",
       "breakpoints": true
     },
     {
-      "idx": 27,
+      "idx": 28,
       "version": "7",
       "when": 1782000200000,
       "tag": "0028_audit_logs",
       "breakpoints": true
     },
     {
-      "idx": 28,
+      "idx": 29,
       "version": "7",
       "when": 1782000300000,
       "tag": "0029_advanced_promos",
       "breakpoints": true
     },
     {
-      "idx": 29,
+      "idx": 30,
       "version": "7",
       "when": 1782000400000,
       "tag": "0030_warehouses",
       "breakpoints": true
     },
     {
-      "idx": 30,
+      "idx": 31,
       "version": "7",
       "when": 1782000500000,
       "tag": "0031_redirects",
       "breakpoints": true
     },
     {
-      "idx": 31,
+      "idx": 32,
       "version": "7",
       "when": 1782000600000,
       "tag": "0032_category_cms_translations",
       "breakpoints": true
     },
     {
-      "idx": 32,
+      "idx": 33,
       "version": "7",
       "when": 1782000700000,
       "tag": "0033_group_price_tiers",
       "breakpoints": true
     },
     {
-      "idx": 33,
+      "idx": 34,
       "version": "7",
       "when": 1782000800000,
       "tag": "0034_feature_flags",
       "breakpoints": true
     },
     {
-      "idx": 34,
+      "idx": 35,
       "version": "7",
       "when": 1782000900000,
       "tag": "0035_email_campaigns",
       "breakpoints": true
     },
     {
-      "idx": 35,
+      "idx": 36,
       "version": "7",
       "when": 1782001000000,
       "tag": "0036_subscriptions",
