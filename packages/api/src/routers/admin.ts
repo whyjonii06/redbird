@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { type FecEntry, generateFec } from '@redbirdshop/core'
 import type { DbClient, ReturnRequestWithItems } from '@redbirdshop/core'
 import { carts, customers, orders, promoCodes, storeSettings } from '@redbirdshop/core/schema'
@@ -16,6 +17,19 @@ import {
   staffProcedure,
   warehouseProcedure,
 } from '../trpc.js'
+
+// Resolved from this file's own location rather than process.cwd() — pnpm's
+// `--filter <pkg> <script>` (used by the documented `pnpm dev`) runs with cwd
+// set to that package's directory, not the repo root, so a cwd-relative path
+// here used to silently write to packages/api/redbird.meta.json while
+// dev.ts's boot-time plugin/config loader always reads the repo-root one —
+// two different files, so anything saved through this router (installed
+// plugins in particular) quietly vanished on the next server restart.
+const META_PATH = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../../..',
+  'redbird.meta.json',
+)
 
 export type NavItem = {
   id: string
@@ -109,7 +123,7 @@ export const adminRouter = router({
   // ---- Config (read-only view of server config) ----
   config: router({
     get: adminProcedure.query(({ ctx }) => {
-      const metaPath = resolve(process.cwd(), 'redbird.meta.json')
+      const metaPath = META_PATH
       let meta: Record<string, unknown> = {}
       try {
         meta = JSON.parse(readFileSync(metaPath, 'utf8'))
@@ -203,7 +217,7 @@ export const adminRouter = router({
         }),
       )
       .mutation(async ({ ctx, input }) => {
-        const metaPath = resolve(process.cwd(), 'redbird.meta.json')
+        const metaPath = META_PATH
         let current: Record<string, unknown> = {}
         try {
           current = JSON.parse(readFileSync(metaPath, 'utf8'))
@@ -2127,7 +2141,7 @@ export const adminRouter = router({
     }),
 
     listInstalled: adminProcedure.query(() => {
-      const metaPath = resolve(process.cwd(), 'redbird.meta.json')
+      const metaPath = META_PATH
       let meta: Record<string, unknown> = {}
       try {
         meta = JSON.parse(readFileSync(metaPath, 'utf8'))
@@ -2201,7 +2215,7 @@ export const adminRouter = router({
           '@redbird/plugin-email-local',
         ])
         if (EMAIL_PLUGINS.has(input.name)) {
-          const metaForBranding = resolve(process.cwd(), 'redbird.meta.json')
+          const metaForBranding = META_PATH
           let brandingMeta: Record<string, unknown> = {}
           try {
             brandingMeta = JSON.parse(readFileSync(metaForBranding, 'utf8'))
@@ -2218,7 +2232,7 @@ export const adminRouter = router({
         ctx.redbird.installPlugin(plugin)
 
         // Persist to meta.json
-        const metaPath = resolve(process.cwd(), 'redbird.meta.json')
+        const metaPath = META_PATH
         let meta: Record<string, unknown> = {}
         try {
           meta = JSON.parse(readFileSync(metaPath, 'utf8'))
@@ -2238,7 +2252,7 @@ export const adminRouter = router({
       }),
 
     uninstall: adminProcedure.input(z.object({ name: z.string().min(1) })).mutation(({ input }) => {
-      const metaPath = resolve(process.cwd(), 'redbird.meta.json')
+      const metaPath = META_PATH
       let meta: Record<string, unknown> = {}
       try {
         meta = JSON.parse(readFileSync(metaPath, 'utf8'))
@@ -2250,7 +2264,7 @@ export const adminRouter = router({
     }),
 
     getConfig: adminProcedure.query(() => {
-      const metaPath = resolve(process.cwd(), 'redbird.meta.json')
+      const metaPath = META_PATH
       let meta: Record<string, unknown> = {}
       try {
         meta = JSON.parse(readFileSync(metaPath, 'utf8'))
@@ -2266,7 +2280,7 @@ export const adminRouter = router({
         }),
       )
       .mutation(({ input }) => {
-        const metaPath = resolve(process.cwd(), 'redbird.meta.json')
+        const metaPath = META_PATH
         let meta: Record<string, unknown> = {}
         try {
           meta = JSON.parse(readFileSync(metaPath, 'utf8'))
@@ -2285,7 +2299,7 @@ export const adminRouter = router({
   // under `moduleStates` (absent = not installed).
   modules: router({
     list: adminProcedure.query(() => {
-      const metaPath = resolve(process.cwd(), 'redbird.meta.json')
+      const metaPath = META_PATH
       let meta: Record<string, unknown> = {}
       try {
         meta = JSON.parse(readFileSync(metaPath, 'utf8'))
@@ -2296,7 +2310,7 @@ export const adminRouter = router({
     setState: adminProcedure
       .input(z.object({ name: z.string().min(1), state: z.enum(['active', 'disabled']) }))
       .mutation(({ input }) => {
-        const metaPath = resolve(process.cwd(), 'redbird.meta.json')
+        const metaPath = META_PATH
         let meta: Record<string, unknown> = {}
         try {
           meta = JSON.parse(readFileSync(metaPath, 'utf8'))
@@ -2309,7 +2323,7 @@ export const adminRouter = router({
       }),
 
     uninstall: adminProcedure.input(z.object({ name: z.string().min(1) })).mutation(({ input }) => {
-      const metaPath = resolve(process.cwd(), 'redbird.meta.json')
+      const metaPath = META_PATH
       let meta: Record<string, unknown> = {}
       try {
         meta = JSON.parse(readFileSync(metaPath, 'utf8'))
@@ -2329,7 +2343,7 @@ export const adminRouter = router({
   // ---- Saved theme presets (named design-token snapshots) ----
   themes: router({
     listPresets: adminProcedure.query(() => {
-      const metaPath = resolve(process.cwd(), 'redbird.meta.json')
+      const metaPath = META_PATH
       let meta: Record<string, unknown> = {}
       try {
         meta = JSON.parse(readFileSync(metaPath, 'utf8'))
@@ -2340,7 +2354,7 @@ export const adminRouter = router({
     savePreset: adminProcedure
       .input(z.object({ name: z.string().min(1).max(60), tokens: z.record(z.string()) }))
       .mutation(({ input }) => {
-        const metaPath = resolve(process.cwd(), 'redbird.meta.json')
+        const metaPath = META_PATH
         let meta: Record<string, unknown> = {}
         try {
           meta = JSON.parse(readFileSync(metaPath, 'utf8'))
@@ -2355,7 +2369,7 @@ export const adminRouter = router({
     deletePreset: adminProcedure
       .input(z.object({ name: z.string().min(1) }))
       .mutation(({ input }) => {
-        const metaPath = resolve(process.cwd(), 'redbird.meta.json')
+        const metaPath = META_PATH
         let meta: Record<string, unknown> = {}
         try {
           meta = JSON.parse(readFileSync(metaPath, 'utf8'))
@@ -2374,7 +2388,7 @@ export const adminRouter = router({
   // purchased (ownership persisted in meta.json `ownedThemes`).
   storefrontThemes: router({
     list: adminProcedure.query(() => {
-      const metaPath = resolve(process.cwd(), 'redbird.meta.json')
+      const metaPath = META_PATH
       let meta: Record<string, unknown> = {}
       try {
         meta = JSON.parse(readFileSync(metaPath, 'utf8'))
@@ -2395,7 +2409,7 @@ export const adminRouter = router({
       if (!theme) throw new TRPCError({ code: 'NOT_FOUND', message: 'Unknown theme' })
       // NOTE: payment integration is future work — this records ownership so the
       // download/activate flow can be exercised end-to-end.
-      const metaPath = resolve(process.cwd(), 'redbird.meta.json')
+      const metaPath = META_PATH
       let meta: Record<string, unknown> = {}
       try {
         meta = JSON.parse(readFileSync(metaPath, 'utf8'))
@@ -2410,7 +2424,7 @@ export const adminRouter = router({
     setActive: adminProcedure.input(z.object({ id: z.string().min(1) })).mutation(({ input }) => {
       const theme = STOREFRONT_THEMES.find((t) => t.id === input.id)
       if (!theme) throw new TRPCError({ code: 'NOT_FOUND', message: 'Unknown theme' })
-      const metaPath = resolve(process.cwd(), 'redbird.meta.json')
+      const metaPath = META_PATH
       let meta: Record<string, unknown> = {}
       try {
         meta = JSON.parse(readFileSync(metaPath, 'utf8'))
