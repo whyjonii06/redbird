@@ -9,6 +9,7 @@ export default defineConfig({
     proxy: {
       '/trpc': 'http://localhost:3000',
       '/meta.json': 'http://localhost:3000',
+      '/manifest.webmanifest': 'http://localhost:3000',
     },
   },
 })

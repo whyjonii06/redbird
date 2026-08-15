@@ -7,6 +7,7 @@ import { CartProvider } from './CartContext.js'
 import { CurrencyProvider } from './CurrencyContext.js'
 import { WishlistProvider } from './WishlistContext.js'
 import { Header } from './components/Header.js'
+import { InstallPrompt } from './components/InstallPrompt.js'
 import { RedirectOrNotFound } from './components/RedirectOrNotFound.js'
 import { I18nProvider, useI18n } from './i18n/index.js'
 import { DEFAULT_META, type StoreMeta, applyMeta, fetchMeta } from './meta.js'
@@ -71,6 +72,7 @@ export default function App() {
                     <BrowserRouter>
                       <div className="min-h-screen bg-gray-50 flex flex-col">
                         <Header />
+                        <InstallPrompt />
                         <main className="flex-1">
                           <Routes>
                             <Route path="/" element={<HomePage />} />

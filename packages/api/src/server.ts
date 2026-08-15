@@ -2,7 +2,8 @@ import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { readFile as readFilePromise } from 'node:fs/promises'
 import { createServer } from 'node:http'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import type { Redbird, SellerConfig } from '@redbirdshop/core'
 import { createHTTPHandler } from '@trpc/server/adapters/standalone'
 import sharp from 'sharp'
@@ -15,10 +16,18 @@ import { handleRestRequest } from './rest.js'
 import { appRouter } from './routers/index.js'
 import { buildWebhookHandlerMap, handleWebhookRequest } from './webhooks.js'
 
+// Resolved from this file's own location rather than process.cwd() — pnpm's
+// `--filter <pkg> <script>` (used by the documented `pnpm dev`) runs with cwd
+// set to that package's directory, not the repo root, so a cwd-relative path
+// here would silently miss the repo-root redbird.meta.json that admin.ts
+// writes branding/seller/theme-ownership edits to (same bug fixed in
+// routers/admin.ts — see the comment there for the full story).
+const META_PATH = resolve(dirname(fileURLToPath(import.meta.url)), '../../..', 'redbird.meta.json')
+
 /** Resolve the seller legal identity from the BO-edited meta.json, falling back to config. */
 function resolveSeller(redbird: Redbird): SellerConfig | undefined {
   try {
-    const meta = JSON.parse(readFileSync(resolve(process.cwd(), 'redbird.meta.json'), 'utf8')) as {
+    const meta = JSON.parse(readFileSync(META_PATH, 'utf8')) as {
       seller?: SellerConfig
     }
     if (meta?.seller) return meta.seller
@@ -269,9 +278,7 @@ export function createApiServer(opts: ServerOptions) {
       const FREE_THEMES = new Set(['classic'])
       let owned: string[] = []
       try {
-        const meta = JSON.parse(
-          readFileSync(resolve(process.cwd(), 'redbird.meta.json'), 'utf8'),
-        ) as { ownedThemes?: string[] }
+        const meta = JSON.parse(readFileSync(META_PATH, 'utf8')) as { ownedThemes?: string[] }
         owned = meta.ownedThemes ?? []
       } catch {}
       if (!FREE_THEMES.has(id) && !owned.includes(id)) {
@@ -508,7 +515,7 @@ export function createApiServer(opts: ServerOptions) {
 
     if (url.split('?')[0] === '/meta.json' && req.method === 'GET') {
       res.setHeader('Access-Control-Allow-Origin', '*')
-      const metaPath = resolve(process.cwd(), 'redbird.meta.json')
+      const metaPath = META_PATH
       let fileMeta: Record<string, unknown> = {}
       try {
         if (existsSync(metaPath))
@@ -545,6 +552,47 @@ export function createApiServer(opts: ServerOptions) {
             }),
           )
         })
+      return
+    }
+
+    if (url === '/manifest.webmanifest' && req.method === 'GET') {
+      res.setHeader('Access-Control-Allow-Origin', '*')
+      let fileMeta: { branding?: { primaryColor?: string } } = {}
+      try {
+        if (existsSync(META_PATH))
+          fileMeta = JSON.parse(readFileSync(META_PATH, 'utf8')) as typeof fileMeta
+      } catch {}
+      const themeColor = fileMeta.branding?.primaryColor ?? '#4f46e5'
+      res.writeHead(200, { 'Content-Type': 'application/manifest+json' })
+      res.end(
+        JSON.stringify({
+          name: storeName || 'Store',
+          short_name: storeName || 'Store',
+          description: `Shop ${storeName || 'online'} — browse products, track orders, and manage your account.`,
+          start_url: '/',
+          scope: '/',
+          display: 'standalone',
+          background_color: '#0f0f10',
+          theme_color: themeColor,
+          orientation: 'portrait-primary',
+          icons: [
+            { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+            { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+            {
+              src: '/icons/icon-maskable-192.png',
+              sizes: '192x192',
+              type: 'image/png',
+              purpose: 'maskable',
+            },
+            {
+              src: '/icons/icon-maskable-512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'maskable',
+            },
+          ],
+        }),
+      )
       return
     }
 
