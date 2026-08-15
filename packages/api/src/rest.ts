@@ -3,6 +3,7 @@ import type { Redbird } from '@redbirdshop/core'
 import type { RateLimiters } from '@redbirdshop/trpc'
 import { TRPCError } from '@trpc/server'
 import { createContext } from './context.js'
+import { buildOpenApiSpec } from './openapi.js'
 import { appRouter } from './routers/index.js'
 
 const TRPC_HTTP_STATUS: Record<string, number> = {
@@ -75,7 +76,7 @@ export async function handleRestRequest(
   // CORS preflight
   if (method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*')
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS')
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, PUT, DELETE, OPTIONS')
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
     res.writeHead(204)
     res.end()
@@ -86,13 +87,26 @@ export async function handleRestRequest(
   const query = new URLSearchParams(url.includes('?') ? url.slice(url.indexOf('?') + 1) : '')
 
   try {
+    // ── GET /api/v1/openapi.json ──────────────────────────────────────────────
+    if (path === '/openapi.json' && method === 'GET') {
+      const proto = req.headers['x-forwarded-proto'] ?? 'http'
+      const host = req.headers.host ?? 'localhost:3000'
+      json(res, 200, buildOpenApiSpec(`${proto}://${host}`))
+      return true
+    }
+
     // ── GET /api/v1/products ──────────────────────────────────────────────────
     if (path === '/products' && method === 'GET') {
-      const limit = Math.min(parseInt(query.get('limit') ?? '20', 10) || 20, 100)
-      const offset = parseInt(query.get('offset') ?? '0', 10) || 0
+      const limit = Math.min(Number.parseInt(query.get('limit') ?? '20', 10) || 20, 100)
+      const offset = Number.parseInt(query.get('offset') ?? '0', 10) || 0
       const sortBy =
         (query.get('sort') as 'newest' | 'price_asc' | 'price_desc' | 'name' | null) ?? 'newest'
-      const products = await redbird.catalog.listProducts({ limit, offset, status: 'active', sortBy })
+      const products = await redbird.catalog.listProducts({
+        limit,
+        offset,
+        status: 'active',
+        sortBy,
+      })
       json(res, 200, { data: products, meta: { limit, offset, count: products.length } })
       return true
     }
@@ -104,7 +118,7 @@ export async function handleRestRequest(
         badRequest(res, 'q parameter required')
         return true
       }
-      const limit = Math.min(parseInt(query.get('limit') ?? '20', 10) || 20, 50)
+      const limit = Math.min(Number.parseInt(query.get('limit') ?? '20', 10) || 20, 50)
       const results = await redbird.catalog.search(q.trim(), { limit, status: 'active' })
       json(res, 200, { data: results, meta: { q, count: results.length } })
       return true
@@ -139,8 +153,8 @@ export async function handleRestRequest(
         notFound(res)
         return true
       }
-      const limit = Math.min(parseInt(query.get('limit') ?? '20', 10) || 20, 100)
-      const offset = parseInt(query.get('offset') ?? '0', 10) || 0
+      const limit = Math.min(Number.parseInt(query.get('limit') ?? '20', 10) || 20, 100)
+      const offset = Number.parseInt(query.get('offset') ?? '0', 10) || 0
       const products = await redbird.categories.listProducts(category.id, { limit, offset })
       json(res, 200, { data: { ...category, products } })
       return true
@@ -192,7 +206,7 @@ export async function handleRestRequest(
         badRequest(res, 'variantId required')
         return true
       }
-      const qty = Math.max(1, parseInt(String(body.quantity ?? 1), 10) || 1)
+      const qty = Math.max(1, Number.parseInt(String(body.quantity ?? 1), 10) || 1)
       const lineItem = await redbird.cart.addItem(cartItemsMatch[1]!, body.variantId, qty)
       json(res, 200, { data: lineItem })
       return true
@@ -209,6 +223,108 @@ export async function handleRestRequest(
     // The remaining routes go through the tRPC caller (see the doc comment above).
     const ctx = createContext(redbird, req, jwtSecret, adminKey, rateLimiters, trustProxy)
     const caller = appRouter.createCaller(ctx)
+
+    // ── Admin — catalog & inventory (headless admin/PIM integration) ───────────
+    // Auth: "x-admin-key: <key>" or "x-staff-token: <staff JWT>", same as the
+    // backoffice. adminProcedure/warehouseProcedure enforce it — a request
+    // without proper credentials throws UNAUTHORIZED before reaching here.
+
+    if (path === '/admin/products' && method === 'GET') {
+      const limit = Math.min(Number.parseInt(query.get('limit') ?? '20', 10) || 20, 100)
+      const offset = Number.parseInt(query.get('offset') ?? '0', 10) || 0
+      const status = query.get('status') as 'draft' | 'active' | 'archived' | null
+      const products = await caller.admin.catalog.list({
+        limit,
+        offset,
+        ...(status ? { status } : {}),
+      })
+      json(res, 200, { data: products, meta: { limit, offset, count: products.length } })
+      return true
+    }
+
+    if (path === '/admin/products' && method === 'POST') {
+      const body = await parseBody(req)
+      const product = await caller.admin.catalog.create(
+        body as Parameters<typeof caller.admin.catalog.create>[0],
+      )
+      json(res, 201, { data: product })
+      return true
+    }
+
+    const adminProductMatch = path.match(/^\/admin\/products\/([^/]+)$/)
+    if (adminProductMatch && method === 'GET') {
+      const product = await caller.admin.catalog.byId({ id: adminProductMatch[1]! })
+      if (!product) {
+        notFound(res)
+        return true
+      }
+      json(res, 200, { data: product })
+      return true
+    }
+
+    if (adminProductMatch && (method === 'PATCH' || method === 'PUT')) {
+      const body = (await parseBody(req)) as Record<string, unknown>
+      const product = await caller.admin.catalog.update({
+        id: adminProductMatch[1]!,
+        ...body,
+      } as Parameters<typeof caller.admin.catalog.update>[0])
+      json(res, 200, { data: product })
+      return true
+    }
+
+    if (adminProductMatch && method === 'DELETE') {
+      await caller.admin.catalog.delete({ id: adminProductMatch[1]! })
+      json(res, 200, { data: null })
+      return true
+    }
+
+    const adminVariantsMatch = path.match(/^\/admin\/products\/([^/]+)\/variants$/)
+    if (adminVariantsMatch && method === 'POST') {
+      const body = (await parseBody(req)) as Record<string, unknown>
+      const variant = await caller.admin.catalog.addVariant({
+        productId: adminVariantsMatch[1]!,
+        ...body,
+      } as Parameters<typeof caller.admin.catalog.addVariant>[0])
+      json(res, 201, { data: variant })
+      return true
+    }
+
+    const adminVariantMatch = path.match(/^\/admin\/variants\/([^/]+)$/)
+    if (adminVariantMatch && (method === 'PATCH' || method === 'PUT')) {
+      const body = (await parseBody(req)) as Record<string, unknown>
+      const variant = await caller.admin.catalog.updateVariant({
+        id: adminVariantMatch[1]!,
+        ...body,
+      } as Parameters<typeof caller.admin.catalog.updateVariant>[0])
+      json(res, 200, { data: variant })
+      return true
+    }
+
+    if (adminVariantMatch && method === 'DELETE') {
+      await caller.admin.catalog.deleteVariant({ id: adminVariantMatch[1]! })
+      json(res, 200, { data: null })
+      return true
+    }
+
+    const adminStockMatch = path.match(/^\/admin\/stock\/([^/]+)$/)
+    if (adminStockMatch && method === 'GET') {
+      const stock = await caller.admin.stock.get({ variantId: adminStockMatch[1]! })
+      json(res, 200, { data: stock })
+      return true
+    }
+
+    if (adminStockMatch && (method === 'PATCH' || method === 'PUT')) {
+      const body = (await parseBody(req)) as { quantity?: number; delta?: number }
+      const stock =
+        body.delta !== undefined
+          ? await caller.admin.stock.adjust({ variantId: adminStockMatch[1]!, delta: body.delta })
+          : await caller.admin.stock.set({
+              variantId: adminStockMatch[1]!,
+              quantity: body.quantity ?? 0,
+            })
+      json(res, 200, { data: stock })
+      return true
+    }
 
     // ── GET /api/v1/orders/:number ────────────────────────────────────────────
     // Public by design, same as the tRPC procedure it delegates to: order
