@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useI18n } from '../../../i18n/index.js'
+import { optimizedSrc } from '../../../optimizedImage.js'
 import { trpc } from '../../../trpc.js'
 import { fmt } from '../../../trpc.js'
 
@@ -82,8 +83,9 @@ export function EditorialStory({ config }: { config: Config }) {
           >
             {product.images?.[0] && (
               <img
-                src={product.images[0].url}
+                src={optimizedSrc(product.images[0].url, 128)}
                 alt={product.name}
+                loading="lazy"
                 style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8 }}
               />
             )}
@@ -137,7 +139,7 @@ function ImagePanel({ image }: { image: string }) {
   return (
     <div
       style={{
-        background: image ? `url(${image}) center/cover` : '#f3f4f6',
+        background: image ? `url(${optimizedSrc(image, 1200)}) center/cover` : '#f3f4f6',
         minHeight: 400,
       }}
     />

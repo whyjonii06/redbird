@@ -7,7 +7,6 @@ const THEME_LABELS: Record<string, string> = {
   classic: 'Classic',
   editorial: 'Editorial',
   lookbook: 'Lookbook',
-  minimal: 'Minimal',
 }
 
 const SECTION_LABELS: Record<string, string> = {

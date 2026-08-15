@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useI18n } from '../../../i18n/index.js'
+import { optimizedSrc, optimizedSrcSet } from '../../../optimizedImage.js'
 import { fmt, trpc } from '../../../trpc.js'
 
 type Config = { productId: string | null; quote: string; quoteAuthor: string }
@@ -37,8 +38,11 @@ export function EditorialFeatured({ config }: { config: Config }) {
         <div style={{ position: 'relative' }}>
           {image && (
             <img
-              src={image}
+              src={optimizedSrc(image, 600)}
+              srcSet={optimizedSrcSet(image, [400, 600, 900])}
+              sizes="(min-width: 768px) 50vw, 100vw"
               alt={product.name}
+              loading="lazy"
               style={{ width: '100%', aspectRatio: '3/4', objectFit: 'cover', borderRadius: 4 }}
             />
           )}

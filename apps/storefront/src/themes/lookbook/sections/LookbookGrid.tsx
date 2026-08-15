@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useI18n } from '../../../i18n/index.js'
+import { optimizedSrc, optimizedSrcSet } from '../../../optimizedImage.js'
 import { trpc } from '../../../trpc.js'
 
 type GridItem = {
@@ -53,7 +54,10 @@ export function LookbookGrid({ config }: { config: Config }) {
             >
               {item.image && (
                 <img
-                  src={item.image}
+                  src={optimizedSrc(item.image, isLarge ? 800 : 400)}
+                  srcSet={optimizedSrcSet(item.image, [300, 600, 900])}
+                  sizes={isLarge ? '66vw' : '33vw'}
+                  loading="lazy"
                   alt={item.label || product?.name || ''}
                   style={{
                     width: '100%',
