@@ -37,6 +37,7 @@ import type { PaymentProvider } from './payments/types.js'
 import { PluginRegistry } from './plugins/registry.js'
 import type { PluginDefinition } from './plugins/types.js'
 import { type PromoService, createPromoService } from './promos/service.js'
+import { type QuoteService, createQuoteService } from './quotes/service.js'
 import { type RedirectService, createRedirectService } from './redirects/service.js'
 import { type ReturnService, createReturnService } from './returns/service.js'
 import { type SearchService, createSearchService } from './search/service.js'
@@ -62,6 +63,7 @@ export type Redbird = {
   readonly orders: OrderService
   readonly customers: CustomerService
   readonly paymentMethods: PaymentMethodService
+  readonly quotes: QuoteService
   readonly plugins: PluginRegistry
   readonly payments: PaymentRegistry
   readonly email: EmailRegistry
@@ -232,6 +234,7 @@ export function createRedbird(config: RedbirdConfig): Redbird {
   const returnSvc = createReturnService(db, orderSvc, stockSvc)
   const customerSvc = createCustomerService(db)
   const paymentMethodSvc = createPaymentMethodService(db, payments)
+  const quoteSvc = createQuoteService(db, cart)
   const addressSvc = createAddressService(db)
   const brandSvc = createBrandService(db)
   const supplierSvc = createSupplierService(db)
@@ -343,6 +346,7 @@ export function createRedbird(config: RedbirdConfig): Redbird {
     orders: orderSvc,
     customers: customerSvc,
     paymentMethods: paymentMethodSvc,
+    quotes: quoteSvc,
     plugins,
     payments,
     email,

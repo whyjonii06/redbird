@@ -281,6 +281,13 @@
       "when": 1782001400000,
       "tag": "0039_customer_payment_methods",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1782001500000,
+      "tag": "0040_quote_requests",
+      "breakpoints": true
     }
   ]
 }

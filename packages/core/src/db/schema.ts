@@ -525,6 +525,82 @@ export const groupPriceRules = pgTable(
   ],
 )
 
+// ---------- B2B quote requests ----------
+//
+// Distinct from group price rules above: those are pre-set prices a staff
+// member configures ahead of time for a whole customer group. A quote is
+// customer-initiated and per-request — they ask about a specific cart of
+// items, staff negotiates a one-off price per line, and accepting turns it
+// into a cart at exactly those prices (bypassing normal live pricing).
+
+export const quoteStatus = pgEnum('quote_status', [
+  'pending',
+  'quoted',
+  'accepted',
+  'rejected',
+  'expired',
+])
+
+export const quoteRequests = pgTable(
+  'quote_requests',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    customerId: uuid()
+      .notNull()
+      .references(() => customers.id, { onDelete: 'cascade' }),
+    status: quoteStatus().notNull().default('pending'),
+    currency: text().notNull(),
+    customerNote: text(),
+    staffNote: text(),
+    expiresAt: timestamp({ withTimezone: true }),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('quote_requests_customer_id_idx').on(t.customerId),
+    index('quote_requests_status_idx').on(t.status),
+  ],
+)
+
+export const quoteRequestItems = pgTable(
+  'quote_request_items',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    quoteRequestId: uuid()
+      .notNull()
+      .references(() => quoteRequests.id, { onDelete: 'cascade' }),
+    variantId: uuid()
+      .notNull()
+      .references(() => productVariants.id, { onDelete: 'cascade' }),
+    quantity: integer().notNull(),
+    /** Staff's negotiated unit price — set when the request moves to "quoted". */
+    quotedPriceAmount: integer(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('quote_request_items_quote_id_idx').on(t.quoteRequestId)],
+)
+
+export type QuoteRequest = typeof quoteRequests.$inferSelect
+export type NewQuoteRequest = typeof quoteRequests.$inferInsert
+export type QuoteRequestItem = typeof quoteRequestItems.$inferSelect
+export type NewQuoteRequestItem = typeof quoteRequestItems.$inferInsert
+
+export const quoteRequestsRelations = relations(quoteRequests, ({ one, many }) => ({
+  customer: one(customers, { fields: [quoteRequests.customerId], references: [customers.id] }),
+  items: many(quoteRequestItems),
+}))
+
+export const quoteRequestItemsRelations = relations(quoteRequestItems, ({ one }) => ({
+  quoteRequest: one(quoteRequests, {
+    fields: [quoteRequestItems.quoteRequestId],
+    references: [quoteRequests.id],
+  }),
+  variant: one(productVariants, {
+    fields: [quoteRequestItems.variantId],
+    references: [productVariants.id],
+  }),
+}))
+
 // ---------- Relations ----------
 
 export const customersRelations = relations(customers, ({ many }) => ({
@@ -533,6 +609,7 @@ export const customersRelations = relations(customers, ({ many }) => ({
   groupMemberships: many(customerGroupMembers),
   wishlists: many(wishlists),
   paymentMethods: many(customerPaymentMethods),
+  quoteRequests: many(quoteRequests),
 }))
 
 export const customerGroupsRelations = relations(customerGroups, ({ many }) => ({

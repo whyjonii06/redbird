@@ -23,6 +23,7 @@ import { OrdersPage } from './pages/OrdersPage.js'
 import { ProductFormPage } from './pages/ProductFormPage.js'
 import { ProductsPage } from './pages/ProductsPage.js'
 import { PromosPage } from './pages/PromosPage.js'
+import { QuotesPage } from './pages/QuotesPage.js'
 import { RedirectsPage } from './pages/RedirectsPage.js'
 import { ReportsPage } from './pages/ReportsPage.js'
 import { ReturnsPage } from './pages/ReturnsPage.js'
@@ -61,6 +62,7 @@ export default function App() {
                   <Route path="campaigns" element={<CampaignsPage />} />
                   <Route path="subscriptions" element={<SubscriptionsPage />} />
                   <Route path="returns" element={<ReturnsPage />} />
+                  <Route path="quotes" element={<QuotesPage />} />
                   <Route path="reports" element={<ReportsPage />} />
                   <Route path="staff" element={<StaffPage />} />
                   <Route path="audit-log" element={<AuditLogPage />} />

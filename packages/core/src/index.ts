@@ -56,6 +56,14 @@ export type { AuditLogService, WriteAuditLogInput } from './audit-log/service.js
 export type { CurrencyService, CurrencyConfig } from './currency/service.js'
 export type { PaymentMethodService } from './payment-methods/service.js'
 export type {
+  QuoteService,
+  QuoteStatus,
+  CreateQuoteInput,
+  CreateQuoteItemInput,
+  QuoteRequestWithItems,
+  RespondItemInput,
+} from './quotes/service.js'
+export type {
   WarehouseService,
   CreateWarehouseInput,
   UpdateWarehouseInput,
@@ -156,6 +164,9 @@ export type {
   // Saved payment methods
   CustomerPaymentMethod,
   NewCustomerPaymentMethod,
+  // B2B quotes
+  QuoteRequest,
+  QuoteRequestItem,
   // Audit log
   AuditLog,
   // Warehouses

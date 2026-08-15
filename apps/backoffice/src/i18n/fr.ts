@@ -38,6 +38,7 @@ export const fr: Record<string, string> = {
   'nav.Categories': 'Catégories',
   'nav.Orders': 'Commandes',
   'nav.Returns': 'Retours',
+  'nav.Quotes': 'Devis',
   'nav.Customers': 'Clients',
   'nav.Groups': 'Groupes',
   'nav.Promos': 'Promotions',
@@ -148,7 +149,8 @@ export const fr: Record<string, string> = {
 
   // Seller legal identity (invoicing / Factur-X)
   'settings.seller.title': 'Identité légale du vendeur',
-  'settings.seller.intro': 'Requise pour émettre des factures conformes (Factur-X / facturation électronique).',
+  'settings.seller.intro':
+    'Requise pour émettre des factures conformes (Factur-X / facturation électronique).',
   'settings.seller.name': 'Raison sociale',
   'settings.seller.vat': 'Numéro de TVA',
   'settings.seller.siren': 'N° d’immatriculation (SIREN/SIRET)',
@@ -161,7 +163,8 @@ export const fr: Record<string, string> = {
 
   // Accounting — FEC export
   'settings.fec.title': 'Comptabilité — Export FEC',
-  'settings.fec.intro': 'Exportez vos écritures de vente au format FEC (norme comptable française).',
+  'settings.fec.intro':
+    'Exportez vos écritures de vente au format FEC (norme comptable française).',
   'settings.fec.from': 'Du',
   'settings.fec.to': 'Au',
   'settings.fec.download': 'Télécharger le FEC',

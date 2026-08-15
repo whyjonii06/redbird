@@ -1336,6 +1336,63 @@ export const adminRouter = router({
       }),
   }),
 
+  // ---- B2B quote requests ----
+  quotes: router({
+    list: adminProcedure
+      .input(
+        z
+          .object({
+            status: z.enum(['pending', 'quoted', 'accepted', 'rejected', 'expired']).optional(),
+          })
+          .optional(),
+      )
+      .query(async ({ ctx, input }) => ctx.redbird.quotes.list(input)),
+
+    get: adminProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ ctx, input }) => {
+      const quote = await ctx.redbird.quotes.get(input.id)
+      if (!quote) throw new TRPCError({ code: 'NOT_FOUND', message: 'Quote request not found' })
+      return quote
+    }),
+
+    /** Sets a negotiated unit price per line item and moves the request to "quoted". */
+    respond: adminProcedure
+      .input(
+        z.object({
+          id: z.string().uuid(),
+          items: z
+            .array(
+              z.object({ itemId: z.string().uuid(), quotedPriceAmount: z.number().int().min(0) }),
+            )
+            .min(1),
+          staffNote: z.string().max(2000).optional(),
+          expiresAt: z.string().datetime().optional(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        try {
+          const quote = await ctx.redbird.quotes.respond(input.id, input.items, {
+            ...(input.staffNote !== undefined ? { staffNote: input.staffNote } : {}),
+            ...(input.expiresAt !== undefined ? { expiresAt: new Date(input.expiresAt) } : {}),
+          })
+          await writeAudit(ctx, 'quote.respond', 'quote_request', input.id, {
+            items: input.items,
+          })
+          return quote
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : 'Could not respond to quote request'
+          throw new TRPCError({ code: 'BAD_REQUEST', message: msg })
+        }
+      }),
+
+    reject: adminProcedure
+      .input(z.object({ id: z.string().uuid(), staffNote: z.string().optional() }))
+      .mutation(async ({ ctx, input }) => {
+        const quote = await ctx.redbird.quotes.reject(input.id, input.staffNote)
+        await writeAudit(ctx, 'quote.reject', 'quote_request', input.id)
+        return quote
+      }),
+  }),
+
   // ---- Stock management ----
   stock: router({
     get: warehouseProcedure

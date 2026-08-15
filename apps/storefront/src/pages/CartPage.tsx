@@ -1,14 +1,23 @@
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useMeta } from '../App.js'
+import { useAuth } from '../AuthContext.js'
 import { useCartContext, useCartData } from '../CartContext.js'
 import { fmt, trpc } from '../trpc.js'
 
 export function CartPage() {
   const meta = useMeta()
   const navigate = useNavigate()
+  const { customer } = useAuth()
   const { cartId } = useCartContext()
   const { data: cart, refetch } = useCartData()
   const utils = trpc.useUtils()
+  const [showQuoteForm, setShowQuoteForm] = useState(false)
+  const [quoteNote, setQuoteNote] = useState('')
+
+  const requestQuoteMut = trpc.quotes.create.useMutation({
+    onSuccess: () => navigate('/account'),
+  })
 
   const removeItem = trpc.cart.removeItem.useMutation({
     onSuccess: () => utils.cart.get.invalidate(),
@@ -135,6 +144,63 @@ export function CartPage() {
           Proceed to checkout →
         </button>
       </div>
+
+      {customer && (
+        <div className="mt-6 border-t border-gray-100 pt-6">
+          {!showQuoteForm ? (
+            <button
+              type="button"
+              onClick={() => setShowQuoteForm(true)}
+              className="text-sm text-gray-500 hover:text-[var(--primary)] hover:underline"
+            >
+              Buying in bulk? Request a custom quote for this cart →
+            </button>
+          ) : (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                requestQuoteMut.mutate({
+                  currency,
+                  items: cart.lineItems.map((li) => ({
+                    variantId: li.variantId,
+                    quantity: li.quantity,
+                  })),
+                  ...(quoteNote.trim() ? { customerNote: quoteNote.trim() } : {}),
+                })
+              }}
+              className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3"
+            >
+              <p className="text-sm font-medium text-gray-700">Request a custom quote</p>
+              <textarea
+                value={quoteNote}
+                onChange={(e) => setQuoteNote(e.target.value)}
+                rows={3}
+                placeholder="Tell us about your order — quantities, timeline, anything relevant…"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              />
+              {requestQuoteMut.error && (
+                <p className="text-xs text-red-600">{requestQuoteMut.error.message}</p>
+              )}
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={requestQuoteMut.isPending}
+                  className="text-sm bg-[var(--primary)] text-white px-4 py-2 rounded-lg disabled:opacity-50"
+                >
+                  {requestQuoteMut.isPending ? 'Submitting…' : 'Submit request'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowQuoteForm(false)}
+                  className="text-sm text-gray-500"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      )}
     </div>
   )
 }

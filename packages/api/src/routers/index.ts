@@ -12,6 +12,7 @@ import { downloadsRouter } from './downloads.js'
 import { loyaltyRouter } from './loyalty.js'
 import { navigationRouter } from './navigation.js'
 import { paymentMethodsRouter } from './payment-methods.js'
+import { quotesRouter } from './quotes.js'
 import { redirectsRouter } from './redirects.js'
 import { returnsRouter } from './returns.js'
 import { reviewsRouter } from './reviews.js'
@@ -36,6 +37,7 @@ export const appRouter = router({
   downloads: downloadsRouter,
   loyalty: loyaltyRouter,
   paymentMethods: paymentMethodsRouter,
+  quotes: quotesRouter,
   redirects: redirectsRouter,
   navigation: navigationRouter,
   admin: adminRouter,

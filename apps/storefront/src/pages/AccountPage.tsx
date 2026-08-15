@@ -194,6 +194,7 @@ export function AccountPage() {
       </div>
 
       <SubscriptionsSection />
+      <QuotesSection />
 
       {/* Quick links */}
       <div className="grid grid-cols-2 gap-4 mb-8">
@@ -342,6 +343,100 @@ const INTERVAL_LABEL: Record<'weekly' | 'monthly' | 'yearly', string> = {
   weekly: 'Weekly',
   monthly: 'Monthly',
   yearly: 'Yearly',
+}
+
+const QUOTE_STATUS_LABEL: Record<string, string> = {
+  pending: 'Awaiting review',
+  quoted: 'Quote ready — review and accept',
+  accepted: 'Accepted',
+  rejected: 'Declined',
+  expired: 'Expired',
+}
+
+const QUOTE_STATUS_STYLE: Record<string, string> = {
+  pending: 'bg-amber-100 text-amber-700',
+  quoted: 'bg-indigo-100 text-indigo-700',
+  accepted: 'bg-green-100 text-green-700',
+  rejected: 'bg-red-100 text-red-700',
+  expired: 'bg-gray-100 text-gray-500',
+}
+
+function QuotesSection() {
+  const navigate = useNavigate()
+  const { setCartId } = useCartContext()
+  const utils = trpc.useUtils()
+  const { data: quotes = [], isLoading } = trpc.quotes.list.useQuery()
+
+  const acceptMut = trpc.quotes.accept.useMutation({
+    onSuccess: (result) => {
+      setCartId(result.cartId)
+      navigate('/checkout')
+    },
+    onSettled: () => void utils.quotes.list.invalidate(),
+  })
+
+  if (isLoading || quotes.length === 0) return null
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-6 mb-8">
+      <h2 className="font-semibold text-lg mb-1">Quote requests</h2>
+      <p className="text-sm text-gray-500 mb-4">Custom pricing requests for bulk orders.</p>
+      <div className="space-y-3">
+        {quotes.map((q) => {
+          const total = q.items.reduce(
+            (sum, i) => sum + (i.quotedPriceAmount ?? i.variant?.priceAmount ?? 0) * i.quantity,
+            0,
+          )
+          return (
+            <div key={q.id} className="border border-gray-100 rounded-lg px-4 py-3">
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <span
+                  className={`text-xs px-2 py-0.5 rounded-full font-medium ${QUOTE_STATUS_STYLE[q.status] ?? 'bg-gray-100 text-gray-600'}`}
+                >
+                  {QUOTE_STATUS_LABEL[q.status] ?? q.status}
+                </span>
+                <span className="text-xs text-gray-400">
+                  {new Date(q.createdAt).toLocaleDateString()}
+                </span>
+              </div>
+              <ul className="space-y-0.5 mb-2">
+                {q.items.map((item) => (
+                  <li key={item.id} className="text-xs text-gray-600">
+                    {item.quantity} × {item.variant?.productName ?? 'Unknown item'}
+                    {item.variant?.variantName && (
+                      <span className="text-gray-400"> — {item.variant.variantName}</span>
+                    )}
+                    {item.quotedPriceAmount != null && (
+                      <span className="text-gray-900 font-medium">
+                        {' '}
+                        — {fmt(item.quotedPriceAmount, q.currency)} / unit
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              {q.status === 'quoted' && (
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-gray-900">{fmt(total, q.currency)}</p>
+                  <button
+                    type="button"
+                    onClick={() => acceptMut.mutate({ id: q.id })}
+                    disabled={acceptMut.isPending}
+                    className="text-xs bg-[var(--primary)] text-white px-3 py-1.5 rounded-lg font-medium disabled:opacity-50"
+                  >
+                    {acceptMut.isPending ? 'Accepting…' : 'Accept & checkout'}
+                  </button>
+                </div>
+              )}
+              {acceptMut.error && q.status === 'quoted' && (
+                <p className="text-xs text-red-600 mt-2">{acceptMut.error.message}</p>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
 function SubscriptionsSection() {
