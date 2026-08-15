@@ -722,6 +722,13 @@ export const staff = pgTable(
     lastName: text(),
     role: staffRole().notNull().default('support'),
     active: boolean().notNull().default(true),
+    /**
+     * Bumped whenever role/active changes — embedded in staff JWTs at sign
+     * time and checked on every staff-authenticated request, so a
+     * demotion, deactivation, or forced logout takes effect immediately
+     * instead of waiting out the token's 30-day expiry.
+     */
+    tokenVersion: integer().notNull().default(0),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },

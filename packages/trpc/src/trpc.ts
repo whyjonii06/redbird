@@ -36,6 +36,26 @@ const isAuthenticated = t.middleware(({ ctx, next }) => {
 
 export const protectedProcedure = t.procedure.use(isAuthenticated)
 
+/**
+ * Re-checks a staff JWT against the live staff record on every request:
+ * rejects if the account was deleted or deactivated, and rejects a stale
+ * token whose embedded tokenVersion no longer matches (bumped on role/active
+ * changes). Also swaps in the current DB role, so a demotion takes effect
+ * immediately rather than only once the stale token's claims stop being
+ * trusted. A JWT alone is static for up to 30 days — without this, revoking
+ * or demoting a staff member wouldn't take effect until their token expired.
+ * A no-op when the request isn't staff-authenticated (falls through to the
+ * master admin key, if any).
+ */
+const withFreshStaff = t.middleware(async ({ ctx, next }) => {
+  if (!ctx.staffId) return next()
+  const member = await ctx.redbird.staff.get(ctx.staffId)
+  if (!member || !member.active || member.tokenVersion !== ctx.staffTokenVersion) {
+    return next({ ctx: { ...ctx, staffId: null, staffRole: null, staffTokenVersion: null } })
+  }
+  return next({ ctx: { ...ctx, staffRole: member.role } })
+})
+
 /** Any staff member (any role) OR master admin key */
 const isStaff = t.middleware(({ ctx, next }) => {
   if (!ctx.isAdmin && !ctx.staffId) {
@@ -44,7 +64,7 @@ const isStaff = t.middleware(({ ctx, next }) => {
   return next()
 })
 
-export const staffProcedure = t.procedure.use(isStaff)
+export const staffProcedure = t.procedure.use(withFreshStaff).use(isStaff)
 
 /** Admin/owner staff role OR master admin key */
 const isAdmin = t.middleware(({ ctx, next }) => {
@@ -55,7 +75,7 @@ const isAdmin = t.middleware(({ ctx, next }) => {
   return next()
 })
 
-export const adminProcedure = t.procedure.use(isAdmin)
+export const adminProcedure = t.procedure.use(withFreshStaff).use(isAdmin)
 
 /** Owner staff role OR master admin key — for staff management itself */
 const isOwner = t.middleware(({ ctx, next }) => {
@@ -65,7 +85,7 @@ const isOwner = t.middleware(({ ctx, next }) => {
   return next()
 })
 
-export const ownerProcedure = t.procedure.use(isOwner)
+export const ownerProcedure = t.procedure.use(withFreshStaff).use(isOwner)
 
 /** Warehouse staff role or higher OR master admin key */
 const isWarehouse = t.middleware(({ ctx, next }) => {
@@ -77,7 +97,7 @@ const isWarehouse = t.middleware(({ ctx, next }) => {
   return next()
 })
 
-export const warehouseProcedure = t.procedure.use(isWarehouse)
+export const warehouseProcedure = t.procedure.use(withFreshStaff).use(isWarehouse)
 
 // Rate-limited public procedures — apply to auth, registration, and checkout routes
 export const authLimitedProcedure = t.procedure.use(rateLimit((rl) => rl.auth))

@@ -15,6 +15,9 @@ export type Context = {
   readonly isAdmin: boolean
   readonly staffId: string | null
   readonly staffRole: StaffRole | null
+  /** Version claim embedded in the staff JWT at sign time — compared against
+   * the staff record's current tokenVersion to detect a revoked session. */
+  readonly staffTokenVersion: number | null
   /** Best-effort client IP (from X-Forwarded-For or socket). */
   readonly ip: string
   readonly rateLimiters: RateLimiters

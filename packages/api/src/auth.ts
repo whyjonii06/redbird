@@ -51,9 +51,20 @@ export function verifyToken(token: string, secret: string): string | null {
 
 // ── Staff tokens ─────────────────────────────────────────────────────────────
 
-export function signStaffToken(staffId: string, role: StaffRole, secret: string): string {
+export function signStaffToken(
+  staffId: string,
+  role: StaffRole,
+  tokenVersion: number,
+  secret: string,
+): string {
   return sign(
-    { sub: staffId, type: 'staff', role, exp: Math.floor(Date.now() / 1000) + EXPIRES_IN },
+    {
+      sub: staffId,
+      type: 'staff',
+      role,
+      tv: tokenVersion,
+      exp: Math.floor(Date.now() / 1000) + EXPIRES_IN,
+    },
     secret,
   )
 }
@@ -61,8 +72,8 @@ export function signStaffToken(staffId: string, role: StaffRole, secret: string)
 export function verifyStaffToken(
   token: string,
   secret: string,
-): { staffId: string; role: StaffRole } | null {
-  const data = verify<{ sub?: string; type?: string; role?: string }>(token, secret)
+): { staffId: string; role: StaffRole; tokenVersion: number } | null {
+  const data = verify<{ sub?: string; type?: string; role?: string; tv?: number }>(token, secret)
   if (
     !data ||
     data.type !== 'staff' ||
@@ -70,5 +81,8 @@ export function verifyStaffToken(
     typeof data.role !== 'string'
   )
     return null
-  return { staffId: data.sub, role: data.role as StaffRole }
+  // Tokens signed before this field existed are treated as version 0, matching
+  // the column's default — they remain valid until the next role/active change.
+  const tokenVersion = typeof data.tv === 'number' ? data.tv : 0
+  return { staffId: data.sub, role: data.role as StaffRole, tokenVersion }
 }

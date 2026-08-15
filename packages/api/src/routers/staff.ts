@@ -13,7 +13,7 @@ export const staffRouter = router({
     .mutation(async ({ ctx, input }) => {
       const member = await ctx.redbird.staff.login(input.email, input.password)
       if (!member) throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Invalid credentials' })
-      const token = signStaffToken(member.id, member.role, ctx.jwtSecret)
+      const token = signStaffToken(member.id, member.role, member.tokenVersion, ctx.jwtSecret)
       return { token, staff: member }
     }),
 

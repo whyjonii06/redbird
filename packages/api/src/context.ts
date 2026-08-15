@@ -43,6 +43,7 @@ export function createContext(
   const staffClaims = staffTokenStr ? verifyStaffToken(staffTokenStr, jwtSecret) : null
   const staffId = staffClaims?.staffId ?? null
   const staffRole: StaffRole | null = staffClaims?.role ?? null
+  const staffTokenVersion = staffClaims?.tokenVersion ?? null
 
   const isAdmin = Boolean(adminKey && req.headers['x-admin-key'] === adminKey)
   const ip = extractIp(req, trustProxy)
@@ -54,6 +55,7 @@ export function createContext(
     isAdmin,
     staffId,
     staffRole,
+    staffTokenVersion,
     ip,
     rateLimiters: rateLimiters ?? noopRateLimiters,
   }

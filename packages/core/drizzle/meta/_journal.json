@@ -267,6 +267,13 @@
       "when": 1782001200000,
       "tag": "0037_return_request_items",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1782001300000,
+      "tag": "0038_staff_token_version",
+      "breakpoints": true
     }
   ]
 }

@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { type FecEntry, generateFec } from '@redbirdshop/core'
 import type { DbClient, ReturnRequestWithItems } from '@redbirdshop/core'
-import { carts, customers, orders, storeSettings } from '@redbirdshop/core/schema'
+import { carts, customers, orders, promoCodes, storeSettings } from '@redbirdshop/core/schema'
 import { TRPCError } from '@trpc/server'
 import { and, desc, eq, gte, inArray, lte, ne } from 'drizzle-orm'
 import { z } from 'zod'
@@ -784,12 +784,22 @@ export const adminRouter = router({
         if (input.metaTitle !== undefined) patch.metaTitle = input.metaTitle
         if (input.metaDescription !== undefined) patch.metaDescription = input.metaDescription
         if (input.taxRateBp !== undefined) patch.taxRateBp = input.taxRateBp
-        return ctx.redbird.catalog.updateProduct(input.id, patch)
+        const product = await ctx.redbird.catalog.updateProduct(input.id, patch)
+        await writeAudit(ctx, 'product.update', 'product', input.id, patch)
+        return product
       }),
 
     delete: adminProcedure
       .input(z.object({ id: z.string().uuid() }))
-      .mutation(async ({ ctx, input }) => ctx.redbird.catalog.deleteProduct(input.id)),
+      .mutation(async ({ ctx, input }) => {
+        const product = await ctx.redbird.catalog.getProductById(input.id)
+        await ctx.redbird.catalog.deleteProduct(input.id)
+        await writeAudit(ctx, 'product.delete', 'product', input.id, {
+          slug: product?.slug,
+          name: product?.name,
+        })
+        return { ok: true }
+      }),
 
     addVariant: adminProcedure
       .input(
@@ -822,12 +832,20 @@ export const adminRouter = router({
         if (input.name !== undefined) patch.name = input.name
         if (input.priceAmount !== undefined) patch.priceAmount = input.priceAmount
         if (input.priceCurrency !== undefined) patch.priceCurrency = input.priceCurrency
-        return ctx.redbird.catalog.updateVariant(input.id, patch)
+        const variant = await ctx.redbird.catalog.updateVariant(input.id, patch)
+        // Price changes are the sensitive part of this endpoint — always log
+        // what changed, not just that "something" changed.
+        await writeAudit(ctx, 'product.variant_update', 'product_variant', input.id, patch)
+        return variant
       }),
 
     deleteVariant: adminProcedure
       .input(z.object({ id: z.string().uuid() }))
-      .mutation(async ({ ctx, input }) => ctx.redbird.catalog.deleteVariant(input.id)),
+      .mutation(async ({ ctx, input }) => {
+        await ctx.redbird.catalog.deleteVariant(input.id)
+        await writeAudit(ctx, 'product.variant_delete', 'product_variant', input.id)
+        return { ok: true }
+      }),
 
     listRelations: adminProcedure
       .input(z.object({ productId: z.string().uuid() }))
@@ -1129,7 +1147,7 @@ export const adminRouter = router({
         }),
       )
       .mutation(async ({ ctx, input }) => {
-        return ctx.redbird.promos.create({
+        const promo = await ctx.redbird.promos.create({
           code: input.code,
           type: input.type,
           value: input.value,
@@ -1140,6 +1158,12 @@ export const adminRouter = router({
           bogoConfig: input.bogoConfig,
           tiers: input.tiers,
         })
+        await writeAudit(ctx, 'promo.create', 'promo_code', promo.id, {
+          code: promo.code,
+          type: promo.type,
+          value: promo.value,
+        })
+        return promo
       }),
 
     update: adminProcedure
@@ -1195,16 +1219,29 @@ export const adminRouter = router({
         if (expiresAt !== undefined) patch.expiresAt = expiresAt ? new Date(expiresAt) : null
         if (bogoConfig !== undefined) patch.bogoConfig = bogoConfig
         if (tiers !== undefined) patch.tiers = tiers
-        return ctx.redbird.promos.update(id, patch)
+        const promo = await ctx.redbird.promos.update(id, patch)
+        await writeAudit(ctx, 'promo.update', 'promo_code', id, patch)
+        return promo
       }),
 
     delete: adminProcedure
       .input(z.object({ id: z.string().uuid() }))
-      .mutation(async ({ ctx, input }) => ctx.redbird.promos.delete(input.id)),
+      .mutation(async ({ ctx, input }) => {
+        const promo = await ctx.redbird.db.query.promoCodes.findFirst({
+          where: eq(promoCodes.id, input.id),
+        })
+        await ctx.redbird.promos.delete(input.id)
+        await writeAudit(ctx, 'promo.delete', 'promo_code', input.id, { code: promo?.code })
+        return { ok: true }
+      }),
 
     deactivate: adminProcedure
       .input(z.object({ id: z.string().uuid() }))
-      .mutation(async ({ ctx, input }) => ctx.redbird.promos.update(input.id, { active: false })),
+      .mutation(async ({ ctx, input }) => {
+        const promo = await ctx.redbird.promos.update(input.id, { active: false })
+        await writeAudit(ctx, 'promo.deactivate', 'promo_code', input.id, { code: promo.code })
+        return promo
+      }),
   }),
 
   // ---- Reviews moderation (data layer owned by the reviews module) ----

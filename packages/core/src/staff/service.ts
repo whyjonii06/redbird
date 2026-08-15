@@ -1,6 +1,6 @@
 import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto'
 import { promisify } from 'node:util'
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import type { DbClient } from '../db/client.js'
 import { type StaffMember, type StaffRole, staff } from '../db/schema.js'
 
@@ -104,7 +104,15 @@ export function createStaffService(db: DbClient): StaffService {
       if (data.lastName !== undefined) patch.lastName = data.lastName
       if (data.role !== undefined) patch.role = data.role
       if (data.active !== undefined) patch.active = data.active
-      const [member] = await db.update(staff).set(patch).where(eq(staff.id, id)).returning()
+      // Role or active-status changes invalidate any already-issued tokens —
+      // otherwise a demoted or deactivated staff member stays authorized under
+      // their old permissions until the token's 30-day expiry.
+      const bumpTokenVersion = data.role !== undefined || data.active !== undefined
+      const [member] = await db
+        .update(staff)
+        .set(bumpTokenVersion ? { ...patch, tokenVersion: sql`${staff.tokenVersion} + 1` } : patch)
+        .where(eq(staff.id, id))
+        .returning()
       if (!member) throw new Error(`Staff member ${id} not found`)
       return member
     },
