@@ -39,6 +39,51 @@ export const customers = pgTable(
   ],
 )
 
+// ---------- Saved payment methods ----------
+//
+// Card display fields (brand/last4/exp) are always fetched fresh from the
+// gateway when a method is attached — never trust client-supplied values —
+// and cached here purely for display, never used to authorize a charge.
+
+export const customerPaymentMethods = pgTable(
+  'customer_payment_methods',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    customerId: uuid()
+      .notNull()
+      .references(() => customers.id, { onDelete: 'cascade' }),
+    /** Payment provider plugin name, e.g. '@redbird/plugin-stripe'. */
+    provider: text().notNull(),
+    /** Gateway-side customer id (e.g. Stripe Customer id) — required to charge off-session. */
+    providerCustomerId: text().notNull(),
+    /** Gateway-side payment method id (e.g. Stripe PaymentMethod id). */
+    providerPaymentMethodId: text().notNull(),
+    brand: text(),
+    last4: text(),
+    expMonth: integer(),
+    expYear: integer(),
+    isDefault: boolean().notNull().default(false),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('customer_payment_methods_customer_id_idx').on(t.customerId),
+    uniqueIndex('customer_payment_methods_provider_pm_idx').on(
+      t.provider,
+      t.providerPaymentMethodId,
+    ),
+  ],
+)
+
+export type CustomerPaymentMethod = typeof customerPaymentMethods.$inferSelect
+export type NewCustomerPaymentMethod = typeof customerPaymentMethods.$inferInsert
+
+export const customerPaymentMethodsRelations = relations(customerPaymentMethods, ({ one }) => ({
+  customer: one(customers, {
+    fields: [customerPaymentMethods.customerId],
+    references: [customers.id],
+  }),
+}))
+
 // ---------- Products ----------
 
 export const productStatus = pgEnum('product_status', ['draft', 'active', 'archived'])
@@ -487,6 +532,7 @@ export const customersRelations = relations(customers, ({ many }) => ({
   orders: many(orders),
   groupMemberships: many(customerGroupMembers),
   wishlists: many(wishlists),
+  paymentMethods: many(customerPaymentMethods),
 }))
 
 export const customerGroupsRelations = relations(customerGroups, ({ many }) => ({
@@ -1424,13 +1470,12 @@ export const campaignRecipientsRelations = relations(campaignRecipients, ({ one 
   customer: one(customers, { fields: [campaignRecipients.customerId], references: [customers.id] }),
 }))
 
-// ---------- Subscriptions (recurring plan tracking + renewal reminders) ----------
+// ---------- Subscriptions (recurring plan tracking + auto-billing) ----------
 //
-// No payment provider in this codebase can charge a saved card off-session (see
-// packages/core/src/payments/types.ts — createPaymentIntent is one-shot only), so
-// this is honestly scoped as schedule tracking + a renewal reminder email with a
-// checkout link, not real auto-billing. Framed as such throughout — never claim
-// to auto-charge.
+// Renewal charges a saved payment method off-session via the payment provider
+// (see packages/core/src/payments/types.ts — chargeOffSession) when one is
+// attached; falls back to a reminder email with a checkout link when there's
+// no saved payment method, or when the off-session charge is declined.
 
 export const subscriptionInterval = pgEnum('subscription_interval', ['weekly', 'monthly', 'yearly'])
 export const subscriptionStatus = pgEnum('subscription_status', ['active', 'paused', 'cancelled'])
@@ -1445,6 +1490,8 @@ export const subscriptions = pgTable(
     variantId: uuid()
       .notNull()
       .references(() => productVariants.id, { onDelete: 'cascade' }),
+    /** Saved payment method to charge on renewal — null falls back to a reminder email. */
+    paymentMethodId: uuid().references(() => customerPaymentMethods.id, { onDelete: 'set null' }),
     quantity: integer().notNull().default(1),
     interval: subscriptionInterval().notNull(),
     status: subscriptionStatus().notNull().default('active'),
@@ -1467,5 +1514,9 @@ export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
   variant: one(productVariants, {
     fields: [subscriptions.variantId],
     references: [productVariants.id],
+  }),
+  paymentMethod: one(customerPaymentMethods, {
+    fields: [subscriptions.paymentMethodId],
+    references: [customerPaymentMethods.id],
   }),
 }))

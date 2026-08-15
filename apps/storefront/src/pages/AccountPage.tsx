@@ -1,5 +1,8 @@
-import { useState } from 'react'
+import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js'
+import { loadStripe } from '@stripe/stripe-js'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useMeta } from '../App.js'
 import { useAuth } from '../AuthContext.js'
 import { fmt, trpc } from '../trpc.js'
 
@@ -201,6 +204,9 @@ export function AccountPage() {
           <p className="text-xs text-gray-500 mt-1">Manage your saved addresses</p>
         </Link>
       </div>
+
+      {/* Saved payment methods */}
+      <PaymentMethodsSection />
 
       {/* Loyalty */}
       <LoyaltySection />
@@ -409,6 +415,288 @@ function SubscriptionsSection() {
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+const CARD_BRAND_LABEL: Record<string, string> = {
+  visa: 'Visa',
+  mastercard: 'Mastercard',
+  amex: 'Amex',
+  declined: 'Test (declines)',
+}
+
+function PaymentMethodsSection() {
+  const [adding, setAdding] = useState(false)
+  const utils = trpc.useUtils()
+  const { data: methods = [], isLoading } = trpc.paymentMethods.list.useQuery()
+
+  const setDefaultMut = trpc.paymentMethods.setDefault.useMutation({
+    onSuccess: () => utils.paymentMethods.list.invalidate(),
+  })
+  const removeMut = trpc.paymentMethods.remove.useMutation({
+    onSuccess: () => utils.paymentMethods.list.invalidate(),
+  })
+
+  if (isLoading) return null
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-6 mb-8">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="font-semibold text-lg">Payment methods</h2>
+        {!adding && (
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className="text-sm text-[var(--primary)] hover:underline"
+          >
+            + Add a card
+          </button>
+        )}
+      </div>
+
+      {methods.length === 0 && !adding && (
+        <p className="text-sm text-gray-400">
+          No saved payment methods. Add one to enable subscriptions and one-click reorder.
+        </p>
+      )}
+
+      {methods.length > 0 && (
+        <div className="divide-y divide-gray-100 mb-2">
+          {methods.map((m) => (
+            <div key={m.id} className="py-3 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-mono bg-gray-100 rounded px-2 py-1">
+                  {CARD_BRAND_LABEL[m.brand ?? ''] ?? m.brand ?? 'Card'}
+                </span>
+                <span className="text-sm text-gray-700">
+                  &bull;&bull;&bull;&bull; {m.last4 ?? '----'}
+                </span>
+                {m.expMonth && m.expYear && (
+                  <span className="text-xs text-gray-400">
+                    exp {String(m.expMonth).padStart(2, '0')}/{m.expYear}
+                  </span>
+                )}
+                {m.isDefault && (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">
+                    Default
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                {!m.isDefault && (
+                  <button
+                    type="button"
+                    onClick={() => setDefaultMut.mutate({ id: m.id })}
+                    className="text-xs text-gray-500 hover:underline"
+                  >
+                    Set default
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => removeMut.mutate({ id: m.id })}
+                  className="text-xs text-red-500 hover:underline"
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {adding && <AddPaymentMethodForm onDone={() => setAdding(false)} />}
+    </div>
+  )
+}
+
+function AddPaymentMethodForm({ onDone }: { onDone: () => void }) {
+  const meta = useMeta()
+  const utils = trpc.useUtils()
+  const [setupIntent, setSetupIntent] = useState<{
+    clientSecret: string
+    customerRef: string
+    provider: string
+  } | null>(null)
+  const [error, setError] = useState('')
+
+  const createMut = trpc.paymentMethods.createSetupIntent.useMutation({
+    onSuccess: (data) => setSetupIntent(data),
+    onError: (err) => setError(err.message),
+  })
+
+  const attachMut = trpc.paymentMethods.attach.useMutation({
+    onSuccess: () => {
+      utils.paymentMethods.list.invalidate()
+      onDone()
+    },
+    onError: (err) => setError(err.message),
+  })
+
+  const stripePromise = useMemo(
+    () => (meta.stripePublicKey ? loadStripe(meta.stripePublicKey) : null),
+    [meta.stripePublicKey],
+  )
+
+  if (!setupIntent) {
+    return (
+      <div className="border border-gray-200 rounded-lg p-4">
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => createMut.mutate(undefined)}
+            disabled={createMut.isPending}
+            className="text-sm bg-[var(--primary)] text-white px-4 py-2 rounded-lg disabled:opacity-50"
+          >
+            {createMut.isPending ? 'Starting…' : 'Continue'}
+          </button>
+          <button type="button" onClick={onDone} className="text-sm text-gray-500">
+            Cancel
+          </button>
+        </div>
+        {error && <p className="text-xs text-red-600 mt-2">{error}</p>}
+      </div>
+    )
+  }
+
+  const isDemo = setupIntent.clientSecret.endsWith('_secret_demo')
+
+  function attach(paymentMethodId: string) {
+    attachMut.mutate({
+      provider: setupIntent!.provider,
+      providerCustomerId: setupIntent!.customerRef,
+      providerPaymentMethodId: paymentMethodId,
+    })
+  }
+
+  if (isDemo) {
+    return (
+      <DemoCardPicker
+        onPick={attach}
+        onCancel={onDone}
+        pending={attachMut.isPending}
+        error={error}
+      />
+    )
+  }
+
+  if (!stripePromise) {
+    return <p className="text-sm text-red-600">Card entry is not configured for this store.</p>
+  }
+
+  return (
+    <Elements
+      stripe={stripePromise}
+      options={{ clientSecret: setupIntent.clientSecret, appearance: { theme: 'stripe' } }}
+    >
+      <StripeSetupForm
+        onAttach={attach}
+        onCancel={onDone}
+        pending={attachMut.isPending}
+        error={error}
+      />
+    </Elements>
+  )
+}
+
+function StripeSetupForm({
+  onAttach,
+  onCancel,
+  pending,
+  error,
+}: {
+  onAttach: (paymentMethodId: string) => void
+  onCancel: () => void
+  pending: boolean
+  error: string
+}) {
+  const stripe = useStripe()
+  const elements = useElements()
+  const [localError, setLocalError] = useState('')
+  const [confirming, setConfirming] = useState(false)
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault()
+    if (!stripe || !elements) return
+    setLocalError('')
+    setConfirming(true)
+    const { error: stripeError, setupIntent } = await stripe.confirmSetup({
+      elements,
+      confirmParams: { return_url: `${window.location.origin}/account` },
+      redirect: 'if_required',
+    })
+    setConfirming(false)
+    if (stripeError) {
+      setLocalError(stripeError.message ?? 'Could not save card')
+      return
+    }
+    const pm = setupIntent?.payment_method
+    if (pm) onAttach(typeof pm === 'string' ? pm : pm.id)
+  }
+
+  return (
+    <form
+      onSubmit={(e) => void handleSave(e)}
+      className="border border-gray-200 rounded-lg p-4 space-y-4"
+    >
+      <PaymentElement />
+      {(localError || error) && <p className="text-xs text-red-600">{localError || error}</p>}
+      <div className="flex gap-2">
+        <button
+          type="submit"
+          disabled={!stripe || confirming || pending}
+          className="text-sm bg-[var(--primary)] text-white px-4 py-2 rounded-lg disabled:opacity-50"
+        >
+          {confirming || pending ? 'Saving…' : 'Save card'}
+        </button>
+        <button type="button" onClick={onCancel} className="text-sm text-gray-500">
+          Cancel
+        </button>
+      </div>
+    </form>
+  )
+}
+
+const DEMO_CARDS = [
+  { label: 'Visa •••• 4242', id: 'pm_demo_visa_4242' },
+  { label: 'Mastercard •••• 5555', id: 'pm_demo_mastercard_5555' },
+  { label: 'Test card that always declines •••• 0002', id: 'pm_demo_declined_0002' },
+]
+
+function DemoCardPicker({
+  onPick,
+  onCancel,
+  pending,
+  error,
+}: {
+  onPick: (paymentMethodId: string) => void
+  onCancel: () => void
+  pending: boolean
+  error: string
+}) {
+  return (
+    <div className="border border-dashed border-gray-300 rounded-lg p-4 space-y-3">
+      <p className="text-xs text-amber-600 font-medium">
+        Demo mode — no live payment provider configured. Pick a simulated card.
+      </p>
+      <div className="flex flex-col gap-2">
+        {DEMO_CARDS.map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            disabled={pending}
+            onClick={() => onPick(c.id)}
+            className="text-left text-sm border border-gray-200 rounded-lg px-3 py-2 hover:border-[var(--primary)] disabled:opacity-50"
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
+      {error && <p className="text-xs text-red-600">{error}</p>}
+      <button type="button" onClick={onCancel} className="text-sm text-gray-500">
+        Cancel
+      </button>
     </div>
   )
 }

@@ -31,6 +31,7 @@ import type { LicenseInfo } from './license/types.js'
 import { verifyLicense } from './license/verify.js'
 import { type LoyaltyService, createLoyaltyService } from './loyalty/service.js'
 import { type OrderService, createOrderService } from './order/service.js'
+import { type PaymentMethodService, createPaymentMethodService } from './payment-methods/service.js'
 import { PaymentRegistry } from './payments/registry.js'
 import type { PaymentProvider } from './payments/types.js'
 import { PluginRegistry } from './plugins/registry.js'
@@ -60,6 +61,7 @@ export type Redbird = {
   readonly cart: CartService
   readonly orders: OrderService
   readonly customers: CustomerService
+  readonly paymentMethods: PaymentMethodService
   readonly plugins: PluginRegistry
   readonly payments: PaymentRegistry
   readonly email: EmailRegistry
@@ -229,6 +231,7 @@ export function createRedbird(config: RedbirdConfig): Redbird {
   const orderSvc = createOrderService(db, plugins, stockSvc, payments)
   const returnSvc = createReturnService(db, orderSvc, stockSvc)
   const customerSvc = createCustomerService(db)
+  const paymentMethodSvc = createPaymentMethodService(db, payments)
   const addressSvc = createAddressService(db)
   const brandSvc = createBrandService(db)
   const supplierSvc = createSupplierService(db)
@@ -339,6 +342,7 @@ export function createRedbird(config: RedbirdConfig): Redbird {
     cart,
     orders: orderSvc,
     customers: customerSvc,
+    paymentMethods: paymentMethodSvc,
     plugins,
     payments,
     email,

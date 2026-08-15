@@ -274,6 +274,13 @@
       "when": 1782001300000,
       "tag": "0038_staff_token_version",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1782001400000,
+      "tag": "0039_customer_payment_methods",
+      "breakpoints": true
     }
   ]
 }

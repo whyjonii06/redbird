@@ -15,6 +15,8 @@ export type {
   PaymentProvider,
   WebhookHandler,
   ParsedWebhookEvent,
+  SavedPaymentMethod,
+  SetupIntentResult,
 } from './payments/types.js'
 export { EmailRegistry } from './email/registry.js'
 export type { EmailMessage, EmailProvider, StoredEmail, LocalEmailStore } from './email/types.js'
@@ -52,6 +54,7 @@ export type { StaffService, StaffMember, StaffRole, CreateStaffInput } from './s
 export type { AttributeService, AttributeWithValues } from './attributes/service.js'
 export type { AuditLogService, WriteAuditLogInput } from './audit-log/service.js'
 export type { CurrencyService, CurrencyConfig } from './currency/service.js'
+export type { PaymentMethodService } from './payment-methods/service.js'
 export type {
   WarehouseService,
   CreateWarehouseInput,
@@ -150,6 +153,9 @@ export type {
   // Wishlists
   Wishlist,
   NewWishlist,
+  // Saved payment methods
+  CustomerPaymentMethod,
+  NewCustomerPaymentMethod,
   // Audit log
   AuditLog,
   // Warehouses

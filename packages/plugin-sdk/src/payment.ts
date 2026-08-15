@@ -3,4 +3,6 @@ export type {
   PaymentProvider,
   WebhookHandler,
   ParsedWebhookEvent,
+  SavedPaymentMethod,
+  SetupIntentResult,
 } from '@redbirdshop/core'

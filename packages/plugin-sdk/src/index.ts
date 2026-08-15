@@ -30,6 +30,8 @@ export type {
   PaymentProvider,
   WebhookHandler,
   ParsedWebhookEvent,
+  SavedPaymentMethod,
+  SetupIntentResult,
 } from './payment.js'
 
 // Email provider contract
