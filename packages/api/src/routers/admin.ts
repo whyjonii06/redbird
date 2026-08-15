@@ -2440,6 +2440,11 @@ export const adminRouter = router({
         await writeAudit(ctx, 'currency.rates_update', 'store', undefined, { rates: input })
         return ctx.redbird.currency.getConfig()
       }),
+    syncLiveRates: adminProcedure.mutation(async ({ ctx }) => {
+      const config = await ctx.redbird.currency.syncLiveRates()
+      await writeAudit(ctx, 'currency.rates_sync', 'store', undefined, { rates: config.rates })
+      return config
+    }),
   }),
 
   // ---- Demo data ----

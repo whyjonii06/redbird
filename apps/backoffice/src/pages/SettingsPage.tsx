@@ -9,7 +9,7 @@ const THEMES: Array<{ id: Theme; label: string; desc: string }> = [
   { id: 'light', label: 'Light', desc: 'White background, clean layout' },
 ]
 
-type StorefrontTheme = 'classic' | 'editorial' | 'minimal'
+type StorefrontTheme = 'classic' | 'editorial' | 'lookbook'
 
 const STOREFRONT_THEMES: Array<{
   id: StorefrontTheme
@@ -45,10 +45,10 @@ const STOREFRONT_THEMES: Array<{
     navBorder: '#e8e0d8',
   },
   {
-    id: 'minimal',
-    label: 'Minimal',
-    desc: 'Pure white, sharp corners, near-black accent',
-    primary: '#111111',
+    id: 'lookbook',
+    label: 'Lookbook',
+    desc: 'Full-bleed photography, dark accent — fashion-forward grid layout',
+    primary: '#18181b',
     bg: '#ffffff',
     surface: '#fafafa',
     border: '#eeeeee',
@@ -959,6 +959,9 @@ function CurrencySection() {
       setTimeout(() => setSaved(false), 2000)
     },
   })
+  const syncMut = trpc.admin.currency.syncLiveRates.useMutation({
+    onSuccess: () => utils.admin.currency.get.invalidate(),
+  })
 
   function updateRow(index: number, patch: Partial<{ code: string; rate: string }>) {
     setRows(rows.map((r, i) => (i === index ? { ...r, ...patch } : r)))
@@ -991,6 +994,28 @@ function CurrencySection() {
           other currencies your storefront can display and charge in, with their rate relative to 1
           unit of the base currency.
         </p>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => syncMut.mutate()}
+            disabled={syncMut.isPending || rows.length === 0}
+            className="px-3 py-1.5 text-xs font-medium rounded-lg transition-all disabled:opacity-40"
+            style={{
+              background: 'var(--bo-bg3)',
+              border: '1px solid var(--bo-border2)',
+              color: 'var(--bo-text)',
+            }}
+            title={rows.length === 0 ? 'Add a currency first' : undefined}
+          >
+            {syncMut.isPending ? 'Syncing…' : '↻ Sync live rates'}
+          </button>
+          <span className="text-xs" style={{ color: 'var(--bo-muted)' }}>
+            {config?.lastSyncedAt
+              ? `Last synced ${new Date(config.lastSyncedAt).toLocaleString()}`
+              : 'Never synced from a live source — rates set manually'}
+          </span>
+        </div>
+        {syncMut.error && <p className="text-xs text-red-400">{syncMut.error.message}</p>}
         {isLoading ? (
           <p className="text-sm" style={{ color: 'var(--bo-muted)' }}>
             Loading…
