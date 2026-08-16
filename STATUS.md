@@ -1,5 +1,9 @@
 # Redbird — État du projet
 
+> ⚠️ **Ce fichier n'a pas été mis à jour depuis le 16 juin** (avant même le
+> backoffice). Pour l'état réel du projet, voir
+> [`docs/AUDIT-2026-08-16.md`](docs/AUDIT-2026-08-16.md).
+
 > Dernière mise à jour : 2026-06-16  
 > Dernier commit : `7561dd4`  
 > Tests : **63 passent** (8 fichiers de test)
