@@ -221,7 +221,7 @@ export async function handleRestRequest(
     }
 
     // The remaining routes go through the tRPC caller (see the doc comment above).
-    const ctx = createContext(redbird, req, jwtSecret, adminKey, rateLimiters, trustProxy)
+    const ctx = await createContext(redbird, req, jwtSecret, adminKey, rateLimiters, trustProxy)
     const caller = appRouter.createCaller(ctx)
 
     // ── Admin — catalog & inventory (headless admin/PIM integration) ───────────

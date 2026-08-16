@@ -15,6 +15,7 @@ import {
   ownerProcedure,
   router,
   staffProcedure,
+  superAdminProcedure,
   warehouseProcedure,
 } from '../trpc.js'
 
@@ -752,6 +753,8 @@ export const adminRouter = router({
           description: z.string().optional(),
           status: z.enum(['draft', 'active', 'archived']).default('draft'),
           taxRateBp: z.number().int().min(0).nullable().optional(),
+          /** Assigns the product to one isolated tenant store. Omitted/null = the default store. */
+          tenantId: z.string().uuid().nullable().optional(),
           variant: z.object({
             sku: z.string().min(1),
             name: z.string().min(1),
@@ -767,6 +770,7 @@ export const adminRouter = router({
             ...productInput,
             description: productInput.description ?? null,
             taxRateBp: productInput.taxRateBp ?? null,
+            tenantId: productInput.tenantId ?? null,
           },
           [{ ...variant, inventoryQuantity: 0, attributes: {} }],
         )
@@ -785,6 +789,7 @@ export const adminRouter = router({
           metaTitle: z.string().nullable().optional(),
           metaDescription: z.string().nullable().optional(),
           taxRateBp: z.number().int().min(0).nullable().optional(),
+          tenantId: z.string().uuid().nullable().optional(),
         }),
       )
       .mutation(async ({ ctx, input }) => {
@@ -798,6 +803,7 @@ export const adminRouter = router({
         if (input.metaTitle !== undefined) patch.metaTitle = input.metaTitle
         if (input.metaDescription !== undefined) patch.metaDescription = input.metaDescription
         if (input.taxRateBp !== undefined) patch.taxRateBp = input.taxRateBp
+        if (input.tenantId !== undefined) patch.tenantId = input.tenantId
         const product = await ctx.redbird.catalog.updateProduct(input.id, patch)
         await writeAudit(ctx, 'product.update', 'product', input.id, patch)
         return product
@@ -1604,6 +1610,43 @@ export const adminRouter = router({
       }),
   }),
 
+  // ---- Multi-tenant — isolated stores on this instance ----
+  // Super-admin (master key) only: creating and suspending tenants is a
+  // platform-operator action, distinct from managing a single store.
+  tenants: router({
+    list: superAdminProcedure.query(async ({ ctx }) => ctx.redbird.tenants.list()),
+
+    create: superAdminProcedure
+      .input(
+        z.object({
+          slug: z
+            .string()
+            .min(2)
+            .max(63)
+            .regex(/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/, 'Lowercase letters, digits and hyphens only'),
+          name: z.string().min(1),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        try {
+          const tenant = await ctx.redbird.tenants.create(input)
+          await writeAudit(ctx, 'tenant.create', 'tenant', tenant.id, { slug: tenant.slug })
+          return tenant
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : 'Could not create tenant'
+          throw new TRPCError({ code: 'BAD_REQUEST', message: msg })
+        }
+      }),
+
+    setStatus: superAdminProcedure
+      .input(z.object({ id: z.string().uuid(), status: z.enum(['active', 'suspended']) }))
+      .mutation(async ({ ctx, input }) => {
+        const tenant = await ctx.redbird.tenants.setStatus(input.id, input.status)
+        await writeAudit(ctx, 'tenant.set_status', 'tenant', input.id, { status: input.status })
+        return tenant
+      }),
+  }),
+
   // ---- Stock management ----
   stock: router({
     get: warehouseProcedure
@@ -1758,6 +1801,8 @@ export const adminRouter = router({
           description: z.string().optional(),
           imageUrl: z.string().url().optional(),
           parentId: z.string().uuid().optional(),
+          /** Assigns the category to one isolated tenant store. Omitted/null = the default store. */
+          tenantId: z.string().uuid().nullable().optional(),
         }),
       )
       .mutation(async ({ ctx, input }) => {
@@ -1768,6 +1813,7 @@ export const adminRouter = router({
         if (input.description) data.description = input.description
         if (input.imageUrl) data.imageUrl = input.imageUrl
         if (input.parentId) data.parentId = input.parentId
+        if (input.tenantId !== undefined) data.tenantId = input.tenantId
         return ctx.redbird.categories.create(data)
       }),
 
@@ -1780,6 +1826,7 @@ export const adminRouter = router({
           description: z.string().nullable().optional(),
           imageUrl: z.string().url().nullable().optional(),
           parentId: z.string().uuid().optional(),
+          tenantId: z.string().uuid().nullable().optional(),
         }),
       )
       .mutation(async ({ ctx, input }) => {
@@ -1789,6 +1836,7 @@ export const adminRouter = router({
         if (input.description !== undefined) patch.description = input.description
         if (input.imageUrl !== undefined) patch.imageUrl = input.imageUrl
         if (input.parentId !== undefined) patch.parentId = input.parentId
+        if (input.tenantId !== undefined) patch.tenantId = input.tenantId
         return ctx.redbird.categories.update(input.id, patch)
       }),
 

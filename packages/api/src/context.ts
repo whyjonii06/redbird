@@ -23,14 +23,14 @@ function extractIp(req: IncomingMessage, trustProxy: boolean): string {
   return req.socket.remoteAddress ?? 'unknown'
 }
 
-export function createContext(
+export async function createContext(
   redbird: Redbird,
   req: IncomingMessage,
   jwtSecret: string,
   adminKey?: string | undefined,
   rateLimiters?: RateLimiters | undefined,
   trustProxy = false,
-): Context {
+): Promise<Context> {
   const auth = req.headers.authorization
   let customerId: string | null = null
   if (auth?.startsWith('Bearer ')) {
@@ -52,6 +52,7 @@ export function createContext(
 
   const isAdmin = Boolean(adminKey && req.headers['x-admin-key'] === adminKey)
   const ip = extractIp(req, trustProxy)
+  const tenantId = await resolveTenantId(redbird, req)
 
   return {
     redbird,
@@ -62,7 +63,32 @@ export function createContext(
     staffRole,
     staffTokenVersion,
     sellerId,
+    tenantId,
     ip,
     rateLimiters: rateLimiters ?? noopRateLimiters,
   }
+}
+
+/**
+ * An explicit `x-tenant-slug` header wins (used by the backoffice tenant
+ * switcher and any headless client). Falling back to the first Host label
+ * lets a real deployment route by subdomain (acme.shop.example) without
+ * every client having to set the header — an unknown/missing slug simply
+ * resolves to null (the original single-tenant store), never an error.
+ */
+async function resolveTenantId(redbird: Redbird, req: IncomingMessage): Promise<string | null> {
+  const slugHeader = req.headers['x-tenant-slug']
+  let slug = typeof slugHeader === 'string' ? slugHeader : undefined
+
+  if (!slug) {
+    const host = req.headers.host?.split(':')[0]
+    const firstLabel = host?.split('.')[0]
+    if (firstLabel && firstLabel !== 'localhost' && !/^\d+$/.test(firstLabel)) {
+      slug = firstLabel
+    }
+  }
+
+  if (!slug) return null
+  const tenant = await redbird.tenants.getBySlug(slug)
+  return tenant && tenant.status === 'active' ? tenant.id : null
 }

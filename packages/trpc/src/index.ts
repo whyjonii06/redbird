@@ -9,6 +9,7 @@ export {
   ownerProcedure,
   warehouseProcedure,
   sellerProcedure,
+  superAdminProcedure,
   authLimitedProcedure,
   registerLimitedProcedure,
   checkoutLimitedProcedure,

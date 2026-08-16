@@ -215,6 +215,7 @@ export function createOrderService(
                 totalAmount,
                 notes: input.notes ?? null,
                 shippingAddress,
+                tenantId: cart.tenantId,
               })
               .returning()
             if (!order) throw new Error('Failed to create order')

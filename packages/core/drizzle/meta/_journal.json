@@ -302,6 +302,13 @@
       "when": 1782001700000,
       "tag": "0042_marketplace_sellers",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1782001800000,
+      "tag": "0043_multi_tenant",
+      "breakpoints": true
     }
   ]
 }

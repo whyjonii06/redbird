@@ -31,6 +31,7 @@ function toPublic(c: {
   lastName: string | null
   marketingOptIn: boolean
   unsubscribeToken: string | null
+  tenantId: string | null
   createdAt: Date
   updatedAt: Date
   passwordHash: string
@@ -56,6 +57,7 @@ export type RegisterInput = {
   password: string
   firstName?: string | undefined
   lastName?: string | undefined
+  tenantId?: string | null | undefined
 }
 
 export type UpdateCustomerInput = {
@@ -88,7 +90,7 @@ export type CustomerService = {
 
 export function createCustomerService(db: DbClient): CustomerService {
   return {
-    async register({ email, password, firstName, lastName }) {
+    async register({ email, password, firstName, lastName, tenantId }) {
       const existing = await db.query.customers.findFirst({
         where: eq(customers.email, email.toLowerCase()),
       })
@@ -102,6 +104,7 @@ export function createCustomerService(db: DbClient): CustomerService {
           passwordHash,
           firstName: firstName ?? null,
           lastName: lastName ?? null,
+          tenantId: tenantId ?? null,
         })
         .returning()
       if (!customer) throw new Error('Failed to create customer')

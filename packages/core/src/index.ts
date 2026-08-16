@@ -74,6 +74,7 @@ export type {
   RegisterSellerInput,
   SellerOrderSummary,
 } from './sellers/service.js'
+export type { TenantService } from './tenants/service.js'
 export type {
   WarehouseService,
   CreateWarehouseInput,
@@ -184,6 +185,8 @@ export type {
   Seller,
   SellerEarning,
   SellerPayout,
+  // Multi-tenant
+  Tenant,
   // Audit log
   AuditLog,
   // Warehouses

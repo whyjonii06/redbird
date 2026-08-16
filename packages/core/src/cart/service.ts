@@ -27,6 +27,7 @@ export type CartService = {
     currency: string
     customerId?: string | undefined
     customerEmail?: string | undefined
+    tenantId?: string | null | undefined
   }): Promise<Cart>
   get(id: string): Promise<CartWithItems | null>
   /** Associate a guest email with the cart so createFromCart can pick it up automatically. */
@@ -117,10 +118,15 @@ export function createCartService(
   }
 
   return {
-    async create({ currency, customerId, customerEmail }) {
+    async create({ currency, customerId, customerEmail, tenantId }) {
       const [cart] = await db
         .insert(carts)
-        .values({ currency, customerId: customerId ?? null, customerEmail: customerEmail ?? null })
+        .values({
+          currency,
+          customerId: customerId ?? null,
+          customerEmail: customerEmail ?? null,
+          tenantId: tenantId ?? null,
+        })
         .returning()
       if (!cart) throw new Error('Failed to create cart')
       await hooks.emit('cart.created', { cart })

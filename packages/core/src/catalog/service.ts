@@ -1,4 +1,4 @@
-import { and, eq, ilike, inArray, or } from 'drizzle-orm'
+import { type SQL, and, eq, ilike, inArray, isNull, or } from 'drizzle-orm'
 import type { DbClient } from '../db/client.js'
 import {
   type AttributeValue,
@@ -42,16 +42,22 @@ export type CatalogService = {
     offset?: number | undefined
     status?: Product['status'] | undefined
     sortBy?: 'newest' | 'price_asc' | 'price_desc' | 'name' | undefined
+    /** Scopes results to one tenant's catalog. Omitted/undefined = every tenant (admin use). */
+    tenantId?: string | null | undefined
   }): Promise<ProductWithDetails[]>
   search(
     q: string,
     opts?: {
       limit?: number | undefined
       status?: Product['status'] | undefined
+      tenantId?: string | null | undefined
     },
   ): Promise<ProductWithDetails[]>
   countProducts(opts?: { status?: Product['status'] | undefined }): Promise<number>
-  getProductBySlug(slug: string): Promise<ProductWithDetails | null>
+  getProductBySlug(
+    slug: string,
+    opts?: { tenantId?: string | null | undefined },
+  ): Promise<ProductWithDetails | null>
   getProductById(id: string): Promise<ProductWithDetails | null>
   createProduct(
     input: NewProduct,
@@ -77,15 +83,31 @@ export type CatalogService = {
   removeRelation(id: string): Promise<void>
 }
 
+/**
+ * `undefined` = no filter (every tenant — admin use). `null` = only rows
+ * belonging to the original single-tenant store. A specific id scopes to
+ * that tenant's own rows.
+ */
+function tenantFilter(
+  column: typeof products.tenantId,
+  tenantId: string | null | undefined,
+): SQL | undefined {
+  if (tenantId === undefined) return undefined
+  return tenantId === null ? isNull(column) : eq(column, tenantId)
+}
+
 export function createCatalogService(
   db: DbClient,
   hooks: PluginRegistry,
   search?: SearchService,
 ): CatalogService {
   return {
-    async listProducts({ limit = 20, offset = 0, status, sortBy } = {}) {
+    async listProducts({ limit = 20, offset = 0, status, sortBy, tenantId } = {}) {
       return db.query.products.findMany({
-        where: status ? eq(products.status, status) : undefined,
+        where: and(
+          status ? eq(products.status, status) : undefined,
+          tenantFilter(products.tenantId, tenantId),
+        ),
         with: {
           brand: true,
           variants: { with: { stockLevel: true, attributeValues: { with: { attributeValue: { with: { attribute: true } } } } } },
@@ -101,14 +123,17 @@ export function createCatalogService(
       })
     },
 
-    async search(q, { limit = 20, status = 'active' } = {}) {
+    async search(q, { limit = 20, status = 'active', tenantId } = {}) {
       // Prefer the dedicated search engine when configured — falls back to the
       // plain ILIKE query below if it's unset, unreachable, or errors.
       const engineResult = await search?.search(q, { limit, status })
       if (engineResult) {
         if (engineResult.ids.length === 0) return []
         const rows = await db.query.products.findMany({
-          where: inArray(products.id, engineResult.ids),
+          where: and(
+            inArray(products.id, engineResult.ids),
+            tenantFilter(products.tenantId, tenantId),
+          ),
           with: {
             brand: true,
             variants: {
@@ -131,6 +156,7 @@ export function createCatalogService(
       return db.query.products.findMany({
         where: and(
           status ? eq(products.status, status) : undefined,
+          tenantFilter(products.tenantId, tenantId),
           or(
             ilike(products.name, term),
             ilike(products.description, term),
@@ -158,9 +184,9 @@ export function createCatalogService(
       return db.$count(products, status ? eq(products.status, status) : undefined)
     },
 
-    async getProductBySlug(slug) {
+    async getProductBySlug(slug, { tenantId } = {}) {
       const row = await db.query.products.findFirst({
-        where: eq(products.slug, slug),
+        where: and(eq(products.slug, slug), tenantFilter(products.tenantId, tenantId)),
         with: {
           brand: true,
           variants: { with: { stockLevel: true, attributeValues: { with: { attributeValue: { with: { attribute: true } } } } } },

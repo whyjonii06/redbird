@@ -7,7 +7,14 @@ import { LOCALES, useI18n } from '../i18n/index.js'
 import { type ModuleStates, activeModuleMenu } from '../modules/registry.js'
 import { trpc } from '../trpc.js'
 
-type NavItem = { to: string; label: string; icon?: string; position?: number; adminOnly?: boolean }
+type NavItem = {
+  to: string
+  label: string
+  icon?: string
+  position?: number
+  adminOnly?: boolean
+  superAdminOnly?: boolean
+}
 type NavGroup = { label: string | null; items: NavItem[] }
 
 const navGroups: NavGroup[] = [
@@ -65,6 +72,7 @@ const navGroups: NavGroup[] = [
       { to: '/feature-flags', label: 'Feature flags' },
       { to: '/mailbox', label: 'Mailbox' },
       { to: '/settings', label: 'Settings' },
+      { to: '/tenants', label: 'Tenants', superAdminOnly: true },
     ],
   },
 ]
@@ -136,6 +144,7 @@ export function AdminLayout() {
   const staffRole = getStaffRole()
   const isAuthenticated = Boolean(adminKey || staffToken)
   const isAdminRole = Boolean(adminKey) || staffRole === 'owner' || staffRole === 'admin'
+  const isSuperAdmin = Boolean(adminKey)
   const { data: moduleStates = {} } = trpc.admin.modules.list.useQuery(undefined, {
     enabled: isAuthenticated,
   })
@@ -288,6 +297,7 @@ export function AdminLayout() {
                   >
                     {group.items
                       .filter((item) => !item.adminOnly || isAdminRole)
+                      .filter((item) => !item.superAdminOnly || isSuperAdmin)
                       .map(({ to, label, icon }) => (
                         <NavLink
                           key={to}

@@ -51,6 +51,7 @@ export const fr: Record<string, string> = {
   'nav.Modules': 'Modules',
   'nav.Mailbox': 'Messagerie',
   'nav.Settings': 'Paramètres',
+  'nav.Tenants': 'Tenants',
   'nav.viewStore': 'Voir la boutique ↗',
   'nav.logout': 'Déconnexion',
   'nav.masterAdmin': 'Administrateur',

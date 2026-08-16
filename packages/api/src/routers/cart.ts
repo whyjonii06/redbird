@@ -14,7 +14,7 @@ export const cartRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.redbird.cart.create(input)
+      return ctx.redbird.cart.create({ ...input, tenantId: ctx.tenantId })
     }),
 
   get: publicProcedure.input(cartIdInput).query(async ({ ctx, input }) => {

@@ -77,6 +77,20 @@ const isAdmin = t.middleware(({ ctx, next }) => {
 
 export const adminProcedure = t.procedure.use(withFreshStaff).use(isAdmin)
 
+/**
+ * Master admin key only — no staff role qualifies, including 'owner'.
+ * Managing tenants (creating/suspending isolated stores on this instance)
+ * is a platform-operator action a level above even full-access staff.
+ */
+const isSuperAdmin = t.middleware(({ ctx, next }) => {
+  if (!ctx.isAdmin) {
+    throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Super admin access required' })
+  }
+  return next()
+})
+
+export const superAdminProcedure = t.procedure.use(isSuperAdmin)
+
 /** Owner staff role OR master admin key — for staff management itself */
 const isOwner = t.middleware(({ ctx, next }) => {
   if (!ctx.isAdmin && ctx.staffRole !== 'owner') {

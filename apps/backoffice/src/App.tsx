@@ -35,6 +35,7 @@ import { SettingsPage } from './pages/SettingsPage.js'
 import { SetupPage } from './pages/SetupPage.js'
 import { StaffPage } from './pages/StaffPage.js'
 import { SubscriptionsPage } from './pages/SubscriptionsPage.js'
+import { TenantsPage } from './pages/TenantsPage.js'
 import { ThemeEditorPage } from './pages/ThemeEditorPage.js'
 import { WarehousesPage } from './pages/WarehousesPage.js'
 import { makeTRPCClient, trpc } from './trpc.js'
@@ -98,6 +99,7 @@ export default function App() {
                   <Route path="redirects" element={<RedirectsPage />} />
                   <Route path="theme-editor" element={<ThemeEditorPage />} />
                   <Route path="settings" element={<SettingsPage />} />
+                  <Route path="tenants" element={<TenantsPage />} />
                   {/* Module-contributed routes (lazy-loaded) */}
                   {moduleRoutes().map(({ path, Component }) => (
                     <Route

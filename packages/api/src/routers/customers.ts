@@ -23,7 +23,10 @@ export const customersRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       try {
-        const customer = await ctx.redbird.customers.register(input)
+        const customer = await ctx.redbird.customers.register({
+          ...input,
+          tenantId: ctx.tenantId,
+        })
         const token = signToken(customer.id, ctx.jwtSecret)
         return { customer, token }
       } catch (err) {

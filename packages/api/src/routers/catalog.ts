@@ -26,6 +26,7 @@ export const catalogRouter = router({
         offset: input?.offset,
         status: input?.status,
         sortBy: input?.sortBy,
+        tenantId: ctx.tenantId,
       })
       let result = input?.locale
         ? products.map((p) => ctx.redbird.i18n.translate(p, input.locale as string))
@@ -67,6 +68,7 @@ export const catalogRouter = router({
       const results = await ctx.redbird.catalog.search(input.q, {
         limit: input.limit,
         status: input.status,
+        tenantId: ctx.tenantId,
       })
       return input.locale
         ? results.map((p) => ctx.redbird.i18n.translate(p, input.locale as string))
@@ -76,7 +78,9 @@ export const catalogRouter = router({
   bySlug: publicProcedure
     .input(z.object({ slug: z.string().min(1), locale: localeInput }))
     .query(async ({ ctx, input }) => {
-      const product = await ctx.redbird.catalog.getProductBySlug(input.slug)
+      const product = await ctx.redbird.catalog.getProductBySlug(input.slug, {
+        tenantId: ctx.tenantId,
+      })
       if (!product) {
         throw new TRPCError({ code: 'NOT_FOUND', message: `Product "${input.slug}" not found` })
       }
@@ -343,7 +347,10 @@ export const categoriesRouter = router({
         .optional(),
     )
     .query(async ({ ctx, input }) => {
-      const cats = await ctx.redbird.categories.list(input ?? {})
+      const cats = await ctx.redbird.categories.list({
+        parentId: input?.parentId,
+        tenantId: ctx.tenantId,
+      })
       return input?.locale
         ? cats.map((c) => ctx.redbird.categoryI18n.translate(c, input.locale as string))
         : cats

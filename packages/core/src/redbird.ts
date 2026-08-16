@@ -51,6 +51,7 @@ import { type SubscriptionService, createSubscriptionService } from './subscript
 import { type SupplierService, createSupplierService } from './suppliers/service.js'
 import { TaxRegistry } from './tax/registry.js'
 import type { TaxProvider } from './tax/types.js'
+import { type TenantService, createTenantService } from './tenants/service.js'
 import { type ThemeSectionService, createThemeSectionService } from './theme-sections/service.js'
 import { type WarehouseService, createWarehouseService } from './warehouses/service.js'
 import { type WebhookService, createWebhookService } from './webhooks/service.js'
@@ -68,6 +69,7 @@ export type Redbird = {
   readonly quotes: QuoteService
   readonly pos: PosService
   readonly sellers: SellerService
+  readonly tenants: TenantService
   readonly plugins: PluginRegistry
   readonly payments: PaymentRegistry
   readonly email: EmailRegistry
@@ -245,6 +247,7 @@ export function createRedbird(config: RedbirdConfig): Redbird {
   const brandSvc = createBrandService(db)
   const supplierSvc = createSupplierService(db)
   const sellerSvc = createSellerService(db)
+  const tenantSvc = createTenantService(db)
   const downloadSvc = createDownloadService(db)
   const loyaltySvc = createLoyaltyService(db)
   const giftCardSvc = createGiftCardService(db)
@@ -362,6 +365,7 @@ export function createRedbird(config: RedbirdConfig): Redbird {
     quotes: quoteSvc,
     pos: posSvc,
     sellers: sellerSvc,
+    tenants: tenantSvc,
     plugins,
     payments,
     email,

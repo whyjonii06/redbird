@@ -30,12 +30,15 @@ export const customers = pgTable(
     marketingOptIn: boolean().notNull().default(false),
     /** One-click unsubscribe link token. Generated lazily on first campaign send. */
     unsubscribeToken: text(),
+    /** Null = the original single-tenant store. Set for accounts created under a specific tenant. */
+    tenantId: uuid().references((): AnyPgColumn => tenants.id, { onDelete: 'set null' }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     uniqueIndex('customers_email_idx').on(t.email),
     uniqueIndex('customers_unsubscribe_token_idx').on(t.unsubscribeToken),
+    index('customers_tenant_id_idx').on(t.tenantId),
   ],
 )
 
@@ -105,6 +108,8 @@ export const products = pgTable(
     taxRateBp: integer(),
     /** Marketplace vendor who owns this listing — null means it's the store's own product. */
     sellerId: uuid().references((): AnyPgColumn => sellers.id, { onDelete: 'set null' }),
+    /** Null = the original single-tenant store's catalog. Set for a specific tenant's storefront. */
+    tenantId: uuid().references((): AnyPgColumn => tenants.id, { onDelete: 'set null' }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
@@ -113,6 +118,7 @@ export const products = pgTable(
     index('products_status_idx').on(t.status),
     index('products_brand_id_idx').on(t.brandId),
     index('products_seller_id_idx').on(t.sellerId),
+    index('products_tenant_id_idx').on(t.tenantId),
   ],
 )
 
@@ -149,12 +155,15 @@ export const categories = pgTable(
     description: text(),
     imageUrl: text(),
     parentId: uuid().references((): AnyPgColumn => categories.id, { onDelete: 'set null' }),
+    /** Null = the original single-tenant store's catalog. Set for a specific tenant's storefront. */
+    tenantId: uuid().references((): AnyPgColumn => tenants.id, { onDelete: 'set null' }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     uniqueIndex('categories_slug_idx').on(t.slug),
     index('categories_parent_id_idx').on(t.parentId),
+    index('categories_tenant_id_idx').on(t.tenantId),
   ],
 )
 
@@ -369,10 +378,16 @@ export const carts = pgTable(
     currency: text().notNull(),
     status: cartStatus().notNull().default('active'),
     shippingAddress: jsonb().$type<Address>(),
+    /** Null = the original single-tenant store. Set when the cart was opened under a specific tenant. */
+    tenantId: uuid().references((): AnyPgColumn => tenants.id, { onDelete: 'set null' }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index('carts_customer_id_idx').on(t.customerId), index('carts_status_idx').on(t.status)],
+  (t) => [
+    index('carts_customer_id_idx').on(t.customerId),
+    index('carts_status_idx').on(t.status),
+    index('carts_tenant_id_idx').on(t.tenantId),
+  ],
 )
 
 export const cartLineItems = pgTable(
@@ -435,6 +450,8 @@ export const orders = pgTable(
     registerSessionId: uuid().references((): AnyPgColumn => registerSessions.id, {
       onDelete: 'set null',
     }),
+    /** Null = the original single-tenant store. Set for an order placed under a specific tenant. */
+    tenantId: uuid().references((): AnyPgColumn => tenants.id, { onDelete: 'set null' }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
@@ -445,6 +462,7 @@ export const orders = pgTable(
     index('orders_status_idx').on(t.status),
     index('orders_created_at_idx').on(t.createdAt),
     index('orders_register_session_id_idx').on(t.registerSessionId),
+    index('orders_tenant_id_idx').on(t.tenantId),
   ],
 )
 
@@ -1740,4 +1758,39 @@ export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
     fields: [subscriptions.paymentMethodId],
     references: [customerPaymentMethods.id],
   }),
+}))
+
+// ---------- Multi-tenant — isolated stores hosted on one Redbird instance ----------
+//
+// tenantId is nullable everywhere it's added: null rows belong to the
+// original single-tenant store (unchanged behavior for every existing
+// deployment), while a specific tenant's storefront only ever sees rows
+// carrying its own id. Product/category slugs and order numbers stay
+// globally unique rather than per-tenant — a deliberate simplification for
+// this project rather than a full enterprise rearchitecture.
+
+export const tenantStatus = pgEnum('tenant_status', ['active', 'suspended'])
+
+export const tenants = pgTable(
+  'tenants',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    /** Storefront subdomain / routing key, e.g. "acme" for acme.shop.example. */
+    slug: text().notNull(),
+    name: text().notNull(),
+    status: tenantStatus().notNull().default('active'),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('tenants_slug_idx').on(t.slug)],
+)
+
+export type Tenant = typeof tenants.$inferSelect
+export type NewTenant = typeof tenants.$inferInsert
+
+export const tenantsRelations = relations(tenants, ({ many }) => ({
+  products: many(products),
+  categories: many(categories),
+  customers: many(customers),
+  orders: many(orders),
 }))

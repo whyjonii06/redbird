@@ -30,6 +30,8 @@ export type CategoryWithTranslations = Category & { translations: CategoryTransl
 export type CategoryService = {
   list(opts?: {
     parentId?: string | null | undefined
+    /** Scopes results to one tenant's categories. Omitted = every tenant (admin use). */
+    tenantId?: string | null | undefined
   }): Promise<CategoryWithTranslations[]>
   getBySlug(slug: string): Promise<CategoryWithTranslations | null>
   getById(id: string): Promise<CategoryWithTranslations | null>
@@ -59,14 +61,20 @@ export type CategoryService = {
 
 export function createCategoryService(db: DbClient, hooks: PluginRegistry): CategoryService {
   return {
-    async list({ parentId } = {}) {
+    async list({ parentId, tenantId } = {}) {
       return db.query.categories.findMany({
-        where:
+        where: and(
           parentId !== undefined
             ? parentId === null
               ? isNull(categories.parentId)
               : eq(categories.parentId, parentId)
             : undefined,
+          tenantId !== undefined
+            ? tenantId === null
+              ? isNull(categories.tenantId)
+              : eq(categories.tenantId, tenantId)
+            : undefined,
+        ),
         orderBy: (c, { asc }) => [asc(c.name)],
         with: { translations: true },
       })
