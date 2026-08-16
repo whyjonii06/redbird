@@ -1,6 +1,5 @@
 import { formatPrice } from '@/lib/format'
-import { redbird } from '@/lib/redbird'
-import { isSessionPaid } from '@/lib/stripe'
+import { trpc } from '@/lib/trpc'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
@@ -13,13 +12,17 @@ export default async function OrderConfirmationPage({
 }) {
   const { number } = await params
   const { cs } = await searchParams
-  let order = await redbird.orders.getByNumber(number)
-  if (!order) notFound()
+  const found = await trpc.checkout.getByNumber.query({ number }).catch(() => null)
+  if (!found) notFound()
 
-  // Returning from Stripe Checkout: verify the session paid, then mark paid.
-  if (cs && order.status === 'pending' && (await isSessionPaid(cs))) {
-    await redbird.orders.markPaid(order.id)
-    order = (await redbird.orders.getByNumber(number)) ?? order
+  let order = found
+  // Returning from Stripe Checkout: the API verifies the session against
+  // Stripe itself (never trusts this query param) before marking paid.
+  if (cs && order.status === 'pending') {
+    const confirmed = await trpc.checkout.confirmStripeCheckoutSession
+      .mutate({ orderId: order.id, sessionId: cs })
+      .catch(() => null)
+    if (confirmed) order = confirmed
   }
 
   return (

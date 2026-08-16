@@ -1,6 +1,6 @@
 import { getT } from '@/i18n'
 import { formatPrice } from '@/lib/format'
-import { redbird } from '@/lib/redbird'
+import { trpc } from '@/lib/trpc'
 
 export default async function AccountPage({
   searchParams,
@@ -12,7 +12,9 @@ export default async function AccountPage({
   let order = null
   let error: string | null = null
   if (orderNumber?.trim() && email?.trim()) {
-    const found = await redbird.orders.getByNumber(orderNumber.trim())
+    const found = await trpc.checkout.getByNumber
+      .query({ number: orderNumber.trim() })
+      .catch(() => null)
     if (found && found.customerEmail.toLowerCase() === email.trim().toLowerCase()) {
       order = found
     } else {
@@ -37,13 +39,26 @@ export default async function AccountPage({
           <label htmlFor="order" className={label}>
             {t('account.orderNumber')}
           </label>
-          <input id="order" name="order" defaultValue={orderNumber ?? ''} required className={field} />
+          <input
+            id="order"
+            name="order"
+            defaultValue={orderNumber ?? ''}
+            required
+            className={field}
+          />
         </div>
         <div>
           <label htmlFor="email" className={label}>
             {t('account.email')}
           </label>
-          <input id="email" name="email" type="email" defaultValue={email ?? ''} required className={field} />
+          <input
+            id="email"
+            name="email"
+            type="email"
+            defaultValue={email ?? ''}
+            required
+            className={field}
+          />
         </div>
         <div className="sm:col-span-2">
           <button

@@ -1,7 +1,7 @@
 import { removeFromCartAction, updateQuantityAction } from '@/app/actions'
 import { getCart } from '@/lib/cart'
 import { formatPrice } from '@/lib/format'
-import { redbird } from '@/lib/redbird'
+import { trpc } from '@/lib/trpc'
 import type { Route } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -28,18 +28,7 @@ export default async function CartPage() {
     )
   }
 
-  // Build a map of variant→product/name for display
-  const items = await Promise.all(
-    cart.lineItems.map(async (li) => {
-      const variant = await redbird.db.query.productVariants.findFirst({
-        where: (v, { eq }) => eq(v.id, li.variantId),
-        with: { product: true },
-      })
-      return { li, variant }
-    }),
-  )
-
-  const subtotal = await redbird.cart.subtotal(cart.id)
+  const subtotal = await trpc.cart.subtotal.query({ cartId: cart.id })
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-16 lg:px-10">
@@ -53,72 +42,64 @@ export default async function CartPage() {
       <div className="grid grid-cols-1 gap-16 lg:grid-cols-12">
         <div className="lg:col-span-8">
           <ul className="divide-y divide-rule border-y border-rule">
-            {items.map(({ li, variant }) => {
-              const image = (variant?.product?.metadata as { image?: string })?.image
-              return (
-                <li key={li.id} className="flex gap-6 py-8">
-                  <div className="relative h-32 w-32 flex-shrink-0 overflow-hidden bg-paper-deep">
-                    {image && (
-                      <Image
-                        src={image}
-                        alt={variant?.product?.name ?? ''}
-                        fill
-                        className="object-cover"
-                      />
-                    )}
+            {cart.lineItems.map((li) => (
+              <li key={li.id} className="flex gap-6 py-8">
+                <div className="relative h-32 w-32 flex-shrink-0 overflow-hidden bg-paper-deep">
+                  {li.image && (
+                    <Image src={li.image} alt={li.productName} fill className="object-cover" />
+                  )}
+                </div>
+                <div className="flex flex-1 flex-col justify-between">
+                  <div>
+                    <h3 className="font-display text-2xl text-ink">{li.productName}</h3>
+                    <p className="mt-1 text-sm text-ink-soft">{li.variantName}</p>
+                    <p className="mt-1 text-xs uppercase tracking-widest text-ink-soft">
+                      Réf. {li.sku}
+                    </p>
                   </div>
-                  <div className="flex flex-1 flex-col justify-between">
-                    <div>
-                      <h3 className="font-display text-2xl text-ink">{variant?.product?.name}</h3>
-                      <p className="mt-1 text-sm text-ink-soft">{variant?.name}</p>
-                      <p className="mt-1 text-xs uppercase tracking-widest text-ink-soft">
-                        Réf. {variant?.sku}
-                      </p>
-                    </div>
-                    <div className="flex items-end justify-between">
-                      <form action={updateQuantityAction} className="flex items-center gap-3">
+                  <div className="flex items-end justify-between">
+                    <form action={updateQuantityAction} className="flex items-center gap-3">
+                      <input type="hidden" name="cartId" value={cart.id} />
+                      <input type="hidden" name="lineItemId" value={li.id} />
+                      <label className="flex items-center gap-3">
+                        <span className="text-xs uppercase tracking-widest text-ink-soft">
+                          Qté
+                        </span>
+                        <input
+                          name="quantity"
+                          type="number"
+                          min="1"
+                          defaultValue={li.quantity}
+                          className="w-16 border border-rule bg-paper px-3 py-2 text-center font-display text-lg text-ink focus:border-ink focus:outline-none"
+                        />
+                      </label>
+                      <button
+                        type="submit"
+                        className="text-xs uppercase tracking-widest text-copper underline-offset-4 hover:underline"
+                      >
+                        Maj
+                      </button>
+                    </form>
+
+                    <div className="text-right">
+                      <div className="font-display text-2xl text-copper">
+                        {formatPrice(li.unitPriceAmount * li.quantity, li.unitPriceCurrency)}
+                      </div>
+                      <form action={removeFromCartAction} className="mt-1">
                         <input type="hidden" name="cartId" value={cart.id} />
                         <input type="hidden" name="lineItemId" value={li.id} />
-                        <label className="flex items-center gap-3">
-                          <span className="text-xs uppercase tracking-widest text-ink-soft">
-                            Qté
-                          </span>
-                          <input
-                            name="quantity"
-                            type="number"
-                            min="1"
-                            defaultValue={li.quantity}
-                            className="w-16 border border-rule bg-paper px-3 py-2 text-center font-display text-lg text-ink focus:border-ink focus:outline-none"
-                          />
-                        </label>
                         <button
                           type="submit"
-                          className="text-xs uppercase tracking-widest text-copper underline-offset-4 hover:underline"
+                          className="text-xs uppercase tracking-widest text-ink-soft underline-offset-4 hover:text-copper hover:underline"
                         >
-                          Maj
+                          Retirer
                         </button>
                       </form>
-
-                      <div className="text-right">
-                        <div className="font-display text-2xl text-copper">
-                          {formatPrice(li.unitPriceAmount * li.quantity, li.unitPriceCurrency)}
-                        </div>
-                        <form action={removeFromCartAction} className="mt-1">
-                          <input type="hidden" name="cartId" value={cart.id} />
-                          <input type="hidden" name="lineItemId" value={li.id} />
-                          <button
-                            type="submit"
-                            className="text-xs uppercase tracking-widest text-ink-soft underline-offset-4 hover:text-copper hover:underline"
-                          >
-                            Retirer
-                          </button>
-                        </form>
-                      </div>
                     </div>
                   </div>
-                </li>
-              )
-            })}
+                </div>
+              </li>
+            ))}
           </ul>
         </div>
 
@@ -150,7 +131,9 @@ export default async function CartPage() {
             >
               Passer commande
             </Link>
-            <p className="mt-3 text-center text-xs text-ink-soft">Livraison &amp; paiement à l'étape suivante</p>
+            <p className="mt-3 text-center text-xs text-ink-soft">
+              Livraison &amp; paiement à l'étape suivante
+            </p>
           </div>
         </aside>
       </div>

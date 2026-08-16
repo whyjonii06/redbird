@@ -1,13 +1,13 @@
 import { formatPrice } from '@/lib/format'
-import type { Product, ProductVariant } from '@redbirdshop/core'
+import type { AppRouter } from '@redbirdshop/api-types'
+import type { inferRouterOutputs } from '@trpc/server'
 import Image from 'next/image'
 import Link from 'next/link'
 
-export function ProductCard({
-  product,
-}: {
-  product: Product & { variants: ProductVariant[] }
-}) {
+type RouterOutput = inferRouterOutputs<AppRouter>
+export type ProductSummary = RouterOutput['catalog']['list'][number]
+
+export function ProductCard({ product }: { product: ProductSummary }) {
   const firstVariant = product.variants[0]
   const image = (product.metadata as { image?: string })?.image
   const minPrice = product.variants.reduce(

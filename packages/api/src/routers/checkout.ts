@@ -341,6 +341,88 @@ export const checkoutRouter = router({
       return intent
     }),
 
+  /**
+   * Stripe Checkout (hosted redirect) — a second, independent integration from
+   * initiatePayment's PaymentIntent/Elements flow above, used by the headless
+   * Next.js reference themes. Both share the same STRIPE_SECRET_KEY; this one
+   * talks to Stripe's Checkout Sessions API directly via fetch (no SDK) so a
+   * theme never needs its own Stripe credentials — it only ever talks to us.
+   */
+  createStripeCheckoutSession: publicProcedure
+    .input(
+      z.object({
+        orderId: z.string().uuid(),
+        successUrl: z.string().url(),
+        cancelUrl: z.string().url(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const sk = process.env.STRIPE_SECRET_KEY
+      if (!sk) return { url: null }
+      const order = await ctx.redbird.orders.get(input.orderId)
+      if (!order) throw new TRPCError({ code: 'NOT_FOUND', message: 'Order not found' })
+      if (order.status !== 'pending') {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: `Order is already ${order.status}` })
+      }
+
+      const body = new URLSearchParams()
+      body.set('mode', 'payment')
+      body.set('success_url', input.successUrl)
+      body.set('cancel_url', input.cancelUrl)
+      body.set('customer_email', order.customerEmail)
+      body.set('client_reference_id', order.id)
+      body.set('metadata[orderId]', order.id)
+      body.set('line_items[0][quantity]', '1')
+      body.set('line_items[0][price_data][currency]', order.currency.toLowerCase())
+      body.set('line_items[0][price_data][unit_amount]', String(order.totalAmount))
+      body.set('line_items[0][price_data][product_data][name]', `Order ${order.number}`)
+
+      const res = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${sk}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body,
+      })
+      if (!res.ok) return { url: null }
+      const session = (await res.json()) as { url?: string }
+      return { url: session.url ?? null }
+    }),
+
+  /**
+   * Verifies a completed Checkout Session server-side against Stripe (never
+   * trusts the client's claim that it paid) and marks the order paid once —
+   * safe to call repeatedly from a return-URL page.
+   */
+  confirmStripeCheckoutSession: publicProcedure
+    .input(z.object({ orderId: z.string().uuid(), sessionId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const order = await ctx.redbird.orders.get(input.orderId)
+      if (!order) throw new TRPCError({ code: 'NOT_FOUND', message: 'Order not found' })
+      if (order.status !== 'pending') return order
+
+      const sk = process.env.STRIPE_SECRET_KEY
+      if (!sk) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Stripe is not configured' })
+
+      const res = await fetch(
+        `https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(input.sessionId)}`,
+        { headers: { Authorization: `Bearer ${sk}` } },
+      )
+      if (!res.ok) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Could not verify session' })
+      const session = (await res.json()) as {
+        payment_status?: string
+        client_reference_id?: string
+      }
+      if (session.payment_status !== 'paid' || session.client_reference_id !== order.id) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Session did not pay this order' })
+      }
+
+      await ctx.redbird.orders.setPaymentReference(order.id, 'stripe-checkout', input.sessionId)
+      await ctx.redbird.orders.markPaid(order.id)
+      return (await ctx.redbird.orders.get(order.id)) ?? order
+    }),
+
   get: publicProcedure.input(orderIdInput).query(async ({ ctx, input }) => {
     const order = await ctx.redbird.orders.get(input.orderId)
     if (!order) throw new TRPCError({ code: 'NOT_FOUND', message: 'Order not found' })

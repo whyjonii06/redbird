@@ -1,9 +1,9 @@
 import { ProductCard } from '@/components/ProductCard'
-import { redbird } from '@/lib/redbird'
+import { trpc } from '@/lib/trpc'
 import Link from 'next/link'
 
 export default async function HomePage() {
-  const products = await redbird.catalog.listProducts({ limit: 6, status: 'active' })
+  const products = await trpc.catalog.list.query({ limit: 6, status: 'active' })
 
   return (
     <div className="relative">

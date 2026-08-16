@@ -1,5 +1,5 @@
 import { formatPriceCompact } from '@/lib/format'
-import { redbird } from '@/lib/redbird'
+import { trpc } from '@/lib/trpc'
 import Image from 'next/image'
 import Link from 'next/link'
 
@@ -11,8 +11,8 @@ export default async function CatalogPage({
   const { q } = await searchParams
   const query = q?.trim()
   const products = query
-    ? await redbird.catalog.search(query, { limit: 100 })
-    : await redbird.catalog.listProducts({ limit: 100, status: 'active' })
+    ? await trpc.catalog.search.query({ q: query, limit: 100 })
+    : await trpc.catalog.list.query({ limit: 100, status: 'active' })
 
   return (
     <div className="mx-auto max-w-[1600px] px-6 py-10 lg:px-10">

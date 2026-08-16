@@ -1,7 +1,6 @@
 import type { NextConfig } from 'next'
 
 const config: NextConfig = {
-  transpilePackages: ['@redbirdshop/core'],
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'picsum.photos' },

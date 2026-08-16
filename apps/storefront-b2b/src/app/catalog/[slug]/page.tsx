@@ -1,6 +1,6 @@
 import { addToCartAction } from '@/app/actions'
 import { formatPriceCompact } from '@/lib/format'
-import { redbird } from '@/lib/redbird'
+import { trpc } from '@/lib/trpc'
 import Image from 'next/image'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -11,7 +11,7 @@ export default async function ProductSheetPage({
   params: Promise<{ slug: string }>
 }) {
   const { slug } = await params
-  const product = await redbird.catalog.getProductBySlug(slug)
+  const product = await trpc.catalog.bySlug.query({ slug }).catch(() => null)
   if (!product || product.status !== 'active') notFound()
   const image = (product.metadata as { image?: string } | undefined)?.image
 

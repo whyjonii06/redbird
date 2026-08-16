@@ -1,7 +1,7 @@
 import { removeFromCartAction } from '@/app/actions'
 import { getCart } from '@/lib/cart'
 import { formatPrice, pageNumber } from '@/lib/format'
-import { redbird } from '@/lib/redbird'
+import { trpc } from '@/lib/trpc'
 import type { Route } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -25,17 +25,7 @@ export default async function CartPage() {
     )
   }
 
-  const items = await Promise.all(
-    cart.lineItems.map(async (li) => {
-      const variant = await redbird.db.query.productVariants.findFirst({
-        where: (v, { eq }) => eq(v.id, li.variantId),
-        with: { product: true },
-      })
-      return { li, variant }
-    }),
-  )
-
-  const subtotal = await redbird.cart.subtotal(cart.id)
+  const subtotal = await trpc.cart.subtotal.query({ cartId: cart.id })
 
   return (
     <div className="mx-auto max-w-[1400px] px-6 py-12 lg:px-12">
@@ -45,14 +35,14 @@ export default async function CartPage() {
           Votre choix.
         </h1>
         <p className="mt-4 text-xs uppercase tracking-[0.3em] text-ivory-muted tabular">
-          {items.length} entrée{items.length > 1 ? 's' : ''} — Page {pageNumber(98)}
+          {cart.lineItems.length} entrée{cart.lineItems.length > 1 ? 's' : ''} — Page{' '}
+          {pageNumber(98)}
         </p>
       </header>
 
       <div className="grid grid-cols-12 gap-10">
         <ul className="col-span-12 lg:col-span-8">
-          {items.map(({ li, variant }, i) => {
-            const image = (variant?.product?.metadata as { image?: string } | undefined)?.image
+          {cart.lineItems.map((li, i) => {
             return (
               <li
                 key={li.id}
@@ -62,11 +52,11 @@ export default async function CartPage() {
                   {pageNumber(i + 1)}
                 </span>
                 <div className="col-span-2 hidden md:block">
-                  {image && (
+                  {li.image && (
                     <div className="relative aspect-square overflow-hidden">
                       <Image
-                        src={image}
-                        alt={variant?.product?.name ?? ''}
+                        src={li.image}
+                        alt={li.productName}
                         fill
                         sizes="100px"
                         className="object-cover grayscale"
@@ -75,10 +65,10 @@ export default async function CartPage() {
                   )}
                 </div>
                 <div className="col-span-12 md:col-span-5">
-                  <h3 className="font-serif text-2xl text-ivory">{variant?.product?.name}</h3>
-                  <p className="mt-1 text-sm italic text-ivory-muted">{variant?.name}</p>
+                  <h3 className="font-serif text-2xl text-ivory">{li.productName}</h3>
+                  <p className="mt-1 text-sm italic text-ivory-muted">{li.variantName}</p>
                   <p className="mt-1 text-xs uppercase tracking-[0.2em] text-ivory-muted">
-                    Réf. {variant?.sku} · ×{li.quantity}
+                    Réf. {li.sku} · ×{li.quantity}
                   </p>
                 </div>
                 <div className="col-span-12 flex items-baseline justify-end gap-6 md:col-span-4">

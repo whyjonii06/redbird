@@ -1,6 +1,5 @@
 import { formatPriceCompact } from '@/lib/format'
-import { redbird } from '@/lib/redbird'
-import { isSessionPaid } from '@/lib/stripe'
+import { trpc } from '@/lib/trpc'
 import type { Route } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -14,12 +13,15 @@ export default async function OrderConfirmationPage({
 }) {
   const { number } = await params
   const { cs } = await searchParams
-  let order = await redbird.orders.getByNumber(number)
-  if (!order) notFound()
+  const found = await trpc.checkout.getByNumber.query({ number }).catch(() => null)
+  if (!found) notFound()
 
-  if (cs && order.status === 'pending' && (await isSessionPaid(cs))) {
-    await redbird.orders.markPaid(order.id)
-    order = (await redbird.orders.getByNumber(number)) ?? order
+  let order = found
+  if (cs && order.status === 'pending') {
+    const confirmed = await trpc.checkout.confirmStripeCheckoutSession
+      .mutate({ orderId: order.id, sessionId: cs })
+      .catch(() => null)
+    if (confirmed) order = confirmed
   }
 
   return (

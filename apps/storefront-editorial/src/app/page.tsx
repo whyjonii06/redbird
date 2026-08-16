@@ -1,10 +1,10 @@
 import { formatPrice, pageNumber } from '@/lib/format'
-import { redbird } from '@/lib/redbird'
+import { trpc } from '@/lib/trpc'
 import Image from 'next/image'
 import Link from 'next/link'
 
 export default async function HomePage() {
-  const products = await redbird.catalog.listProducts({ limit: 6, status: 'active' })
+  const products = await trpc.catalog.list.query({ limit: 6, status: 'active' })
   const lead = products[0]
   const rest = products.slice(1)
   const leadImage = (lead?.metadata as { image?: string } | undefined)?.image

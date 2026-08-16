@@ -1,9 +1,9 @@
 import { bulkAddAction } from '@/app/actions'
 import { formatPriceCompact } from '@/lib/format'
-import { redbird } from '@/lib/redbird'
+import { trpc } from '@/lib/trpc'
 
 export default async function QuickOrderPage() {
-  const products = await redbird.catalog.listProducts({ limit: 100, status: 'active' })
+  const products = await trpc.catalog.list.query({ limit: 100, status: 'active' })
 
   // Flatten variants for the data table
   const rows = products.flatMap((p) =>

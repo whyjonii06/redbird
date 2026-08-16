@@ -1,8 +1,7 @@
 'use server'
 
 import { getCart, getOrCreateCart } from '@/lib/cart'
-import { redbird } from '@/lib/redbird'
-import { createCheckoutSession, isStripeEnabled } from '@/lib/stripe'
+import { trpc } from '@/lib/trpc'
 import type { Route } from 'next'
 import { revalidatePath } from 'next/cache'
 import { cookies, headers } from 'next/headers'
@@ -31,7 +30,8 @@ export async function checkoutAction(formData: FormData) {
     .filter(Boolean)
     .join(' · ')
 
-  const order = await redbird.orders.createFromCart(cart.id, {
+  const order = await trpc.checkout.createOrder.mutate({
+    cartId: cart.id,
     customerEmail,
     shippingAddress,
     ...(notes ? { notes } : {}),
@@ -40,22 +40,16 @@ export async function checkoutAction(formData: FormData) {
   jar.delete('redbird_b2b_cart_id')
   revalidatePath('/cart')
 
-  if (isStripeEnabled()) {
-    const h = await headers()
-    const proto = h.get('x-forwarded-proto') ?? 'http'
-    const host = h.get('host') ?? 'localhost:3003'
-    const sessionUrl = await createCheckoutSession(
-      {
-        orderId: order.id,
-        orderNumber: order.number,
-        amount: order.totalAmount,
-        currency: order.currency,
-        customerEmail,
-      },
-      `${proto}://${host}`,
-    )
-    if (sessionUrl) redirect(sessionUrl as Route)
-  }
+  const h = await headers()
+  const proto = h.get('x-forwarded-proto') ?? 'http'
+  const host = h.get('host') ?? 'localhost:3003'
+  const baseUrl = `${proto}://${host}`
+  const { url } = await trpc.checkout.createStripeCheckoutSession.mutate({
+    orderId: order.id,
+    successUrl: `${baseUrl}/orders/${order.number}?cs={CHECKOUT_SESSION_ID}`,
+    cancelUrl: `${baseUrl}/checkout`,
+  })
+  if (url) redirect(url as Route)
 
   redirect(`/orders/${order.number}` as Route)
 }
@@ -66,7 +60,7 @@ export async function addToCartAction(formData: FormData) {
   if (!variantId) throw new Error('variantId required')
   if (quantity < 1) return
   const cart = await getOrCreateCart()
-  await redbird.cart.addItem(cart.id, variantId, quantity)
+  await trpc.cart.addItem.mutate({ cartId: cart.id, variantId, quantity })
   revalidatePath('/')
   revalidatePath('/cart')
 }
@@ -79,7 +73,7 @@ export async function bulkAddAction(formData: FormData) {
     const variantId = key.slice('qty_'.length)
     const qty = Number(value)
     if (!variantId || !Number.isFinite(qty) || qty < 1) continue
-    await redbird.cart.addItem(cart.id, variantId, qty)
+    await trpc.cart.addItem.mutate({ cartId: cart.id, variantId, quantity: qty })
     added++
   }
   revalidatePath('/')
@@ -90,6 +84,6 @@ export async function bulkAddAction(formData: FormData) {
 export async function removeFromCartAction(formData: FormData) {
   const cartId = String(formData.get('cartId') ?? '')
   const lineItemId = String(formData.get('lineItemId') ?? '')
-  await redbird.cart.removeItem(cartId, lineItemId)
+  await trpc.cart.removeItem.mutate({ cartId, lineItemId })
   revalidatePath('/cart')
 }

@@ -1,7 +1,7 @@
 import { removeFromCartAction } from '@/app/actions'
 import { getCart } from '@/lib/cart'
 import { formatPriceCompact } from '@/lib/format'
-import { redbird } from '@/lib/redbird'
+import { trpc } from '@/lib/trpc'
 import type { Route } from 'next'
 import Link from 'next/link'
 
@@ -26,17 +26,7 @@ export default async function CartPage() {
     )
   }
 
-  const items = await Promise.all(
-    cart.lineItems.map(async (li) => {
-      const variant = await redbird.db.query.productVariants.findFirst({
-        where: (v, { eq }) => eq(v.id, li.variantId),
-        with: { product: true },
-      })
-      return { li, variant }
-    }),
-  )
-
-  const subtotal = await redbird.cart.subtotal(cart.id)
+  const subtotal = await trpc.cart.subtotal.query({ cartId: cart.id })
   const vat = Math.round(subtotal.amount * VAT_RATE)
   const totalTTC = subtotal.amount + vat
 
@@ -48,7 +38,7 @@ export default async function CartPage() {
             Bon de commande N° BC-{cart.id.slice(0, 8).toUpperCase()}
           </p>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight text-graphite">
-            {items.length} ligne{items.length > 1 ? 's' : ''} de commande
+            {cart.lineItems.length} ligne{cart.lineItems.length > 1 ? 's' : ''} de commande
           </h1>
         </div>
         <div className="font-mono text-xs text-slate">
@@ -73,14 +63,14 @@ export default async function CartPage() {
                 </tr>
               </thead>
               <tbody>
-                {items.map(({ li, variant }, i) => (
+                {cart.lineItems.map((li, i) => (
                   <tr key={li.id}>
                     <td className="font-mono text-slate tabular">
                       {String(i + 1).padStart(3, '0')}
                     </td>
-                    <td className="font-medium text-graphite">{variant?.product?.name}</td>
-                    <td className="text-slate">{variant?.name}</td>
-                    <td className="font-mono text-slate tabular">{variant?.sku}</td>
+                    <td className="font-medium text-graphite">{li.productName}</td>
+                    <td className="text-slate">{li.variantName}</td>
+                    <td className="font-mono text-slate tabular">{li.sku}</td>
                     <td className="text-right font-mono tabular">{li.quantity}</td>
                     <td className="text-right font-mono tabular text-slate">
                       {formatPriceCompact(li.unitPriceAmount, li.unitPriceCurrency)}

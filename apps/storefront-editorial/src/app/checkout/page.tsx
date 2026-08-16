@@ -1,7 +1,7 @@
 import { checkoutAction } from '@/app/actions'
 import { getCart } from '@/lib/cart'
 import { formatPrice } from '@/lib/format'
-import { redbird } from '@/lib/redbird'
+import { trpc } from '@/lib/trpc'
 import type { Route } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
@@ -9,7 +9,7 @@ import { redirect } from 'next/navigation'
 export default async function CheckoutPage() {
   const cart = await getCart()
   if (!cart || cart.lineItems.length === 0) redirect('/cart')
-  const subtotal = await redbird.cart.subtotal(cart.id)
+  const subtotal = await trpc.cart.subtotal.query({ cartId: cart.id })
 
   const field =
     'w-full border border-ivory/20 bg-transparent px-4 py-3 text-sm text-ivory outline-none transition-colors placeholder:text-ivory-muted focus:border-ruby'
