@@ -711,10 +711,10 @@
 
   <!-- HERO -->
   <section class="hero">
-    <div class="hero-badge">v0.1 · TypeScript · Self-hosted</div>
+    <div class="hero-badge">TypeScript · Self-hosted · Composable</div>
     <img src="./logo.png" alt="Redbird" class="hero-logo" />
     <h1>E-commerce for the<br/><span class="red">next generation</span></h1>
-    <p>A type-safe, plugin-first e-commerce engine built for developers who are tired of fighting legacy platforms.</p>
+    <p>A type-safe, plugin-first e-commerce engine — with native B2B, point of sale, and a truly headless API. Built for developers who are tired of fighting legacy platforms.</p>
     <div class="hero-actions">
       <a href="https://github.com/whyjonii06/redbird" class="btn btn-primary">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
@@ -727,16 +727,16 @@
   <!-- STATS -->
   <div class="stats reveal">
     <div class="stat">
-      <div class="stat-number"><span>260</span>/260</div>
+      <div class="stat-number"><span>291</span>/291</div>
       <div class="stat-label">Tests passing</div>
     </div>
     <div class="stat">
-      <div class="stat-number"><span>11</span> plugins</div>
+      <div class="stat-number"><span>12</span> plugins</div>
       <div class="stat-label">First-party</div>
     </div>
     <div class="stat">
-      <div class="stat-number"><span>60</span>+ routes</div>
-      <div class="stat-label">tRPC procedures</div>
+      <div class="stat-number"><span>100</span>+ procedures</div>
+      <div class="stat-label">tRPC, 22 routers</div>
     </div>
     <div class="stat">
       <div class="stat-number"><span>100</span>%</div>
@@ -789,8 +789,8 @@
       <div class="features-grid">
         <div class="feature reveal">
           <div class="feature-icon">🧩</div>
-          <h3>Installable modules</h3>
-          <p>Reviews, loyalty, gift cards, suppliers and more ship as free bundled modules — each with its own sidebar entry, settings page and storefront widgets. Install, enable, disable or uninstall from the marketplace. No rebuild, no core overrides, backoffice stays lean.</p>
+          <h3>Hot-swappable modules</h3>
+          <p>Reviews, loyalty, gift cards, suppliers and more ship as free bundled modules. Install, reconfigure or uninstall live from the marketplace — no rebuild, no server restart, no core overrides.</p>
         </div>
         <div class="feature reveal reveal-delay-1">
           <div class="feature-icon">🔒</div>
@@ -805,7 +805,7 @@
         <div class="feature reveal reveal-delay-1">
           <div class="feature-icon">🇪🇺</div>
           <h3>EU compliance built-in</h3>
-          <p>VAT for all 27 countries (B2B reverse charge, VIES), automatic PDF invoices — and an <strong>accessible-by-default storefront</strong> that passes WCAG checks, ready for the European Accessibility Act.</p>
+          <p>VAT for all 27 countries (B2B reverse charge, VIES), automatic PDF invoices, <strong>Factur-X e-invoicing</strong> and FEC export — plus native GDPR data export and right-to-erasure.</p>
         </div>
         <div class="feature reveal reveal-delay-2">
           <div class="feature-icon">🎨</div>
@@ -831,6 +831,21 @@
           <div class="feature-icon">🔑</div>
           <h3>Auth &amp; accounts</h3>
           <p>JWT customer auth, password reset flows, guest checkout, staff RBAC with owner/admin/warehouse/support roles.</p>
+        </div>
+        <div class="feature reveal">
+          <div class="feature-icon">🤝</div>
+          <h3>B2B, natively</h3>
+          <p>Quote requests, Net-30 payment terms, purchase orders, and tiered group pricing — the flows legacy platforms bolt on with third-party modules, built into the core here.</p>
+        </div>
+        <div class="feature reveal reveal-delay-1">
+          <div class="feature-icon">🧾</div>
+          <h3>Point of sale</h3>
+          <p>Register sessions, in-person sales, real orders sharing the same stock and catalog as online. One engine, online and in-store.</p>
+        </div>
+        <div class="feature reveal reveal-delay-2">
+          <div class="feature-icon">🌐</div>
+          <h3>Truly headless</h3>
+          <p>A pure, type-only API surface — <code style="font-family:var(--mono);font-size:0.78rem;color:#8be9fd">@redbirdshop/api-types</code> — with zero runtime coupling to the core. Three production reference storefronts (Next.js) run on it, proving it's not just a promise.</p>
         </div>
       </div>
     </div>
@@ -880,7 +895,7 @@
   <section id="plugins">
     <div class="section-inner">
       <p class="section-label reveal">Ecosystem</p>
-      <h2 class="section-title reveal reveal-delay-1">11 first-party plugins.<br/>Infinite extensibility.</h2>
+      <h2 class="section-title reveal reveal-delay-1">12 first-party plugins.<br/>Infinite extensibility.</h2>
       <p class="section-sub reveal reveal-delay-2">Every plugin is a typed package. Payments, email, shipping, taxes — swap any provider with one line. Full features ship as installable modules.</p>
 
       <div class="plugins-row">
@@ -915,6 +930,22 @@
         <div class="plugin-card reveal reveal-delay-3">
           <div class="plugin-name">@redbird/plugin-analytics</div>
           <div class="plugin-desc">Plausible, GA4, or console hooks</div>
+        </div>
+        <div class="plugin-card reveal">
+          <div class="plugin-name">@redbird/plugin-shipping-zones</div>
+          <div class="plugin-desc">Country/region zones, weight-tiered rates</div>
+        </div>
+        <div class="plugin-card reveal reveal-delay-1">
+          <div class="plugin-name">@redbird/plugin-shipping-mondial-relay</div>
+          <div class="plugin-desc">Real carrier API — relay-point search</div>
+        </div>
+        <div class="plugin-card reveal reveal-delay-2">
+          <div class="plugin-name">@redbird/plugin-tax-rules</div>
+          <div class="plugin-desc">Custom tax rules engine beyond EU VAT</div>
+        </div>
+        <div class="plugin-card reveal reveal-delay-3">
+          <div class="plugin-name">@redbird/plugin-email-local</div>
+          <div class="plugin-desc">Local dev inbox — no provider needed</div>
         </div>
       </div>
     </div>
