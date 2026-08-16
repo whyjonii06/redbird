@@ -1393,6 +1393,153 @@ export const adminRouter = router({
       }),
   }),
 
+  // ---- Point of sale ----
+  pos: router({
+    /**
+     * Product/variant lookup for the register's search box — any staff role
+     * can ring up a sale, so this deliberately doesn't require adminProcedure
+     * the way full catalog management does.
+     */
+    searchProducts: staffProcedure
+      .input(z.object({ q: z.string().min(1) }))
+      .query(async ({ ctx, input }) => {
+        const q = input.q.trim()
+        if (!q) return []
+        const term = `%${q}%`
+        const rows = await ctx.redbird.db.query.productVariants.findMany({
+          where: (v, { ilike: ilikeFn, or: orFn }) =>
+            orFn(ilikeFn(v.sku, term), ilikeFn(v.name, term)),
+          with: { product: { columns: { name: true, status: true } }, stockLevel: true },
+          limit: 20,
+        })
+        const bySku = rows.filter((v) => v.product?.status === 'active')
+        const byName = await ctx.redbird.catalog.search(q, { limit: 20, status: 'active' })
+        const merged = new Map<
+          string,
+          {
+            variantId: string
+            productName: string
+            variantName: string
+            sku: string
+            priceAmount: number
+            priceCurrency: string
+            available: number
+          }
+        >()
+        for (const v of bySku) {
+          merged.set(v.id, {
+            variantId: v.id,
+            productName: v.product?.name ?? 'Unknown product',
+            variantName: v.name,
+            sku: v.sku,
+            priceAmount: v.priceAmount,
+            priceCurrency: v.priceCurrency,
+            available: v.stockLevel?.available ?? 0,
+          })
+        }
+        for (const p of byName) {
+          for (const v of p.variants) {
+            merged.set(v.id, {
+              variantId: v.id,
+              productName: p.name,
+              variantName: v.name,
+              sku: v.sku,
+              priceAmount: v.priceAmount,
+              priceCurrency: v.priceCurrency,
+              available: v.stockLevel?.available ?? 0,
+            })
+          }
+        }
+        return [...merged.values()].slice(0, 20)
+      }),
+
+    /** The signed-in staff member's own open register session, if any. */
+    mySession: staffProcedure.query(async ({ ctx }) => {
+      if (!ctx.staffId) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message:
+            'Sign in as a staff member to use the register (the master admin key has no individual session).',
+        })
+      }
+      return ctx.redbird.pos.getOpenSession(ctx.staffId)
+    }),
+
+    openSession: staffProcedure
+      .input(z.object({ openingCashAmount: z.number().int().min(0), notes: z.string().optional() }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.staffId) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Sign in as a staff member to open a register session.',
+          })
+        }
+        try {
+          const session = await ctx.redbird.pos.openSession(
+            ctx.staffId,
+            input.openingCashAmount,
+            input.notes,
+          )
+          await writeAudit(ctx, 'pos.session_open', 'register_session', session.id, {
+            openingCashAmount: input.openingCashAmount,
+          })
+          return session
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : 'Could not open register session'
+          throw new TRPCError({ code: 'BAD_REQUEST', message: msg })
+        }
+      }),
+
+    closeSession: staffProcedure
+      .input(z.object({ id: z.string().uuid(), closingCashAmount: z.number().int().min(0) }))
+      .mutation(async ({ ctx, input }) => {
+        try {
+          const session = await ctx.redbird.pos.closeSession(input.id, input.closingCashAmount)
+          await writeAudit(ctx, 'pos.session_close', 'register_session', input.id, {
+            closingCashAmount: input.closingCashAmount,
+            expectedCashAmount: session.expectedCashAmount,
+          })
+          return session
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : 'Could not close register session'
+          throw new TRPCError({ code: 'BAD_REQUEST', message: msg })
+        }
+      }),
+
+    /** All register sessions (any staff member) — for managers reviewing cash reconciliation. */
+    listSessions: adminProcedure
+      .input(z.object({ status: z.enum(['open', 'closed']).optional() }).optional())
+      .query(async ({ ctx, input }) => ctx.redbird.pos.listSessions(input)),
+
+    ringSale: staffProcedure
+      .input(
+        z.object({
+          registerSessionId: z.string().uuid(),
+          items: z
+            .array(z.object({ variantId: z.string().uuid(), quantity: z.number().int().min(1) }))
+            .min(1),
+          tenderType: z.enum(['cash', 'card']),
+          cashReceived: z.number().int().min(0).optional(),
+          customerId: z.string().uuid().optional(),
+          customerEmail: z.string().email().optional(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        try {
+          const result = await ctx.redbird.pos.ringSale(input)
+          await writeAudit(ctx, 'pos.sale', 'order', result.order.id, {
+            registerSessionId: input.registerSessionId,
+            tenderType: input.tenderType,
+            totalAmount: result.order.totalAmount,
+          })
+          return result
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : 'Could not complete sale'
+          throw new TRPCError({ code: 'BAD_REQUEST', message: msg })
+        }
+      }),
+  }),
+
   // ---- Stock management ----
   stock: router({
     get: warehouseProcedure

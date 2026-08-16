@@ -428,6 +428,10 @@ export const orders = pgTable(
     /** Sequential, gapless legal invoice number — assigned when the invoice is issued. */
     invoiceNumber: text(),
     invoicedAt: timestamp({ withTimezone: true }),
+    /** Set only for in-person sales rung up through the POS — null for online orders. */
+    registerSessionId: uuid().references((): AnyPgColumn => registerSessions.id, {
+      onDelete: 'set null',
+    }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
@@ -437,6 +441,7 @@ export const orders = pgTable(
     index('orders_customer_id_idx').on(t.customerId),
     index('orders_status_idx').on(t.status),
     index('orders_created_at_idx').on(t.createdAt),
+    index('orders_register_session_id_idx').on(t.registerSessionId),
   ],
 )
 
@@ -445,6 +450,44 @@ export const counters = pgTable('counters', {
   key: text().primaryKey(),
   value: integer().notNull().default(0),
 })
+
+// ---------- Point of sale — register sessions ----------
+//
+// A cashier opens a session with a starting cash float, rings up sales
+// against it (linked via orders.registerSessionId), and closes it by
+// counting the drawer — the difference from the expected amount (opening +
+// cash sales - cash refunds, computed at read time from linked orders)
+// surfaces as an over/short.
+
+export const registerSessionStatus = pgEnum('register_session_status', ['open', 'closed'])
+
+export const registerSessions = pgTable(
+  'register_sessions',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    staffId: uuid()
+      .notNull()
+      .references(() => staff.id, { onDelete: 'restrict' }),
+    status: registerSessionStatus().notNull().default('open'),
+    openingCashAmount: integer().notNull(),
+    closingCashAmount: integer(),
+    notes: text(),
+    openedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    closedAt: timestamp({ withTimezone: true }),
+  },
+  (t) => [
+    index('register_sessions_staff_id_idx').on(t.staffId),
+    index('register_sessions_status_idx').on(t.status),
+  ],
+)
+
+export type RegisterSession = typeof registerSessions.$inferSelect
+export type NewRegisterSession = typeof registerSessions.$inferInsert
+
+export const registerSessionsRelations = relations(registerSessions, ({ one, many }) => ({
+  staff: one(staff, { fields: [registerSessions.staffId], references: [staff.id] }),
+  orders: many(orders),
+}))
 
 export const orderLineItems = pgTable(
   'order_line_items',
@@ -705,8 +748,12 @@ export const cartLineItemsRelations = relations(cartLineItems, ({ one }) => ({
   }),
 }))
 
-export const ordersRelations = relations(orders, ({ many }) => ({
+export const ordersRelations = relations(orders, ({ one, many }) => ({
   lineItems: many(orderLineItems),
+  registerSession: one(registerSessions, {
+    fields: [orders.registerSessionId],
+    references: [registerSessions.id],
+  }),
 }))
 
 export const orderLineItemsRelations = relations(orderLineItems, ({ one }) => ({

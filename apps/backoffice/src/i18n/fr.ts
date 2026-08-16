@@ -34,6 +34,7 @@ export const fr: Record<string, string> = {
   // Nav — items
   'nav.Dashboard': 'Tableau de bord',
   'nav.Marketplace': 'Marketplace',
+  'nav.Register': 'Caisse',
   'nav.Products': 'Produits',
   'nav.Categories': 'Catégories',
   'nav.Orders': 'Commandes',

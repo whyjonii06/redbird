@@ -20,6 +20,7 @@ import { ModulesPage } from './pages/ModulesPage.js'
 import { NavigationPage } from './pages/NavigationPage.js'
 import { OrderDetailPage } from './pages/OrderDetailPage.js'
 import { OrdersPage } from './pages/OrdersPage.js'
+import { PosPage } from './pages/PosPage.js'
 import { ProductFormPage } from './pages/ProductFormPage.js'
 import { ProductsPage } from './pages/ProductsPage.js'
 import { PromosPage } from './pages/PromosPage.js'
@@ -63,6 +64,7 @@ export default function App() {
                   <Route path="subscriptions" element={<SubscriptionsPage />} />
                   <Route path="returns" element={<ReturnsPage />} />
                   <Route path="quotes" element={<QuotesPage />} />
+                  <Route path="pos" element={<PosPage />} />
                   <Route path="reports" element={<ReportsPage />} />
                   <Route path="staff" element={<StaffPage />} />
                   <Route path="audit-log" element={<AuditLogPage />} />

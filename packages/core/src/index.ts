@@ -64,6 +64,12 @@ export type {
   RespondItemInput,
 } from './quotes/service.js'
 export type {
+  PosService,
+  RegisterSessionSummary,
+  RingSaleInput,
+  RingSaleItemInput,
+} from './pos/service.js'
+export type {
   WarehouseService,
   CreateWarehouseInput,
   UpdateWarehouseInput,
@@ -167,6 +173,8 @@ export type {
   // B2B quotes
   QuoteRequest,
   QuoteRequestItem,
+  // Point of sale
+  RegisterSession,
   // Audit log
   AuditLog,
   // Warehouses

@@ -15,6 +15,7 @@ const navGroups: NavGroup[] = [
     label: null,
     items: [
       { to: '/', label: 'Dashboard' },
+      { to: '/pos', label: 'Register' },
       { to: '/marketplace', label: 'Marketplace' },
     ],
   },
