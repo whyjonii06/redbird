@@ -109,8 +109,6 @@ export function applyMeta(meta: StoreMeta) {
   )
   if (hasCustomTokens) root.setAttribute('data-custom-theme', '')
   else root.removeAttribute('data-custom-theme')
-
-  document.title = meta.storeName
 }
 
 /** Set page-level SEO meta tags. Pass null to reset to store defaults. */

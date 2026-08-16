@@ -53,12 +53,16 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
   })
 
   // ── localStorage wishlist (anonymous) ────────────────────────────────────
-  const [localIds, setLocalIds] = useState<string[]>(loadLocal)
+  // Starts empty — see AuthContext's comment on why SSR/first-hydration can't
+  // read localStorage. Writes happen at the point of mutation (toggle/clear)
+  // instead of a blanket "on any change" effect, since that would fire once
+  // on mount with the still-empty initial value and clobber the real data
+  // before this load effect below has a chance to read it.
+  const [localIds, setLocalIds] = useState<string[]>([])
 
-  // Persist localIds changes
   useEffect(() => {
-    localStorage.setItem('rb_wishlist', JSON.stringify(localIds))
-  }, [localIds])
+    setLocalIds(loadLocal())
+  }, [])
 
   // ── Computed values ───────────────────────────────────────────────────────
   const ids = isLoggedIn ? dbItems.map((p) => p.id) : localIds
@@ -81,7 +85,11 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
           addMut.mutate({ productId: id })
         }
       } else {
-        setLocalIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+        setLocalIds((prev) => {
+          const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+          localStorage.setItem('rb_wishlist', JSON.stringify(next))
+          return next
+        })
       }
     },
     [isLoggedIn, dbItems, addMut, removeMut],

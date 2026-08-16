@@ -1,4 +1,5 @@
-import { useEffect } from 'react'
+import { useContext, useEffect } from 'react'
+import { HeadContext } from './HeadContext.js'
 
 export type SeoMetaOptions = {
   title: string
@@ -26,6 +27,11 @@ function setMetaTag(nameOrProp: string, content: string, isProp = false): void {
  * duplicate <meta>/<script> tags in <head>.
  */
 export function useSeoMeta(opts: SeoMetaOptions | undefined): void {
+  // SSR path: only set when entry-server.tsx provides the collector. Written
+  // synchronously during render, since the effect below never runs on the server.
+  const headCollector = useContext(HeadContext)
+  if (headCollector && opts) headCollector.set(opts)
+
   // Options are usually built inline in the caller (new object every render),
   // so depend on their serialized form rather than object identity.
   const key = opts ? JSON.stringify(opts) : ''

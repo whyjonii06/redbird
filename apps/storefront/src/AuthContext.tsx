@@ -1,6 +1,7 @@
 import type { AppRouter } from '@redbirdshop/api-types'
 import type { inferRouterOutputs } from '@trpc/server'
-import { createContext, useCallback, useContext, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { readLocalStorage } from './ssrSafe.js'
 
 type Customer = inferRouterOutputs<AppRouter>['customers']['me']
 
@@ -19,15 +20,24 @@ const AuthContext = createContext<AuthState>({
 })
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem('rb_token'))
-  const [customer, setCustomer] = useState<Customer | null>(() => {
-    const raw = localStorage.getItem('rb_customer')
-    try {
-      return raw ? (JSON.parse(raw) as Customer) : null
-    } catch {
-      return null
+  // Always starts logged-out. SSR has no client localStorage to read, so the
+  // client's very first hydration pass has to match that exactly — reading
+  // localStorage here (even guarded) would hydrate as a different user than
+  // the server rendered, which React treats as a mismatch and discards the
+  // whole tree. The effect below picks up the real session immediately after
+  // mount instead, the same pattern App.tsx already uses for store meta.
+  const [token, setToken] = useState<string | null>(null)
+  const [customer, setCustomer] = useState<Customer | null>(null)
+
+  useEffect(() => {
+    setToken(readLocalStorage('rb_token'))
+    const raw = readLocalStorage('rb_customer')
+    if (raw) {
+      try {
+        setCustomer(JSON.parse(raw) as Customer)
+      } catch {}
     }
-  })
+  }, [])
 
   const login = useCallback((t: string, c: Customer) => {
     localStorage.setItem('rb_token', t)

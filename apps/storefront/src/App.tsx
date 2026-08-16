@@ -1,6 +1,7 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type { DehydratedState, QueryClient } from '@tanstack/react-query'
+import { HydrationBoundary, QueryClientProvider } from '@tanstack/react-query'
 import { createContext, useContext, useEffect, useState } from 'react'
-import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-dom'
+import { Navigate, Route, Routes, useParams } from 'react-router-dom'
 import { Link } from 'react-router-dom'
 import { AuthProvider } from './AuthContext.js'
 import { CartProvider } from './CartContext.js'
@@ -30,7 +31,7 @@ import { ResetPasswordPage } from './pages/ResetPasswordPage.js'
 import { SearchPage } from './pages/SearchPage.js'
 import { UnsubscribePage } from './pages/UnsubscribePage.js'
 import { WishlistPage } from './pages/WishlistPage.js'
-import { makeTRPCClient, trpc } from './trpc.js'
+import { type makeTRPCClient, trpc } from './trpc.js'
 
 const MetaContext = createContext<StoreMeta>(DEFAULT_META)
 export function useMeta() {
@@ -47,11 +48,26 @@ function RedirectCategory() {
   return <Navigate to={`/category/${slug ?? ''}`} replace />
 }
 
-const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000 } } })
-const trpcClient = makeTRPCClient()
+export type AppProps = {
+  queryClient: QueryClient
+  trpcClient: ReturnType<typeof makeTRPCClient>
+  /** Pre-fetched store meta for the very first render (SSR, or a client that
+   * already has it dehydrated) — avoids a flash of DEFAULT_META while the
+   * client-only effect below re-fetches it. */
+  initialMeta?: StoreMeta | undefined
+  /** Server-prefetched query cache (see entry-server.tsx) — hydrated into
+   * `queryClient` so the client's first render reuses it instead of
+   * refetching data the response already contained. */
+  dehydratedState?: DehydratedState | undefined
+}
 
-export default function App() {
-  const [meta, setMeta] = useState<StoreMeta>(DEFAULT_META)
+/**
+ * Assumes it's already inside a Router (BrowserRouter on the client,
+ * StaticRouter for SSR) — the entry points own that choice, not App itself,
+ * since the two environments need different Router implementations.
+ */
+export default function App({ queryClient, trpcClient, initialMeta, dehydratedState }: AppProps) {
+  const [meta, setMeta] = useState<StoreMeta>(initialMeta ?? DEFAULT_META)
 
   useEffect(() => {
     fetchMeta().then((m) => {
@@ -65,11 +81,11 @@ export default function App() {
       <I18nProvider>
         <trpc.Provider client={trpcClient} queryClient={queryClient}>
           <QueryClientProvider client={queryClient}>
-            <AuthProvider>
-              <CurrencyProvider>
-                <WishlistProvider>
-                  <CartProvider>
-                    <BrowserRouter>
+            <HydrationBoundary state={dehydratedState}>
+              <AuthProvider>
+                <CurrencyProvider>
+                  <WishlistProvider>
+                    <CartProvider>
                       <div className="min-h-screen bg-gray-50 flex flex-col">
                         <Header />
                         <InstallPrompt />
@@ -102,11 +118,11 @@ export default function App() {
                         </main>
                         <StorefrontFooter />
                       </div>
-                    </BrowserRouter>
-                  </CartProvider>
-                </WishlistProvider>
-              </CurrencyProvider>
-            </AuthProvider>
+                    </CartProvider>
+                  </WishlistProvider>
+                </CurrencyProvider>
+              </AuthProvider>
+            </HydrationBoundary>
           </QueryClientProvider>
         </trpc.Provider>
       </I18nProvider>

@@ -4,9 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -p tsconfig.json && vite build",
-    "preview": "vite preview",
+    "dev": "node server.js",
+    "build": "tsc -p tsconfig.json && vite build --outDir dist/client && vite build --outDir dist/server --ssr src/entry-server.tsx",
+    "start": "NODE_ENV=production node server.js",
+    "preview": "NODE_ENV=production node server.js",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

@@ -1,4 +1,5 @@
-import { createContext, useContext, useMemo, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { readLocalStorage } from './ssrSafe.js'
 import { trpc } from './trpc.js'
 
 const CURRENCY_KEY = 'redbird_currency'
@@ -24,8 +25,15 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
   const { data: config } = trpc.currency.list.useQuery()
   const base = config?.base ?? 'EUR'
 
-  const [stored, setStored] = useState<string | null>(() => localStorage.getItem(CURRENCY_KEY))
+  // Starts null — see AuthContext's comment on why SSR/first-hydration can't
+  // read localStorage. The persisted currency choice loads right after mount.
+  const [stored, setStored] = useState<string | null>(null)
   const currency = stored ?? base
+
+  useEffect(() => {
+    const saved = readLocalStorage(CURRENCY_KEY)
+    if (saved) setStored(saved)
+  }, [])
 
   function setCurrency(code: string) {
     localStorage.setItem(CURRENCY_KEY, code)

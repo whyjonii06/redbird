@@ -1,4 +1,5 @@
-import { createContext, useCallback, useContext, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { readLocalStorage } from './ssrSafe.js'
 import { trpc } from './trpc.js'
 
 const CART_KEY = 'redbird_cart'
@@ -16,7 +17,14 @@ const CartContext = createContext<CartCtx>({
 })
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [cartId, _setCartId] = useState<string | null>(() => localStorage.getItem(CART_KEY))
+  // Starts empty — see AuthContext's comment on why SSR/first-hydration can't
+  // read localStorage. The persisted cart id loads right after mount instead.
+  const [cartId, _setCartId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const saved = readLocalStorage(CART_KEY)
+    if (saved) _setCartId(saved)
+  }, [])
 
   const setCartId = useCallback((id: string) => {
     localStorage.setItem(CART_KEY, id)

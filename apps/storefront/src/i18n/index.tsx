@@ -1,4 +1,4 @@
-import { type ReactNode, createContext, useCallback, useContext, useState } from 'react'
+import { type ReactNode, createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { de } from './de.js'
 import { en } from './en.js'
 import { es } from './es.js'
@@ -16,11 +16,13 @@ export const LOCALES: { code: Locale; label: string; flag: string }[] = [
 type Dict = Record<string, string>
 const dicts: Record<Locale, Dict> = { en, fr, es, de }
 
-function detectLocale(): Locale {
-  try {
-    const saved = localStorage.getItem('rb_locale')
-    if (saved && saved in dicts) return saved as Locale
-  } catch {}
+/** Exported so entry-server.tsx can prefetch under the exact same locale
+ * I18nProvider will resolve to on its first render (client and server both —
+ * see the useEffect below for why this deliberately does NOT read
+ * localStorage: SSR has none, so the client's first hydration pass has to
+ * agree with this navigator-only result exactly). Node's built-in `navigator`
+ * reflects the *server's* OS locale, not "always English". */
+export function detectLocale(): Locale {
   const nav = (typeof navigator !== 'undefined' ? navigator.language : 'en').slice(0, 2)
   return (['en', 'fr', 'es', 'de'] as const).includes(nav as Locale) ? (nav as Locale) : 'en'
 }
@@ -37,6 +39,16 @@ const I18nContext = createContext<I18nContextValue | null>(null)
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(detectLocale)
+
+  // A saved override applies right after mount — never as part of the first
+  // hydration pass, since SSR can't read localStorage to match against (see
+  // detectLocale's comment).
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('rb_locale')
+      if (saved && saved in dicts) setLocaleState(saved as Locale)
+    } catch {}
+  }, [])
 
   const setLocale = useCallback((l: Locale) => {
     setLocaleState(l)
