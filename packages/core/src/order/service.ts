@@ -234,6 +234,7 @@ export function createOrderService(
                 unitPriceCurrency: li.unitPriceCurrency,
                 totalAmount: li.unitPriceAmount * li.quantity,
                 taxRateBp: li.variant.product.taxRateBp ?? null,
+                sellerId: li.variant.product.sellerId ?? null,
               }
             })
 

@@ -7,7 +7,7 @@ import { LOCALES, useI18n } from '../i18n/index.js'
 import { type ModuleStates, activeModuleMenu } from '../modules/registry.js'
 import { trpc } from '../trpc.js'
 
-type NavItem = { to: string; label: string; icon?: string; position?: number }
+type NavItem = { to: string; label: string; icon?: string; position?: number; adminOnly?: boolean }
 type NavGroup = { label: string | null; items: NavItem[] }
 
 const navGroups: NavGroup[] = [
@@ -33,6 +33,7 @@ const navGroups: NavGroup[] = [
       { to: '/orders', label: 'Orders' },
       { to: '/returns', label: 'Returns' },
       { to: '/quotes', label: 'Quotes' },
+      { to: '/sellers', label: 'Sellers', adminOnly: true },
       { to: '/reports', label: 'Reports' },
     ],
   },
@@ -134,6 +135,7 @@ export function AdminLayout() {
   const staffToken = getStaffToken()
   const staffRole = getStaffRole()
   const isAuthenticated = Boolean(adminKey || staffToken)
+  const isAdminRole = Boolean(adminKey) || staffRole === 'owner' || staffRole === 'admin'
   const { data: moduleStates = {} } = trpc.admin.modules.list.useQuery(undefined, {
     enabled: isAuthenticated,
   })
@@ -284,46 +286,48 @@ export function AdminLayout() {
                       gap: 1,
                     }}
                   >
-                    {group.items.map(({ to, label, icon }) => (
-                      <NavLink
-                        key={to}
-                        to={to}
-                        end={to === '/'}
-                        onClick={() => {
-                          if (label === 'Orders') setNewOrderCount(0)
-                        }}
-                        className="flex items-center text-xs font-medium transition-colors rounded-md"
-                        style={({ isActive }) =>
-                          isActive
-                            ? {
-                                color: 'var(--bo-text)',
-                                borderLeft: '2px solid var(--bo-accent)',
-                                padding: '7px 12px 7px 10px',
-                                background: 'rgba(232,48,42,0.08)',
-                              }
-                            : {
-                                color: 'var(--bo-muted)',
-                                borderLeft: '2px solid transparent',
-                                padding: '7px 12px 7px 10px',
-                              }
-                        }
-                      >
-                        {icon && <span style={{ marginRight: 6 }}>{icon}</span>}
-                        {navLabel(label)}
-                        {label === 'Orders' && newOrderCount > 0 && (
-                          <span
-                            className="ml-auto font-bold px-1.5 py-0.5 rounded-full"
-                            style={{
-                              background: 'var(--bo-accent)',
-                              color: '#fff',
-                              fontSize: '10px',
-                            }}
-                          >
-                            {newOrderCount}
-                          </span>
-                        )}
-                      </NavLink>
-                    ))}
+                    {group.items
+                      .filter((item) => !item.adminOnly || isAdminRole)
+                      .map(({ to, label, icon }) => (
+                        <NavLink
+                          key={to}
+                          to={to}
+                          end={to === '/'}
+                          onClick={() => {
+                            if (label === 'Orders') setNewOrderCount(0)
+                          }}
+                          className="flex items-center text-xs font-medium transition-colors rounded-md"
+                          style={({ isActive }) =>
+                            isActive
+                              ? {
+                                  color: 'var(--bo-text)',
+                                  borderLeft: '2px solid var(--bo-accent)',
+                                  padding: '7px 12px 7px 10px',
+                                  background: 'rgba(232,48,42,0.08)',
+                                }
+                              : {
+                                  color: 'var(--bo-muted)',
+                                  borderLeft: '2px solid transparent',
+                                  padding: '7px 12px 7px 10px',
+                                }
+                          }
+                        >
+                          {icon && <span style={{ marginRight: 6 }}>{icon}</span>}
+                          {navLabel(label)}
+                          {label === 'Orders' && newOrderCount > 0 && (
+                            <span
+                              className="ml-auto font-bold px-1.5 py-0.5 rounded-full"
+                              style={{
+                                background: 'var(--bo-accent)',
+                                color: '#fff',
+                                fontSize: '10px',
+                              }}
+                            >
+                              {newOrderCount}
+                            </span>
+                          )}
+                        </NavLink>
+                      ))}
                   </div>
                 )}
               </div>

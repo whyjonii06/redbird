@@ -1540,6 +1540,70 @@ export const adminRouter = router({
       }),
   }),
 
+  // ---- Marketplace — third-party sellers ----
+  sellers: router({
+    list: adminProcedure
+      .input(z.object({ status: z.enum(['pending', 'active', 'suspended']).optional() }).optional())
+      .query(async ({ ctx, input }) => ctx.redbird.sellers.list(input)),
+
+    get: adminProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ ctx, input }) => {
+      const seller = await ctx.redbird.sellers.get(input.id)
+      if (!seller) throw new TRPCError({ code: 'NOT_FOUND', message: 'Seller not found' })
+      return seller
+    }),
+
+    approve: adminProcedure
+      .input(z.object({ id: z.string().uuid() }))
+      .mutation(async ({ ctx, input }) => {
+        const seller = await ctx.redbird.sellers.setStatus(input.id, 'active')
+        await writeAudit(ctx, 'seller.approve', 'seller', input.id)
+        return seller
+      }),
+
+    suspend: adminProcedure
+      .input(z.object({ id: z.string().uuid() }))
+      .mutation(async ({ ctx, input }) => {
+        const seller = await ctx.redbird.sellers.setStatus(input.id, 'suspended')
+        await writeAudit(ctx, 'seller.suspend', 'seller', input.id)
+        return seller
+      }),
+
+    setCommissionRate: adminProcedure
+      .input(
+        z.object({
+          id: z.string().uuid(),
+          commissionRateBp: z.number().int().min(0).max(10000).nullable(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        const seller = await ctx.redbird.sellers.setCommissionRate(input.id, input.commissionRateBp)
+        await writeAudit(ctx, 'seller.set_commission_rate', 'seller', input.id, {
+          commissionRateBp: input.commissionRateBp,
+        })
+        return seller
+      }),
+
+    listEarnings: adminProcedure
+      .input(z.object({ id: z.string().uuid() }))
+      .query(async ({ ctx, input }) => ctx.redbird.sellers.listEarnings(input.id)),
+
+    createPayout: adminProcedure
+      .input(z.object({ id: z.string().uuid(), note: z.string().optional() }))
+      .mutation(async ({ ctx, input }) => {
+        try {
+          const payout = await ctx.redbird.sellers.createPayout(input.id, input.note)
+          await writeAudit(ctx, 'seller.payout', 'seller', input.id, {
+            amount: payout.amount,
+            currency: payout.currency,
+          })
+          return payout
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : 'Could not create payout'
+          throw new TRPCError({ code: 'BAD_REQUEST', message: msg })
+        }
+      }),
+  }),
+
   // ---- Stock management ----
   stock: router({
     get: warehouseProcedure

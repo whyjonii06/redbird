@@ -99,6 +99,30 @@ const isWarehouse = t.middleware(({ ctx, next }) => {
 
 export const warehouseProcedure = t.procedure.use(withFreshStaff).use(isWarehouse)
 
+/**
+ * Re-checks a seller JWT against the live seller record on every request —
+ * same reasoning as withFreshStaff: a stateless JWT alone would let a
+ * suspended seller keep acting on an already-issued token for up to 30 days.
+ */
+const withFreshSeller = t.middleware(async ({ ctx, next }) => {
+  if (!ctx.sellerId) return next()
+  const seller = await ctx.redbird.sellers.get(ctx.sellerId)
+  if (!seller || seller.status === 'suspended') {
+    return next({ ctx: { ...ctx, sellerId: null } })
+  }
+  return next()
+})
+
+/** A logged-in marketplace seller — not staff, not a customer. */
+const isSeller = t.middleware(({ ctx, next }) => {
+  if (!ctx.sellerId) {
+    throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Seller authentication required' })
+  }
+  return next({ ctx: { ...ctx, sellerId: ctx.sellerId } })
+})
+
+export const sellerProcedure = t.procedure.use(withFreshSeller).use(isSeller)
+
 // Rate-limited public procedures — apply to auth, registration, and checkout routes
 export const authLimitedProcedure = t.procedure.use(rateLimit((rl) => rl.auth))
 export const registerLimitedProcedure = t.procedure.use(rateLimit((rl) => rl.register))

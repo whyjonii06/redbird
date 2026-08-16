@@ -86,3 +86,18 @@ export function verifyStaffToken(
   const tokenVersion = typeof data.tv === 'number' ? data.tv : 0
   return { staffId: data.sub, role: data.role as StaffRole, tokenVersion }
 }
+
+// ── Marketplace seller tokens ─────────────────────────────────────────────────
+
+export function signSellerToken(sellerId: string, secret: string): string {
+  return sign(
+    { sub: sellerId, type: 'seller', exp: Math.floor(Date.now() / 1000) + EXPIRES_IN },
+    secret,
+  )
+}
+
+export function verifySellerToken(token: string, secret: string): string | null {
+  const data = verify<{ sub?: string; type?: string }>(token, secret)
+  if (!data || data.type !== 'seller' || typeof data.sub !== 'string') return null
+  return data.sub
+}

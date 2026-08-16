@@ -70,6 +70,11 @@ export type {
   RingSaleItemInput,
 } from './pos/service.js'
 export type {
+  SellerService,
+  RegisterSellerInput,
+  SellerOrderSummary,
+} from './sellers/service.js'
+export type {
   WarehouseService,
   CreateWarehouseInput,
   UpdateWarehouseInput,
@@ -175,6 +180,10 @@ export type {
   QuoteRequestItem,
   // Point of sale
   RegisterSession,
+  // Marketplace
+  Seller,
+  SellerEarning,
+  SellerPayout,
   // Audit log
   AuditLog,
   // Warehouses

@@ -28,6 +28,9 @@ import { QuotesPage } from './pages/QuotesPage.js'
 import { RedirectsPage } from './pages/RedirectsPage.js'
 import { ReportsPage } from './pages/ReportsPage.js'
 import { ReturnsPage } from './pages/ReturnsPage.js'
+import { SellerDashboardPage } from './pages/SellerDashboardPage.js'
+import { SellerLoginPage } from './pages/SellerLoginPage.js'
+import { SellersPage } from './pages/SellersPage.js'
 import { SettingsPage } from './pages/SettingsPage.js'
 import { SetupPage } from './pages/SetupPage.js'
 import { StaffPage } from './pages/StaffPage.js'
@@ -37,7 +40,20 @@ import { WarehousesPage } from './pages/WarehousesPage.js'
 import { makeTRPCClient, trpc } from './trpc.js'
 
 export default function App() {
-  const [queryClient] = useState(() => new QueryClient())
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            retry: (failureCount, error) => {
+              const httpStatus = (error as { data?: { httpStatus?: number } })?.data?.httpStatus
+              if (httpStatus !== undefined && httpStatus >= 400 && httpStatus < 500) return false
+              return failureCount < 3
+            },
+          },
+        },
+      }),
+  )
   const [trpcClient] = useState(() => makeTRPCClient())
 
   return (
@@ -49,6 +65,8 @@ export default function App() {
               <Routes>
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/setup" element={<SetupPage />} />
+                <Route path="/seller/login" element={<SellerLoginPage />} />
+                <Route path="/seller" element={<SellerDashboardPage />} />
                 <Route element={<AdminLayout />}>
                   <Route index element={<DashboardPage />} />
                   <Route path="orders" element={<OrdersPage />} />
@@ -65,6 +83,7 @@ export default function App() {
                   <Route path="returns" element={<ReturnsPage />} />
                   <Route path="quotes" element={<QuotesPage />} />
                   <Route path="pos" element={<PosPage />} />
+                  <Route path="sellers" element={<SellersPage />} />
                   <Route path="reports" element={<ReportsPage />} />
                   <Route path="staff" element={<StaffPage />} />
                   <Route path="audit-log" element={<AuditLogPage />} />

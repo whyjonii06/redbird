@@ -18,6 +18,8 @@ export type Context = {
   /** Version claim embedded in the staff JWT at sign time — compared against
    * the staff record's current tokenVersion to detect a revoked session. */
   readonly staffTokenVersion: number | null
+  /** Marketplace seller — distinct actor type from staff/customer, only ever set from x-seller-token. */
+  readonly sellerId: string | null
   /** Best-effort client IP (from X-Forwarded-For or socket). */
   readonly ip: string
   readonly rateLimiters: RateLimiters

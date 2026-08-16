@@ -103,6 +103,8 @@ export const products = pgTable(
     isVirtual: boolean().notNull().default(false),
     /** VAT rate in basis points (2000 = 20%, 550 = 5.5%). Null = store default. */
     taxRateBp: integer(),
+    /** Marketplace vendor who owns this listing — null means it's the store's own product. */
+    sellerId: uuid().references((): AnyPgColumn => sellers.id, { onDelete: 'set null' }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
@@ -110,6 +112,7 @@ export const products = pgTable(
     uniqueIndex('products_slug_idx').on(t.slug),
     index('products_status_idx').on(t.status),
     index('products_brand_id_idx').on(t.brandId),
+    index('products_seller_id_idx').on(t.sellerId),
   ],
 )
 
@@ -506,9 +509,14 @@ export const orderLineItems = pgTable(
     totalAmount: integer().notNull(),
     /** VAT rate captured at order time, in basis points (2000 = 20%). */
     taxRateBp: integer(),
+    /** Snapshot of the product's seller at sale time — null for the store's own products. */
+    sellerId: uuid().references((): AnyPgColumn => sellers.id, { onDelete: 'set null' }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index('order_line_items_order_id_idx').on(t.orderId)],
+  (t) => [
+    index('order_line_items_order_id_idx').on(t.orderId),
+    index('order_line_items_seller_id_idx').on(t.sellerId),
+  ],
 )
 
 // ---------- Customer groups ----------
@@ -684,6 +692,7 @@ export const groupPriceRulesRelations = relations(groupPriceRules, ({ one }) => 
 
 export const productsRelations = relations(products, ({ one, many }) => ({
   brand: one(brands, { fields: [products.brandId], references: [brands.id] }),
+  seller: one(sellers, { fields: [products.sellerId], references: [sellers.id] }),
   variants: many(productVariants),
   productCategories: many(productCategories),
   images: many(productImages),
@@ -758,6 +767,7 @@ export const ordersRelations = relations(orders, ({ one, many }) => ({
 
 export const orderLineItemsRelations = relations(orderLineItems, ({ one }) => ({
   order: one(orders, { fields: [orderLineItems.orderId], references: [orders.id] }),
+  seller: one(sellers, { fields: [orderLineItems.sellerId], references: [sellers.id] }),
 }))
 
 // ---------- Types ----------
@@ -1150,6 +1160,93 @@ export const productSuppliersRelations = relations(productSuppliers, ({ one }) =
 export type Supplier = typeof suppliers.$inferSelect
 export type NewSupplier = typeof suppliers.$inferInsert
 export type ProductSupplier = typeof productSuppliers.$inferSelect
+
+// ---------- Marketplace — third-party sellers ----------
+//
+// Distinct from `suppliers` above: a supplier is who the store buys stock
+// FROM (procurement bookkeeping, no auth, no storefront presence). A seller
+// is a third party who lists and sells their OWN products ON this store —
+// they have login credentials, own products (products.sellerId), and earn
+// a commission-split payout per order rather than being paid a cost price.
+
+export const sellerStatus = pgEnum('seller_status', ['pending', 'active', 'suspended'])
+export const earningStatus = pgEnum('earning_status', ['pending', 'available', 'paid_out'])
+
+export const sellers = pgTable(
+  'sellers',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    email: text().notNull(),
+    passwordHash: text().notNull(),
+    storeName: text().notNull(),
+    contactEmail: text(),
+    status: sellerStatus().notNull().default('pending'),
+    /** Basis points (2000 = 20%) taken by the platform. Null = use the marketplace default. */
+    commissionRateBp: integer(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('sellers_email_idx').on(t.email)],
+)
+
+export const sellerPayouts = pgTable('seller_payouts', {
+  id: uuid().primaryKey().defaultRandom(),
+  sellerId: uuid()
+    .notNull()
+    .references(() => sellers.id, { onDelete: 'restrict' }),
+  amount: integer().notNull(),
+  currency: text().notNull(),
+  note: text(),
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+})
+
+export const sellerEarnings = pgTable(
+  'seller_earnings',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    sellerId: uuid()
+      .notNull()
+      .references(() => sellers.id, { onDelete: 'restrict' }),
+    orderId: uuid()
+      .notNull()
+      .references(() => orders.id, { onDelete: 'restrict' }),
+    /** Sum of this seller's line items in this order, before commission. */
+    grossAmount: integer().notNull(),
+    commissionAmount: integer().notNull(),
+    netAmount: integer().notNull(),
+    currency: text().notNull(),
+    status: earningStatus().notNull().default('available'),
+    payoutId: uuid().references(() => sellerPayouts.id, { onDelete: 'set null' }),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('seller_earnings_seller_order_idx').on(t.sellerId, t.orderId),
+    index('seller_earnings_seller_id_idx').on(t.sellerId),
+    index('seller_earnings_status_idx').on(t.status),
+  ],
+)
+
+export type Seller = typeof sellers.$inferSelect
+export type NewSeller = typeof sellers.$inferInsert
+export type SellerEarning = typeof sellerEarnings.$inferSelect
+export type SellerPayout = typeof sellerPayouts.$inferSelect
+
+export const sellersRelations = relations(sellers, ({ many }) => ({
+  products: many(products),
+  earnings: many(sellerEarnings),
+  payouts: many(sellerPayouts),
+}))
+
+export const sellerEarningsRelations = relations(sellerEarnings, ({ one }) => ({
+  seller: one(sellers, { fields: [sellerEarnings.sellerId], references: [sellers.id] }),
+  order: one(orders, { fields: [sellerEarnings.orderId], references: [orders.id] }),
+  payout: one(sellerPayouts, { fields: [sellerEarnings.payoutId], references: [sellerPayouts.id] }),
+}))
+
+export const sellerPayoutsRelations = relations(sellerPayouts, ({ one, many }) => ({
+  seller: one(sellers, { fields: [sellerPayouts.sellerId], references: [sellers.id] }),
+  earnings: many(sellerEarnings),
+}))
 
 // ---------- Virtual products & downloads ----------
 

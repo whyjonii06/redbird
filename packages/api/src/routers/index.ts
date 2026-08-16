@@ -16,6 +16,7 @@ import { quotesRouter } from './quotes.js'
 import { redirectsRouter } from './redirects.js'
 import { returnsRouter } from './returns.js'
 import { reviewsRouter } from './reviews.js'
+import { sellersRouter } from './sellers.js'
 import { staffRouter } from './staff.js'
 import { subscriptionsRouter } from './subscriptions.js'
 
@@ -38,6 +39,7 @@ export const appRouter = router({
   loyalty: loyaltyRouter,
   paymentMethods: paymentMethodsRouter,
   quotes: quotesRouter,
+  sellers: sellersRouter,
   redirects: redirectsRouter,
   navigation: navigationRouter,
   admin: adminRouter,

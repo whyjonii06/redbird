@@ -295,6 +295,13 @@
       "when": 1782001600000,
       "tag": "0041_register_sessions",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1782001700000,
+      "tag": "0042_marketplace_sellers",
+      "breakpoints": true
     }
   ]
 }

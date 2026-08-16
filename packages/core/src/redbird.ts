@@ -42,6 +42,7 @@ import { type QuoteService, createQuoteService } from './quotes/service.js'
 import { type RedirectService, createRedirectService } from './redirects/service.js'
 import { type ReturnService, createReturnService } from './returns/service.js'
 import { type SearchService, createSearchService } from './search/service.js'
+import { type SellerService, createSellerService } from './sellers/service.js'
 import { ShippingRegistry } from './shipping/registry.js'
 import type { ShippingProvider } from './shipping/types.js'
 import { type StaffService, createStaffService } from './staff/service.js'
@@ -66,6 +67,7 @@ export type Redbird = {
   readonly paymentMethods: PaymentMethodService
   readonly quotes: QuoteService
   readonly pos: PosService
+  readonly sellers: SellerService
   readonly plugins: PluginRegistry
   readonly payments: PaymentRegistry
   readonly email: EmailRegistry
@@ -103,6 +105,7 @@ export type Redbird = {
   /** Mutable at runtime — admin.config.update can change these without a server restart. */
   readonly stockAlertConfig: { email: string | undefined; threshold: number }
   readonly loyaltyConfig: { enabled: boolean; earnRate: number; redeemRate: number }
+  readonly marketplaceConfig: { defaultCommissionRateBp: number }
   readonly license: LicenseInfo | null
   /** Hot-register a plugin at runtime (no restart needed). Dispatches to all relevant registries. */
   installPlugin(plugin: unknown): void
@@ -241,6 +244,7 @@ export function createRedbird(config: RedbirdConfig): Redbird {
   const addressSvc = createAddressService(db)
   const brandSvc = createBrandService(db)
   const supplierSvc = createSupplierService(db)
+  const sellerSvc = createSellerService(db)
   const downloadSvc = createDownloadService(db)
   const loyaltySvc = createLoyaltyService(db)
   const giftCardSvc = createGiftCardService(db)
@@ -321,7 +325,12 @@ export function createRedbird(config: RedbirdConfig): Redbird {
     redeemRate: loyaltyConfigInput.redeemRate ?? 1,
   }
 
-  // Internal hook: auto-generate download tokens + earn loyalty points when an order is paid
+  // Mutable — admin.config.update can change this without a server restart.
+  // Per-seller commissionRateBp overrides this when set.
+  const marketplaceConfig = { defaultCommissionRateBp: 1500 }
+
+  // Internal hook: auto-generate download tokens + earn loyalty points + record
+  // marketplace seller earnings when an order is paid
   plugins.register({
     name: '__redbird.downloads',
     hooks: {
@@ -335,6 +344,7 @@ export function createRedbird(config: RedbirdConfig): Redbird {
             loyaltyConfig.earnRate,
           )
         }
+        await sellerSvc.recordEarningsForOrder(order.id, marketplaceConfig.defaultCommissionRateBp)
       },
     },
   })
@@ -351,6 +361,7 @@ export function createRedbird(config: RedbirdConfig): Redbird {
     paymentMethods: paymentMethodSvc,
     quotes: quoteSvc,
     pos: posSvc,
+    sellers: sellerSvc,
     plugins,
     payments,
     email,
@@ -389,6 +400,7 @@ export function createRedbird(config: RedbirdConfig): Redbird {
     },
     stockAlertConfig,
     loyaltyConfig,
+    marketplaceConfig,
     get license() {
       return licenseInfo
     },

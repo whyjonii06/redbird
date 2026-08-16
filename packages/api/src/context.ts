@@ -1,7 +1,7 @@
 import type { IncomingMessage } from 'node:http'
 import type { Redbird, StaffRole } from '@redbirdshop/core'
 import { type Context, type RateLimiters, noopRateLimiters } from '@redbirdshop/trpc'
-import { verifyStaffToken, verifyToken } from './auth.js'
+import { verifySellerToken, verifyStaffToken, verifyToken } from './auth.js'
 
 export type { Context }
 
@@ -45,6 +45,11 @@ export function createContext(
   const staffRole: StaffRole | null = staffClaims?.role ?? null
   const staffTokenVersion = staffClaims?.tokenVersion ?? null
 
+  // Seller auth via x-seller-token header
+  const sellerTokenHeader = req.headers['x-seller-token']
+  const sellerTokenStr = typeof sellerTokenHeader === 'string' ? sellerTokenHeader : undefined
+  const sellerId = sellerTokenStr ? verifySellerToken(sellerTokenStr, jwtSecret) : null
+
   const isAdmin = Boolean(adminKey && req.headers['x-admin-key'] === adminKey)
   const ip = extractIp(req, trustProxy)
 
@@ -56,6 +61,7 @@ export function createContext(
     staffId,
     staffRole,
     staffTokenVersion,
+    sellerId,
     ip,
     rateLimiters: rateLimiters ?? noopRateLimiters,
   }

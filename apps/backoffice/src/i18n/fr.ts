@@ -40,6 +40,7 @@ export const fr: Record<string, string> = {
   'nav.Orders': 'Commandes',
   'nav.Returns': 'Retours',
   'nav.Quotes': 'Devis',
+  'nav.Sellers': 'Vendeurs',
   'nav.Customers': 'Clients',
   'nav.Groups': 'Groupes',
   'nav.Promos': 'Promotions',

@@ -1,7 +1,7 @@
 import type { AppRouter } from '@redbirdshop/api'
 import { httpBatchLink } from '@trpc/client'
 import { createTRPCReact } from '@trpc/react-query'
-import { getAdminKey, getStaffToken } from './auth.js'
+import { getAdminKey, getSellerToken, getStaffToken } from './auth.js'
 
 export const trpc = createTRPCReact<AppRouter>()
 
@@ -16,6 +16,8 @@ export function makeTRPCClient() {
           if (adminKey) headers['x-admin-key'] = adminKey
           const staffToken = getStaffToken()
           if (staffToken) headers['x-staff-token'] = staffToken
+          const sellerToken = getSellerToken()
+          if (sellerToken) headers['x-seller-token'] = sellerToken
           return headers
         },
       }),
