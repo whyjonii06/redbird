@@ -521,6 +521,14 @@ export function createApiServer(opts: ServerOptions) {
         if (existsSync(metaPath))
           fileMeta = JSON.parse(readFileSync(metaPath, 'utf8')) as Record<string, unknown>
       } catch {}
+      // redbird.meta.json also holds server-only fields (installedPlugins[].config,
+      // pluginConfig — both carry API secret keys). This is a PUBLIC, unauthenticated
+      // endpoint, so only ever forward the handful of fields the storefront is
+      // actually meant to read — never spread the whole file into the response.
+      const publicFileMeta: Record<string, unknown> = {}
+      if (fileMeta.theme !== undefined) publicFileMeta.theme = fileMeta.theme
+      if (fileMeta.priceDisplay !== undefined) publicFileMeta.priceDisplay = fileMeta.priceDisplay
+      if (fileMeta.branding !== undefined) publicFileMeta.branding = fileMeta.branding
       const anonId = new URL(url, 'http://internal').searchParams.get('anon') ?? 'anonymous'
       opts.redbird.featureFlags
         .evaluateAll(anonId)
@@ -533,7 +541,7 @@ export function createApiServer(opts: ServerOptions) {
               stripePublicKey: process.env.STRIPE_PUBLIC_KEY ?? null,
               theme: 'classic',
               branding: { primaryColor: '#4f46e5' },
-              ...fileMeta,
+              ...publicFileMeta,
               featureFlags,
             }),
           )
@@ -547,7 +555,7 @@ export function createApiServer(opts: ServerOptions) {
               stripePublicKey: process.env.STRIPE_PUBLIC_KEY ?? null,
               theme: 'classic',
               branding: { primaryColor: '#4f46e5' },
-              ...fileMeta,
+              ...publicFileMeta,
               featureFlags: {},
             }),
           )
