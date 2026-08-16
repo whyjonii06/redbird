@@ -87,7 +87,7 @@ describe('Redbird engine (integration)', () => {
     void product
   })
 
-  it('rejects adding a variant with mismatched currency', async () => {
+  it('rejects adding a variant with mismatched currency and no configured exchange rate', async () => {
     await redbird.catalog.createProduct({ slug: 'mug', name: 'Mug', status: 'active' }, [
       { sku: 'MUG-USD', name: 'Default', priceAmount: 1000, priceCurrency: 'USD' },
     ])
@@ -97,8 +97,11 @@ describe('Redbird engine (integration)', () => {
 
     const cart = await redbird.cart.create({ currency: 'EUR' })
 
+    // resolveUnitPrice converts a mismatched-currency variant into the cart's
+    // currency rather than rejecting it outright — this only still fails
+    // because the test fixture has no USD exchange rate configured.
     await expect(redbird.cart.addItem(cart.id, variant.id, 1)).rejects.toThrow(
-      /currency.*does not match/,
+      /no exchange rate configured/i,
     )
   })
 
