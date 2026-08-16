@@ -10,6 +10,7 @@ import { z } from 'zod'
 import { addressSchema } from '../address-schema.js'
 import { writeAudit } from '../audit.js'
 import { recordsToCsv } from '../csv.js'
+import type { Context } from '../trpc.js'
 import {
   adminProcedure,
   ownerProcedure,
@@ -31,6 +32,101 @@ const META_PATH = resolve(
   '../../../..',
   'redbird.meta.json',
 )
+
+// Map package name → named export of the factory function. Shared by
+// admin.plugins.install and .saveConfig so reconfiguring an already-live
+// plugin goes through the exact same construction path as installing it.
+const PLUGIN_FACTORY_MAP: Record<string, string> = {
+  '@redbird/plugin-email-local': 'local',
+  '@redbird/plugin-stripe': 'stripe',
+  '@redbird/plugin-paypal': 'paypal',
+  '@redbird/plugin-email-resend': 'resend',
+  '@redbird/plugin-email-smtp': 'smtp',
+  '@redbird/plugin-shipping-flat': 'shippingFlat',
+  '@redbird/plugin-shipping-zones': 'shippingZones',
+  '@redbird/plugin-shipping-mondial-relay': 'shippingMondialRelay',
+  '@redbird/plugin-tax-rules': 'taxRules',
+  '@redbird/plugin-vat-eu': 'vatEu',
+  '@redbird/plugin-reviews': 'reviews',
+  '@redbird/plugin-analytics': 'analytics',
+}
+
+const EMAIL_PLUGIN_NAMES = new Set([
+  '@redbird/plugin-email-resend',
+  '@redbird/plugin-email-smtp',
+  '@redbird/plugin-email-local',
+])
+
+/**
+ * Dynamically imports and constructs a plugin instance from its package name
+ * and config — the one place that knows how to turn (name, config) into a
+ * live plugin object, used by both a fresh install and a live reconfigure.
+ */
+async function buildPluginInstance(
+  ctx: Context,
+  name: string,
+  inputConfig: Record<string, unknown>,
+): Promise<{ instance: unknown; config: Record<string, unknown> }> {
+  const factoryName = PLUGIN_FACTORY_MAP[name]
+  if (!factoryName) throw new TRPCError({ code: 'BAD_REQUEST', message: `Unknown plugin: ${name}` })
+
+  let mod: Record<string, unknown>
+  try {
+    mod = (await import(name)) as Record<string, unknown>
+  } catch {
+    throw new TRPCError({
+      code: 'INTERNAL_SERVER_ERROR',
+      message: `Package ${name} is not installed. Run: pnpm add ${name}`,
+    })
+  }
+
+  const factory = mod[factoryName]
+  if (typeof factory !== 'function') {
+    throw new TRPCError({
+      code: 'INTERNAL_SERVER_ERROR',
+      message: `${name} has no export "${factoryName}"`,
+    })
+  }
+
+  // Type-coerce port for smtp
+  let cfg = inputConfig
+  if (name === '@redbird/plugin-email-smtp' && typeof cfg.port === 'string') {
+    cfg = { ...cfg, port: Number(cfg.port) }
+  }
+
+  // Inject store branding into email plugins (storeName, primaryColor)
+  if (EMAIL_PLUGIN_NAMES.has(name)) {
+    let brandingMeta: Record<string, unknown> = {}
+    try {
+      brandingMeta = JSON.parse(readFileSync(META_PATH, 'utf8'))
+    } catch {}
+    const storeName = (brandingMeta.storeName as string | undefined) ?? ctx.redbird.config.storeName
+    const primaryColor = (brandingMeta.branding as Record<string, unknown> | undefined)
+      ?.primaryColor as string | undefined
+    if (storeName && !cfg.storeName) cfg = { ...cfg, storeName }
+    if (primaryColor && !cfg.primaryColor) cfg = { ...cfg, primaryColor }
+  }
+
+  return { instance: (factory as (c: unknown) => unknown)(cfg), config: cfg }
+}
+
+/** Persists a plugin's live config to redbird.meta.json so a future cold boot replays it. */
+function persistInstalledPlugin(name: string, config: Record<string, unknown>): void {
+  let meta: Record<string, unknown> = {}
+  try {
+    meta = JSON.parse(readFileSync(META_PATH, 'utf8'))
+  } catch {}
+  const installed = (meta.installedPlugins ?? []) as Array<{
+    name: string
+    config: Record<string, unknown>
+  }>
+  const idx = installed.findIndex((p) => p.name === name)
+  const entry = { name, config }
+  if (idx >= 0) installed[idx] = entry
+  else installed.push(entry)
+  meta.installedPlugins = installed
+  writeFileSync(META_PATH, JSON.stringify(meta, null, 2))
+}
 
 export type NavItem = {
   id: string
@@ -2486,108 +2582,30 @@ export const adminRouter = router({
         }),
       )
       .mutation(async ({ input, ctx }) => {
-        // Skip if already active in this session
-        if (ctx.redbird.plugins.list().some((p) => p.name === input.name)) {
-          return { ok: true }
-        }
+        const plugin = await buildPluginInstance(ctx, input.name, input.config ?? {})
+        // installPlugin swaps a prior registration of the same name live —
+        // re-running install (e.g. to pick up new config) is always safe.
+        ctx.redbird.installPlugin(plugin.instance)
+        persistInstalledPlugin(input.name, plugin.config)
+        return { ok: true }
+      }),
 
-        // Map package name → named export of the factory function
-        const FACTORY_MAP: Record<string, string> = {
-          '@redbird/plugin-email-local': 'local',
-          '@redbird/plugin-stripe': 'stripe',
-          '@redbird/plugin-paypal': 'paypal',
-          '@redbird/plugin-email-resend': 'resend',
-          '@redbird/plugin-email-smtp': 'smtp',
-          '@redbird/plugin-shipping-flat': 'shippingFlat',
-          '@redbird/plugin-shipping-zones': 'shippingZones',
-          '@redbird/plugin-shipping-mondial-relay': 'shippingMondialRelay',
-          '@redbird/plugin-tax-rules': 'taxRules',
-          '@redbird/plugin-vat-eu': 'vatEu',
-          '@redbird/plugin-reviews': 'reviews',
-          '@redbird/plugin-analytics': 'analytics',
-        }
-        const factoryName = FACTORY_MAP[input.name]
-        if (!factoryName)
-          throw new TRPCError({ code: 'BAD_REQUEST', message: `Unknown plugin: ${input.name}` })
+    uninstall: adminProcedure
+      .input(z.object({ name: z.string().min(1) }))
+      .mutation(({ input, ctx }) => {
+        // Hot removal from every live registry — no restart needed.
+        ctx.redbird.uninstallPlugin(input.name)
 
-        let mod: Record<string, unknown>
-        try {
-          mod = (await import(input.name)) as Record<string, unknown>
-        } catch {
-          throw new TRPCError({
-            code: 'INTERNAL_SERVER_ERROR',
-            message: `Package ${input.name} is not installed. Run: pnpm add ${input.name}`,
-          })
-        }
-
-        const factory = mod[factoryName]
-        if (typeof factory !== 'function') {
-          throw new TRPCError({
-            code: 'INTERNAL_SERVER_ERROR',
-            message: `${input.name} has no export "${factoryName}"`,
-          })
-        }
-
-        // Type-coerce port for smtp
-        let cfg = (input.config ?? {}) as Record<string, unknown>
-        if (input.name === '@redbird/plugin-email-smtp' && typeof cfg.port === 'string') {
-          cfg = { ...cfg, port: Number(cfg.port) }
-        }
-
-        // Inject store branding into email plugins (storeName, primaryColor)
-        const EMAIL_PLUGINS = new Set([
-          '@redbird/plugin-email-resend',
-          '@redbird/plugin-email-smtp',
-          '@redbird/plugin-email-local',
-        ])
-        if (EMAIL_PLUGINS.has(input.name)) {
-          const metaForBranding = META_PATH
-          let brandingMeta: Record<string, unknown> = {}
-          try {
-            brandingMeta = JSON.parse(readFileSync(metaForBranding, 'utf8'))
-          } catch {}
-          const storeName =
-            (brandingMeta.storeName as string | undefined) ?? ctx.redbird.config.storeName
-          const primaryColor = (brandingMeta.branding as Record<string, unknown> | undefined)
-            ?.primaryColor as string | undefined
-          if (storeName && !cfg.storeName) cfg = { ...cfg, storeName }
-          if (primaryColor && !cfg.primaryColor) cfg = { ...cfg, primaryColor }
-        }
-
-        const plugin = (factory as (c: unknown) => unknown)(cfg)
-        ctx.redbird.installPlugin(plugin)
-
-        // Persist to meta.json
         const metaPath = META_PATH
         let meta: Record<string, unknown> = {}
         try {
           meta = JSON.parse(readFileSync(metaPath, 'utf8'))
         } catch {}
-        const installed = (meta.installedPlugins ?? []) as Array<{
-          name: string
-          config: Record<string, unknown>
-        }>
-        const idx = installed.findIndex((p) => p.name === input.name)
-        const entry = { name: input.name, config: cfg }
-        if (idx >= 0) installed[idx] = entry
-        else installed.push(entry)
-        meta.installedPlugins = installed
+        const installed = (meta.installedPlugins ?? []) as Array<{ name: string }>
+        meta.installedPlugins = installed.filter((p) => p.name !== input.name)
         writeFileSync(metaPath, JSON.stringify(meta, null, 2))
-
         return { ok: true }
       }),
-
-    uninstall: adminProcedure.input(z.object({ name: z.string().min(1) })).mutation(({ input }) => {
-      const metaPath = META_PATH
-      let meta: Record<string, unknown> = {}
-      try {
-        meta = JSON.parse(readFileSync(metaPath, 'utf8'))
-      } catch {}
-      const installed = (meta.installedPlugins ?? []) as Array<{ name: string }>
-      meta.installedPlugins = installed.filter((p) => p.name !== input.name)
-      writeFileSync(metaPath, JSON.stringify(meta, null, 2))
-      return { ok: true, restartRequired: true }
-    }),
 
     getConfig: adminProcedure.query(() => {
       const metaPath = META_PATH
@@ -2605,16 +2623,26 @@ export const adminRouter = router({
           config: z.record(z.string()),
         }),
       )
-      .mutation(({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         const metaPath = META_PATH
         let meta: Record<string, unknown> = {}
         try {
           meta = JSON.parse(readFileSync(metaPath, 'utf8'))
         } catch {}
         const pluginConfig = (meta.pluginConfig ?? {}) as Record<string, Record<string, string>>
-        pluginConfig[input.pluginName] = { ...pluginConfig[input.pluginName], ...input.config }
+        const mergedConfig = { ...pluginConfig[input.pluginName], ...input.config }
+        pluginConfig[input.pluginName] = mergedConfig
         meta.pluginConfig = pluginConfig
         writeFileSync(metaPath, JSON.stringify(meta, null, 2))
+
+        // If this plugin is currently live, rebuild and re-register it with the
+        // new config immediately — no restart needed to pick up e.g. a new key.
+        if (ctx.redbird.plugins.has(input.pluginName)) {
+          const plugin = await buildPluginInstance(ctx, input.pluginName, mergedConfig)
+          ctx.redbird.installPlugin(plugin.instance)
+          persistInstalledPlugin(input.pluginName, plugin.config)
+        }
+
         return { ok: true }
       }),
   }),

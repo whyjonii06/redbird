@@ -8,6 +8,11 @@ export class ShippingRegistry {
     return this
   }
 
+  /** Returns false if the provider wasn't registered. */
+  remove(name: string): boolean {
+    return this.providers.delete(name)
+  }
+
   default(): ShippingProvider | null {
     return this.providers.size >= 1 ? ([...this.providers.values()][0] ?? null) : null
   }

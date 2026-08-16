@@ -9,6 +9,13 @@ export class PaymentRegistry {
     return this
   }
 
+  /** Returns false if the provider wasn't registered. Clears the default if it was that provider. */
+  remove(name: string): boolean {
+    const removed = this.providers.delete(name)
+    if (removed && this._defaultName === name) this._defaultName = null
+    return removed
+  }
+
   setDefault(name: string): this {
     if (!this.providers.has(name)) {
       throw new Error(

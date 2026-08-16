@@ -35,6 +35,23 @@ export class PluginRegistry {
     }
   }
 
+  /** Reverses register() — drops the plugin and its hook handlers. Returns false if not found. */
+  remove(name: string): boolean {
+    const idx = this.plugins.findIndex((p) => p.name === name)
+    if (idx === -1) return false
+    const [plugin] = this.plugins.splice(idx, 1)
+    if (plugin?.hooks) {
+      for (const [hookName, handler] of Object.entries(plugin.hooks)) {
+        if (!handler) continue
+        const list = this.handlers.get(hookName as HookName)
+        if (!list) continue
+        const hIdx = list.indexOf(handler as HookHandler<HookName>)
+        if (hIdx !== -1) list.splice(hIdx, 1)
+      }
+    }
+    return true
+  }
+
   async setupAll(db: DbClient): Promise<void> {
     for (const plugin of this.plugins) {
       if (plugin.setup) {

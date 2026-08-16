@@ -112,7 +112,7 @@ export function ModulesPage() {
         Modules
       </h1>
       <p className="text-sm mb-8" style={{ color: 'var(--bo-muted)' }}>
-        Plugins registered at server startup.{' '}
+        Plugins installed from the Marketplace or registered in your server config.{' '}
         {active.length === 0 && !isLoading && (
           <span style={{ color: 'var(--bo-accent)' }}>
             No plugins active — check your server config.
@@ -357,14 +357,15 @@ export function ModulesPage() {
           color: 'var(--bo-muted)',
         }}
       >
-        &#x26A0; API keys saved here are stored in{' '}
+        API keys saved here take effect immediately for an already-active plugin — no restart
+        needed. They're also stored in{' '}
         <code
           className="text-xs px-1 py-0.5 rounded font-mono"
           style={{ background: 'var(--bo-bg3)' }}
         >
           redbird.meta.json
-        </code>
-        . Restart your server for changes to take effect.
+        </code>{' '}
+        so the plugin comes back up configured after a cold restart.
       </div>
     </div>
   )

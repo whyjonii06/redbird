@@ -109,8 +109,15 @@ export type Redbird = {
   readonly loyaltyConfig: { enabled: boolean; earnRate: number; redeemRate: number }
   readonly marketplaceConfig: { defaultCommissionRateBp: number }
   readonly license: LicenseInfo | null
-  /** Hot-register a plugin at runtime (no restart needed). Dispatches to all relevant registries. */
+  /**
+   * Hot-register a plugin at runtime (no restart needed). Dispatches to all
+   * relevant registries. Safe to call again for an already-installed plugin
+   * name (e.g. after editing its config) — the previous registration is
+   * removed first, so the new instance fully replaces it live.
+   */
   installPlugin(plugin: unknown): void
+  /** Hot-remove a previously installed plugin from every registry it's in. Returns false if it wasn't installed. */
+  uninstallPlugin(name: string): boolean
   /** Verify a new license key and update the in-memory license info immediately. */
   reloadLicense(key: string): Promise<LicenseInfo | null>
   /** Run plugin setup hooks and (for PGlite) apply migrations. Call once after createRedbird. */
@@ -144,6 +151,20 @@ export function createRedbird(config: RedbirdConfig): Redbird {
         taxes.register(plugin as unknown as TaxProvider)
       }
     }
+  }
+
+  /** Shared by installPlugin (to clear a prior registration before replacing it) and uninstallPlugin. */
+  function removePlugin(name: string): boolean {
+    const plugin = plugins.list().find((p) => p.name === name)
+    if (!plugin) return false
+    const p = plugin as Record<string, unknown>
+    if (typeof p.send === 'function') email.remove(name)
+    if (typeof p.createPaymentIntent === 'function') payments.remove(name)
+    if (typeof p.calculate === 'function') {
+      shippingReg.remove(name)
+      taxes.remove(name)
+    }
+    return plugins.remove(name)
   }
 
   let licenseInfo: LicenseInfo | null = null
@@ -418,6 +439,11 @@ export function createRedbird(config: RedbirdConfig): Redbird {
     },
     installPlugin(plugin: unknown) {
       const p = plugin as Record<string, unknown>
+      const name = p.name as string | undefined
+      // Replacing an already-installed plugin (e.g. reconfigured with a new API
+      // key) — drop the old registration first so this is a clean swap, not a
+      // duplicate-name throw from PluginRegistry.register.
+      if (name && plugins.has(name)) removePlugin(name)
       plugins.register(plugin as PluginDefinition)
       if (typeof p.send === 'function') {
         email.register(plugin as unknown as EmailProvider)
@@ -439,6 +465,9 @@ export function createRedbird(config: RedbirdConfig): Redbird {
         if (name.includes('shipping')) shippingReg.register(plugin as unknown as ShippingProvider)
         else taxes.register(plugin as unknown as TaxProvider)
       }
+    },
+    uninstallPlugin(name: string) {
+      return removePlugin(name)
     },
     async init() {
       if (isPgliteUrl(config.databaseUrl)) {
