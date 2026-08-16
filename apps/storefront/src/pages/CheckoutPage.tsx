@@ -98,6 +98,8 @@ type OrderInfo = {
   clientSecret: string | null
   totalAmount: number
   currency: string
+  poNumber: string | null
+  dueDate: string | Date | null
 }
 
 function InfoStep({ onDone }: { onDone: (info: OrderInfo) => void }) {
@@ -110,6 +112,12 @@ function InfoStep({ onDone }: { onDone: (info: OrderInfo) => void }) {
   const { data: savedAddresses = [] } = trpc.addresses.list.useQuery(undefined, {
     enabled: !!customer,
   })
+
+  const { data: paymentTerms } = trpc.customerGroups.myPaymentTerms.useQuery(undefined, {
+    enabled: !!customer,
+  })
+  const [payByPo, setPayByPo] = useState(false)
+  const [poNumber, setPoNumber] = useState('')
 
   const createOrder = trpc.checkout.createOrder.useMutation()
   const initiatePayment = trpc.checkout.initiatePayment.useMutation()
@@ -207,14 +215,19 @@ function InfoStep({ onDone }: { onDone: (info: OrderInfo) => void }) {
         ...(appliedPromo && promoValidation?.valid ? { promoCode: appliedPromo } : {}),
         ...(loyaltyPointsToRedeem > 0 ? { loyaltyPointsToRedeem } : {}),
         ...(appliedGiftCard && giftCardValidation?.valid ? { giftCardCode: appliedGiftCard } : {}),
+        ...(payByPo && poNumber ? { poNumber: poNumber.trim() } : {}),
       })
 
+      // Purchase-order orders are never charged to a card — the invoice is due on
+      // the terms date and payment arrives out of band (bank transfer).
       let clientSecret: string | null = null
-      try {
-        const intent = await initiatePayment.mutateAsync({ orderId: order.id })
-        clientSecret = intent.clientSecret
-      } catch {
-        // No payment provider configured — order placed directly
+      if (!(payByPo && poNumber)) {
+        try {
+          const intent = await initiatePayment.mutateAsync({ orderId: order.id })
+          clientSecret = intent.clientSecret
+        } catch {
+          // No payment provider configured — order placed directly
+        }
       }
 
       onDone({
@@ -223,6 +236,8 @@ function InfoStep({ onDone }: { onDone: (info: OrderInfo) => void }) {
         clientSecret,
         totalAmount: order.totalAmount,
         currency: order.currency,
+        poNumber: order.poNumber,
+        dueDate: order.dueDate,
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -406,6 +421,42 @@ function InfoStep({ onDone }: { onDone: (info: OrderInfo) => void }) {
           </div>
         </section>
 
+        {paymentTerms?.termsDays && (
+          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-widest mb-4">
+              Payment
+            </h2>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={payByPo}
+                onChange={(e) => setPayByPo(e.target.checked)}
+                className="mt-1"
+              />
+              <span className="text-sm text-gray-700">
+                Pay by purchase order —{' '}
+                <span className="font-medium">Net {paymentTerms.termsDays}</span>. Your account is
+                eligible for invoiced payment; the total will be due {paymentTerms.termsDays} days
+                after the order is placed instead of being charged now.
+              </span>
+            </label>
+            {payByPo && (
+              <div className="mt-3">
+                <Field label="Purchase order number" required>
+                  <input
+                    type="text"
+                    required={payByPo}
+                    value={poNumber}
+                    onChange={(e) => setPoNumber(e.target.value)}
+                    placeholder="PO-2026-0142"
+                    className={inputCls}
+                  />
+                </Field>
+              </div>
+            )}
+          </section>
+        )}
+
         {error && <p className="text-sm text-red-500 bg-red-50 px-4 py-3 rounded-xl">{error}</p>}
       </div>
 
@@ -549,7 +600,7 @@ function InfoStep({ onDone }: { onDone: (info: OrderInfo) => void }) {
             style={{ backgroundColor: 'var(--primary)' }}
           >
             {isLoading && <Spinner />}
-            Continue to payment
+            {payByPo ? 'Place order' : 'Continue to payment'}
           </button>
         </OrderSummary>
       </div>

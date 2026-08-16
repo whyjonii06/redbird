@@ -130,6 +130,21 @@ export function OrderDetailPage() {
         </div>
       </div>
 
+      {/* Purchase order banner */}
+      {order.poNumber && (
+        <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-5 py-3.5 flex items-center justify-between">
+          <div className="text-sm text-indigo-900">
+            <span className="font-semibold">Purchase order</span> · PO #{order.poNumber}
+            {order.dueDate && <> · Due {fmtDate(order.dueDate)}</>}
+          </div>
+          {order.status === 'pending' && (
+            <span className="text-xs text-indigo-600">
+              Awaiting bank transfer — not a card charge
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Partial refund panel */}
       {partialRefundOpen && (
         <div className="bg-orange-50 border border-orange-200 p-5 space-y-3">

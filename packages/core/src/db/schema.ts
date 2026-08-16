@@ -452,6 +452,11 @@ export const orders = pgTable(
     }),
     /** Null = the original single-tenant store. Set for an order placed under a specific tenant. */
     tenantId: uuid().references((): AnyPgColumn => tenants.id, { onDelete: 'set null' }),
+    /** B2B purchase-order reference — set instead of a card charge when the customer's
+     * group has net payment terms. Order stays 'pending' until staff mark it paid. */
+    poNumber: text(),
+    /** Invoice due date for a purchase-order order — createdAt + the group's paymentTermsDays. */
+    dueDate: timestamp({ withTimezone: true }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
@@ -545,6 +550,8 @@ export const customerGroups = pgTable(
     id: uuid().primaryKey().defaultRandom(),
     name: text().notNull(),
     description: text(),
+    /** B2B net terms — e.g. 30 for "Net 30". Null = no purchase-order checkout, card only. */
+    paymentTermsDays: integer(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },

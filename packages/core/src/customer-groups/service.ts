@@ -11,9 +11,22 @@ import {
 export type CustomerGroupService = {
   list(): Promise<CustomerGroup[]>
   get(id: string): Promise<CustomerGroup | null>
-  create(input: { name: string; description?: string }): Promise<CustomerGroup>
-  update(id: string, patch: { name?: string; description?: string | null }): Promise<CustomerGroup>
+  create(input: {
+    name: string
+    description?: string
+    paymentTermsDays?: number | null
+  }): Promise<CustomerGroup>
+  update(
+    id: string,
+    patch: { name?: string; description?: string | null; paymentTermsDays?: number | null },
+  ): Promise<CustomerGroup>
   delete(id: string): Promise<void>
+  /**
+   * The most generous net-payment terms (highest day count) across every group
+   * this customer belongs to. Null = not eligible for purchase-order checkout —
+   * their groups either have no terms set or they belong to no group at all.
+   */
+  getPaymentTermsDays(customerId: string): Promise<number | null>
 
   addMember(groupId: string, customerId: string): Promise<void>
   removeMember(groupId: string, customerId: string): Promise<void>
@@ -61,10 +74,14 @@ export function createCustomerGroupService(db: DbClient): CustomerGroupService {
       return (await db.query.customerGroups.findFirst({ where: eq(customerGroups.id, id) })) ?? null
     },
 
-    async create({ name, description }) {
+    async create({ name, description, paymentTermsDays }) {
       const [row] = await db
         .insert(customerGroups)
-        .values({ name, description: description ?? null })
+        .values({
+          name,
+          description: description ?? null,
+          paymentTermsDays: paymentTermsDays ?? null,
+        })
         .returning()
       if (!row) throw new Error('Failed to create customer group')
       return row
@@ -74,6 +91,7 @@ export function createCustomerGroupService(db: DbClient): CustomerGroupService {
       const set: Partial<typeof customerGroups.$inferInsert> = { updatedAt: new Date() }
       if (patch.name !== undefined) set.name = patch.name
       if (patch.description !== undefined) set.description = patch.description
+      if (patch.paymentTermsDays !== undefined) set.paymentTermsDays = patch.paymentTermsDays
       const [row] = await db
         .update(customerGroups)
         .set(set)
@@ -157,6 +175,24 @@ export function createCustomerGroupService(db: DbClient): CustomerGroupService {
       const best = rules[0]
       if (!best) return null
       return { priceAmount: best.priceAmount, priceCurrency: best.priceCurrency }
+    },
+
+    async getPaymentTermsDays(customerId) {
+      const memberships = await db.query.customerGroupMembers.findMany({
+        where: eq(customerGroupMembers.customerId, customerId),
+        columns: { groupId: true },
+      })
+      if (memberships.length === 0) return null
+      const groupIds = memberships.map((m) => m.groupId)
+
+      const groups = await db.query.customerGroups.findMany({
+        where: inArray(customerGroups.id, groupIds),
+        columns: { paymentTermsDays: true },
+      })
+      const days = groups
+        .map((g) => g.paymentTermsDays)
+        .filter((d): d is number => d !== null && d > 0)
+      return days.length > 0 ? Math.max(...days) : null
     },
 
     async listApplicableTiers(customerId, variantId) {

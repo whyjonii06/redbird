@@ -103,6 +103,9 @@ export const checkoutRouter = router({
         loyaltyPointsToRedeem: z.number().int().min(1).optional(),
         giftCardCode: z.string().optional(),
         notes: z.string().optional(),
+        /** B2B purchase-order checkout — skips card payment. Requires the customer's
+         * group to have net payment terms configured; rejected otherwise. */
+        poNumber: z.string().min(1).max(64).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -239,6 +242,28 @@ export const checkoutRouter = router({
         taxAmount = taxProvider.calculate(taxableBase, countryCode, opts).taxAmount
       }
 
+      // Purchase-order checkout: only for logged-in customers whose group has net
+      // terms configured. Everyone else must pay by card via initiatePayment.
+      let poNumber: string | undefined
+      let dueDate: Date | undefined
+      if (input.poNumber) {
+        if (!ctx.customerId) {
+          throw new TRPCError({
+            code: 'UNAUTHORIZED',
+            message: 'You must be logged in to pay by purchase order',
+          })
+        }
+        const termsDays = await ctx.redbird.customerGroupsSvc.getPaymentTermsDays(ctx.customerId)
+        if (termsDays === null) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Your account is not eligible for purchase-order payment',
+          })
+        }
+        poNumber = input.poNumber
+        dueDate = new Date(Date.now() + termsDays * 24 * 60 * 60 * 1000)
+      }
+
       const order = await ctx.redbird.orders.createFromCart(input.cartId, {
         customerEmail: input.customerEmail,
         shippingAddress: input.shippingAddress,
@@ -247,6 +272,8 @@ export const checkoutRouter = router({
         discountAmount: discountAmount > 0 ? discountAmount : undefined,
         promoCode: input.promoCode,
         notes: input.notes,
+        poNumber,
+        dueDate,
       })
 
       if (input.promoCode && promoDiscountAmount > 0) {

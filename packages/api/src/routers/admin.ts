@@ -2374,12 +2374,20 @@ export const adminRouter = router({
     }),
 
     create: adminProcedure
-      .input(z.object({ name: z.string().min(1), description: z.string().optional() }))
+      .input(
+        z.object({
+          name: z.string().min(1),
+          description: z.string().optional(),
+          /** B2B net terms in days (e.g. 30 for "Net 30"). Omitted/null = card-only checkout. */
+          paymentTermsDays: z.number().int().min(1).max(180).nullable().optional(),
+        }),
+      )
       .mutation(async ({ ctx, input }) => {
         const data: Parameters<typeof ctx.redbird.customerGroupsSvc.create>[0] = {
           name: input.name,
         }
         if (input.description !== undefined) data.description = input.description
+        if (input.paymentTermsDays !== undefined) data.paymentTermsDays = input.paymentTermsDays
         return ctx.redbird.customerGroupsSvc.create(data)
       }),
 
@@ -2389,12 +2397,14 @@ export const adminRouter = router({
           id: z.string().uuid(),
           name: z.string().min(1).optional(),
           description: z.string().nullable().optional(),
+          paymentTermsDays: z.number().int().min(1).max(180).nullable().optional(),
         }),
       )
       .mutation(async ({ ctx, input }) => {
         const patch: Parameters<typeof ctx.redbird.customerGroupsSvc.update>[1] = {}
         if (input.name !== undefined) patch.name = input.name
         if (input.description !== undefined) patch.description = input.description
+        if (input.paymentTermsDays !== undefined) patch.paymentTermsDays = input.paymentTermsDays
         return ctx.redbird.customerGroupsSvc.update(input.id, patch)
       }),
 

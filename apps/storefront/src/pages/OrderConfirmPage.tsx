@@ -36,6 +36,21 @@ export function OrderConfirmPage() {
         Order number: <span className="font-mono font-semibold text-gray-700">{order.number}</span>
       </p>
 
+      {order.poNumber && (
+        <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-sm text-left mb-8">
+          <p className="text-xs font-semibold text-indigo-400 uppercase tracking-widest mb-1">
+            Purchase order
+          </p>
+          <p className="text-indigo-900">PO #{order.poNumber}</p>
+          {order.dueDate && (
+            <p className="text-indigo-700 mt-1">
+              This invoice is due on {new Date(order.dueDate).toLocaleDateString()} — no card was
+              charged.
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Order details */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm text-left mb-8">
         <div className="px-5 py-3.5 border-b border-gray-50">

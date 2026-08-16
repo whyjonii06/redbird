@@ -44,6 +44,9 @@ export type CreateOrderInput = {
   discountAmount?: number | undefined
   promoCode?: string | undefined
   notes?: string | undefined
+  /** B2B purchase-order checkout — set together with dueDate, never on its own. */
+  poNumber?: string | undefined
+  dueDate?: Date | undefined
 }
 
 export type OrderService = {
@@ -216,6 +219,8 @@ export function createOrderService(
                 notes: input.notes ?? null,
                 shippingAddress,
                 tenantId: cart.tenantId,
+                poNumber: input.poNumber ?? null,
+                dueDate: input.dueDate ?? null,
               })
               .returning()
             if (!order) throw new Error('Failed to create order')

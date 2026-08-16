@@ -11,6 +11,7 @@ export function CustomerGroupsPage() {
   const [showCreate, setShowCreate] = useState(false)
   const [createName, setCreateName] = useState('')
   const [createDesc, setCreateDesc] = useState('')
+  const [createTerms, setCreateTerms] = useState('')
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null)
 
   const createMut = trpc.admin.customerGroups.create.useMutation({
@@ -19,6 +20,7 @@ export function CustomerGroupsPage() {
       setShowCreate(false)
       setCreateName('')
       setCreateDesc('')
+      setCreateTerms('')
     },
   })
   const deleteMut = trpc.admin.customerGroups.delete.useMutation({
@@ -54,12 +56,13 @@ export function CustomerGroupsPage() {
             createMut.mutate({
               name: createName,
               description: createDesc || undefined,
+              paymentTermsDays: createTerms ? Number(createTerms) : null,
             })
           }}
           className="bg-gray-100 border border-gray-200 p-5 space-y-4"
         >
           <h2 className="text-sm font-semibold text-gray-700">New customer group</h2>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Name *</label>
               <input
@@ -78,6 +81,21 @@ export function CustomerGroupsPage() {
                 placeholder="High-value customers with exclusive pricing"
                 className={inputCls}
               />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                B2B payment terms
+              </label>
+              <select
+                value={createTerms}
+                onChange={(e) => setCreateTerms(e.target.value)}
+                className={inputCls}
+              >
+                <option value="">Card only</option>
+                <option value="15">Net 15</option>
+                <option value="30">Net 30</option>
+                <option value="60">Net 60</option>
+              </select>
             </div>
           </div>
           {createMut.error && <p className="text-sm text-red-500">{createMut.error.message}</p>}
@@ -122,6 +140,9 @@ export function CustomerGroupsPage() {
             <GroupDetail
               groupId={selectedGroup}
               groupName={groups.find((g) => g.id === selectedGroup)?.name ?? ''}
+              paymentTermsDays={
+                groups.find((g) => g.id === selectedGroup)?.paymentTermsDays ?? null
+              }
               onDelete={() => {
                 if (confirm('Delete this group and all its price rules?')) {
                   deleteMut.mutate({ id: selectedGroup })
@@ -142,14 +163,20 @@ export function CustomerGroupsPage() {
 function GroupDetail({
   groupId,
   groupName,
+  paymentTermsDays,
   onDelete,
 }: {
   groupId: string
   groupName: string
+  paymentTermsDays: number | null
   onDelete: () => void
 }) {
   const utils = trpc.useUtils()
   const { data: priceRules = [] } = trpc.admin.customerGroups.listPriceRules.useQuery({ groupId })
+
+  const updateMut = trpc.admin.customerGroups.update.useMutation({
+    onSuccess: () => void utils.admin.customerGroups.list.invalidate(),
+  })
 
   const [newVariantId, setNewVariantId] = useState('')
   const [newPrice, setNewPrice] = useState('')
@@ -176,6 +203,33 @@ function GroupDetail({
           <button type="button" onClick={onDelete} className={btnLinkDanger}>
             Delete group
           </button>
+        </div>
+
+        <div className="flex items-center gap-2 mb-4 pb-4 border-b border-gray-200">
+          <label htmlFor="group-terms" className="text-xs text-gray-600">
+            B2B payment terms
+          </label>
+          <select
+            id="group-terms"
+            defaultValue={paymentTermsDays ?? ''}
+            onChange={(e) =>
+              updateMut.mutate({
+                id: groupId,
+                paymentTermsDays: e.target.value ? Number(e.target.value) : null,
+              })
+            }
+            className={`${inputCls} w-40`}
+          >
+            <option value="">Card only</option>
+            <option value="15">Net 15</option>
+            <option value="30">Net 30</option>
+            <option value="60">Net 60</option>
+          </select>
+          <span className="text-xs text-gray-400">
+            {paymentTermsDays
+              ? `Members can check out with a purchase order, due in ${paymentTermsDays} days.`
+              : 'Members must pay by card at checkout.'}
+          </span>
         </div>
 
         {priceRules.length > 0 ? (
