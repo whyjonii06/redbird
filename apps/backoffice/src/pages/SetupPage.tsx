@@ -187,7 +187,7 @@ export function SetupPage() {
       {/* Card */}
       <div
         className="p-8 w-full max-w-xl rounded-2xl"
-        style={{ background: 'var(--bo-bg2)', border: '1px solid #1e1e1e' }}
+        style={{ background: 'var(--bo-bg2)', border: '1px solid #211e1c' }}
       >
         {step === 'store' && <StoreStep data={data} onChange={patch} onNext={next} />}
         {step === 'modules' && (

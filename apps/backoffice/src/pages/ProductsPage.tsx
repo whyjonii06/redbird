@@ -84,7 +84,7 @@ export function ProductsPage() {
             setOffset(0)
           }}
           placeholder={t('products.searchPlaceholder')}
-          className="flex-1 min-w-56 text-sm rounded-lg border border-gray-200 px-3 py-1.5 bg-white text-gray-900 outline-none focus:ring-2 focus:ring-indigo-400"
+          className="flex-1 min-w-56 text-sm rounded-lg border border-gray-200 px-3 py-1.5 bg-gray-100 text-gray-900 outline-none focus:ring-2 focus:ring-indigo-400"
         />
         {(['', 'active', 'draft', 'archived'] as const).map((s) => (
           <button
@@ -115,7 +115,7 @@ export function ProductsPage() {
             <button
               type="button"
               onClick={() => setSelected(new Set())}
-              className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+              className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-200 bg-gray-100 text-gray-600 hover:bg-gray-50"
             >
               {t('common.clear')}
             </button>
@@ -337,7 +337,7 @@ function CsvImportButton() {
 
       {results && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-xl w-full shadow-xl max-h-[80vh] overflow-y-auto">
+          <div className="bg-gray-100 rounded-2xl p-6 max-w-xl w-full shadow-xl max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-gray-900">Import results</h3>
               <button

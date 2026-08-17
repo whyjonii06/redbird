@@ -65,7 +65,7 @@ function StoreHealth() {
           <div
             key={item.label}
             className={`rounded-lg border p-3.5 space-y-1.5 ${
-              item.active ? 'bg-white border-green-200' : 'bg-white border-orange-200'
+              item.active ? 'bg-gray-100 border-green-200' : 'bg-gray-100 border-orange-200'
             }`}
           >
             <div className="flex items-center gap-2">
@@ -133,15 +133,21 @@ export function DashboardPage() {
             <Link
               to="/orders"
               className="block rounded-xl p-4 transition-colors"
-              style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)' }}
+              style={{
+                background: 'rgba(59,130,246,0.08)',
+                border: '1px solid rgba(59,130,246,0.25)',
+              }}
             >
               <div className="flex items-center gap-3">
                 <span className="text-2xl">📦</span>
                 <div>
                   <p className="text-lg font-bold" style={{ color: 'var(--bo-text)' }}>
-                    {t(data.ordersByStatus.paid === 1 ? 'dash.toFulfill' : 'dash.toFulfill_plural', {
-                      n: data.ordersByStatus.paid,
-                    })}
+                    {t(
+                      data.ordersByStatus.paid === 1 ? 'dash.toFulfill' : 'dash.toFulfill_plural',
+                      {
+                        n: data.ordersByStatus.paid,
+                      },
+                    )}
                   </p>
                   <p className="text-xs" style={{ color: 'var(--bo-muted)' }}>
                     {t('dash.toFulfillHint')}
@@ -153,7 +159,10 @@ export function DashboardPage() {
           {data.lowStockTotal > 0 && (
             <div
               className="rounded-xl p-4"
-              style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)' }}
+              style={{
+                background: 'rgba(245,158,11,0.08)',
+                border: '1px solid rgba(245,158,11,0.25)',
+              }}
             >
               <div className="flex items-center gap-3 mb-2">
                 <span className="text-2xl">⚠️</span>
@@ -207,25 +216,25 @@ export function DashboardPage() {
                 <stop offset="95%" stopColor="#E8302A" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1e1e1e" />
+            <CartesianGrid strokeDasharray="3 3" stroke="#211e1c" />
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 10, fill: '#888' }}
+              tick={{ fontSize: 10, fill: '#8f8883' }}
               axisLine={false}
               tickLine={false}
               tickFormatter={(d: string) => d.slice(5)}
               interval={4}
             />
             <YAxis
-              tick={{ fontSize: 11, fill: '#888' }}
+              tick={{ fontSize: 11, fill: '#8f8883' }}
               axisLine={false}
               tickLine={false}
               tickFormatter={(v: number) => `${currency} ${v.toFixed(0)}`}
             />
             <Tooltip
               contentStyle={{
-                background: '#161616',
-                border: '1px solid #1e1e1e',
+                background: '#1a1714',
+                border: '1px solid #211e1c',
                 borderRadius: 8,
                 color: '#f5f5f5',
               }}
@@ -250,24 +259,24 @@ export function DashboardPage() {
           <h2 className="text-sm font-semibold text-gray-700 mb-4">{t('dash.ordersByStatus')}</h2>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={chartData} barSize={36}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e1e1e" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#211e1c" />
               <XAxis
                 dataKey="name"
-                tick={{ fontSize: 12, fill: '#888' }}
+                tick={{ fontSize: 12, fill: '#8f8883' }}
                 axisLine={false}
                 tickLine={false}
               />
               <YAxis
                 allowDecimals={false}
-                tick={{ fontSize: 12, fill: '#888' }}
+                tick={{ fontSize: 12, fill: '#8f8883' }}
                 axisLine={false}
                 tickLine={false}
               />
               <Tooltip
                 cursor={{ fill: 'rgba(255,255,255,0.03)' }}
                 contentStyle={{
-                  background: '#161616',
-                  border: '1px solid #1e1e1e',
+                  background: '#1a1714',
+                  border: '1px solid #211e1c',
                   borderRadius: 8,
                   color: '#f5f5f5',
                 }}

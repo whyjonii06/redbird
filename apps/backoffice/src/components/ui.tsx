@@ -6,9 +6,10 @@ export const inputCls =
 
 // ── Button system ─────────────────────────────────────────────────────────────
 // Gray scale is remapped in dark theme:
-//   gray-100=#101010 gray-200=#1e1e1e gray-300=#2a2a2a gray-700=#cccccc gray-900=#f5f5f5
+//   gray-100=#131110 gray-200=#211e1c gray-300=#2d2926 gray-700=#cdc8c1 gray-900=#f6f4f0
 // Indigo is remapped to brand red (#E8302A).
-// Red/blue/green/orange are standard Tailwind (not remapped).
+// Red/green/blue/yellow/amber/orange/purple are also remapped per-theme
+// (see index.css) so status badges/alerts stay legible in both themes.
 
 const _b =
   'inline-flex items-center justify-center font-medium rounded-lg transition-colors disabled:opacity-50 cursor-pointer whitespace-nowrap'

@@ -112,7 +112,7 @@ function CmsTranslationsSection({ pageId }: { pageId: string }) {
               if (tExcerpt) opts.excerpt = tExcerpt
               upsertMut.mutate(opts)
             }}
-            className="border border-indigo-200 rounded-lg p-3 space-y-2 bg-white"
+            className="border border-indigo-200 rounded-lg p-3 space-y-2 bg-gray-100"
           >
             <p className="text-xs font-semibold text-indigo-700 uppercase">{t.locale}</p>
             <Field label="Title">
@@ -151,7 +151,7 @@ function CmsTranslationsSection({ pageId }: { pageId: string }) {
         ) : (
           <div
             key={t.locale}
-            className="flex items-start justify-between rounded-lg border border-gray-100 bg-white px-3 py-2"
+            className="flex items-start justify-between rounded-lg border border-gray-100 bg-gray-100 px-3 py-2"
           >
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold text-gray-500 uppercase mb-0.5">{t.locale}</p>
@@ -189,7 +189,7 @@ function CmsTranslationsSection({ pageId }: { pageId: string }) {
             if (tExcerpt) opts.excerpt = tExcerpt
             upsertMut.mutate(opts)
           }}
-          className="border border-indigo-200 rounded-lg p-3 space-y-2 bg-white"
+          className="border border-indigo-200 rounded-lg p-3 space-y-2 bg-gray-100"
         >
           <Field label="Language">
             <select value={locale} onChange={(e) => setLocale(e.target.value)} className={inputCls}>

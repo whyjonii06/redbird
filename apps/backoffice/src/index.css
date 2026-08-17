@@ -1,5 +1,21 @@
 @import "tailwindcss";
 
+/*
+ * Status colors (red/green/blue/yellow/amber/orange/purple) are remapped
+ * the same way gray/indigo already were, and for the same reason: dozens of
+ * badges/alerts across the app (order status, plugin health, stock
+ * warnings...) are written as plain Tailwind classes like `bg-red-50
+ * text-red-700` with no dark-mode variant. Left alone, those resolve to
+ * real Tailwind reds — pale pastel backgrounds meant for a light page —
+ * and render as jarring, low-contrast blobs on the dark theme's near-black
+ * background. Remapping the scale itself fixes every usage app-wide
+ * without touching the ~15 files that reference these classes.
+ *
+ * Recipe: dark tinted background (50/100), a visible mid-tone border
+ * (200/300), and a bright, saturated foreground (400-800) for text/icons —
+ * the standard dark-UI status-pill pattern. Light theme below restores a
+ * lighter, standard-Tailwind-like scale.
+ */
 @theme {
   /* ── Brand palette ── */
   --color-rb-red: #e8302a;
@@ -17,18 +33,77 @@
   --color-indigo-800: #8b1c18;
   --color-indigo-900: #5c1414;
 
-  /* Remap gray → dark scale (default theme) */
-  --color-gray-50: #080808;
-  --color-gray-100: #101010;
-  --color-gray-200: #1e1e1e;
-  --color-gray-300: #2a2a2a;
-  --color-gray-400: #555555;
-  --color-gray-500: #888888;
-  --color-gray-600: #aaaaaa;
-  --color-gray-700: #cccccc;
-  --color-gray-800: #e0e0e0;
-  --color-gray-900: #f5f5f5;
+  /* Remap gray → dark scale, with a faint warm bias instead of pure neutral
+     (a hair of red hue at very low saturation — reads as "considered", not tinted) */
+  --color-gray-50: #0a0908;
+  --color-gray-100: #131110;
+  --color-gray-200: #211e1c;
+  --color-gray-300: #2d2926;
+  --color-gray-400: #5c5652;
+  --color-gray-500: #8f8883;
+  --color-gray-600: #aca69f;
+  --color-gray-700: #cdc8c1;
+  --color-gray-800: #e4e0da;
+  --color-gray-900: #f6f4f0;
   --color-gray-950: #ffffff;
+
+  /* Remap red (danger) */
+  --color-red-50: hsl(0, 40%, 11%);
+  --color-red-100: hsl(0, 42%, 15%);
+  --color-red-200: hsl(0, 45%, 26%);
+  --color-red-300: hsl(0, 48%, 36%);
+  --color-red-400: hsl(0, 70%, 58%);
+  --color-red-500: hsl(0, 75%, 62%);
+  --color-red-600: hsl(0, 78%, 65%);
+  --color-red-700: hsl(0, 85%, 74%);
+  --color-red-800: hsl(0, 88%, 84%);
+
+  /* Remap green (success) */
+  --color-green-50: hsl(142, 35%, 11%);
+  --color-green-100: hsl(142, 38%, 15%);
+  --color-green-200: hsl(142, 40%, 26%);
+  --color-green-300: hsl(142, 42%, 34%);
+  --color-green-400: hsl(142, 55%, 52%);
+  --color-green-500: hsl(142, 58%, 55%);
+  --color-green-600: hsl(142, 60%, 58%);
+  --color-green-700: hsl(142, 65%, 68%);
+  --color-green-800: hsl(142, 68%, 80%);
+
+  /* Remap blue (info) */
+  --color-blue-50: hsl(217, 40%, 13%);
+  --color-blue-100: hsl(217, 42%, 18%);
+  --color-blue-200: hsl(217, 45%, 30%);
+  --color-blue-600: hsl(217, 75%, 65%);
+  --color-blue-700: hsl(217, 82%, 74%);
+
+  /* Remap yellow / amber (warning) */
+  --color-yellow-50: hsl(45, 40%, 11%);
+  --color-yellow-100: hsl(45, 42%, 15%);
+  --color-yellow-200: hsl(45, 45%, 28%);
+  --color-yellow-700: hsl(45, 80%, 68%);
+  --color-yellow-800: hsl(45, 82%, 80%);
+  --color-amber-50: hsl(38, 40%, 11%);
+  --color-amber-100: hsl(38, 42%, 15%);
+  --color-amber-200: hsl(38, 45%, 28%);
+  --color-amber-400: hsl(38, 70%, 58%);
+  --color-amber-600: hsl(38, 75%, 62%);
+  --color-amber-700: hsl(38, 82%, 72%);
+  --color-amber-800: hsl(38, 84%, 82%);
+
+  /* Remap orange (warning alt) */
+  --color-orange-50: hsl(25, 40%, 11%);
+  --color-orange-200: hsl(25, 45%, 28%);
+  --color-orange-400: hsl(25, 70%, 58%);
+  --color-orange-500: hsl(25, 73%, 60%);
+  --color-orange-600: hsl(25, 76%, 63%);
+  --color-orange-700: hsl(25, 82%, 72%);
+  --color-orange-800: hsl(25, 84%, 82%);
+
+  /* Remap purple (misc / promo tags) */
+  --color-purple-50: hsl(271, 35%, 14%);
+  --color-purple-100: hsl(271, 38%, 19%);
+  --color-purple-200: hsl(271, 40%, 32%);
+  --color-purple-700: hsl(271, 70%, 76%);
 
   /* Radii */
   --radius-sm: 4px;
@@ -38,52 +113,108 @@
   --radius-2xl: 12px;
   --radius-full: 9999px;
 
-  /* Typography */
-  --font-display: "Inter", system-ui, sans-serif;
+  /* Typography — Manrope for headings/stat numbers (distinctive geometric
+     character), Inter kept for body/table/form text (dense-UI legibility
+     matters more than personality there). */
+  --font-display: "Manrope", "Inter", system-ui, sans-serif;
   --font-sans: "Inter", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", monospace;
 }
 
 /* ── Semantic theme tokens (used via var() in components) ── */
 :root {
-  --bo-bg: #080808;
-  --bo-bg2: #101010;
-  --bo-bg3: #161616;
-  --bo-border: #1e1e1e;
-  --bo-border2: #2a2a2a;
-  --bo-text: #f5f5f5;
-  --bo-muted: #888888;
+  --bo-bg: #0a0908;
+  --bo-bg2: #131110;
+  --bo-bg3: #1a1714;
+  --bo-border: #211e1c;
+  --bo-border2: #2d2926;
+  --bo-text: #f6f4f0;
+  --bo-muted: #8f8883;
   --bo-accent: #e8302a;
-  --bo-input-bg: #161616;
-  --bo-grid: rgba(255, 255, 255, 0.025);
+  --bo-input-bg: #1a1714;
+  --bo-grid: rgba(255, 250, 240, 0.025);
 }
 
 /* ── Light theme ── */
 html.theme-light {
-  --bo-bg: #f4f4f5;
+  --bo-bg: #f7f5f2;
   --bo-bg2: #ffffff;
-  --bo-bg3: #f8f8f9;
-  --bo-border: #e4e4e7;
-  --bo-border2: #d4d4d8;
-  --bo-text: #111111;
-  --bo-muted: #666666;
+  --bo-bg3: #faf8f5;
+  --bo-border: #e8e4de;
+  --bo-border2: #d8d2c8;
+  --bo-text: #1a1714;
+  --bo-muted: #78716a;
   --bo-accent: #e8302a;
   --bo-input-bg: #ffffff;
-  --bo-grid: rgba(0, 0, 0, 0.04);
+  --bo-grid: rgba(20, 15, 5, 0.035);
   color-scheme: light;
 
-  /* Restore standard gray scale */
-  --color-gray-50: #fafafa;
-  --color-gray-100: #f5f5f5;
-  --color-gray-200: #e5e5e5;
-  --color-gray-300: #d4d4d4;
-  --color-gray-400: #a3a3a3;
-  --color-gray-500: #737373;
-  --color-gray-600: #525252;
-  --color-gray-700: #404040;
-  --color-gray-800: #262626;
-  --color-gray-900: #171717;
-  --color-gray-950: #0a0a0a;
+  /* Restore a light gray scale — warm-biased to match the dark theme's
+     neutral instead of a stark, unrelated neutral gray. */
+  --color-gray-50: #faf9f7;
+  --color-gray-100: #f5f3f0;
+  --color-gray-200: #e7e3dd;
+  --color-gray-300: #d6d0c7;
+  --color-gray-400: #a39a8d;
+  --color-gray-500: #78716a;
+  --color-gray-600: #57514a;
+  --color-gray-700: #3d3833;
+  --color-gray-800: #26221e;
+  --color-gray-900: #17140f;
+  --color-gray-950: #0a0908;
+
+  /* Restore light-appropriate status colors (pale tint bg, saturated dark text) */
+  --color-red-50: hsl(0, 65%, 96%);
+  --color-red-100: hsl(0, 60%, 92%);
+  --color-red-200: hsl(0, 55%, 85%);
+  --color-red-300: hsl(0, 55%, 75%);
+  --color-red-400: hsl(0, 60%, 58%);
+  --color-red-500: hsl(0, 65%, 50%);
+  --color-red-600: hsl(0, 70%, 42%);
+  --color-red-700: hsl(0, 75%, 34%);
+  --color-red-800: hsl(0, 75%, 26%);
+
+  --color-green-50: hsl(142, 55%, 95%);
+  --color-green-100: hsl(142, 50%, 90%);
+  --color-green-200: hsl(142, 45%, 80%);
+  --color-green-400: hsl(142, 45%, 48%);
+  --color-green-500: hsl(142, 55%, 40%);
+  --color-green-600: hsl(142, 60%, 34%);
+  --color-green-700: hsl(142, 65%, 27%);
+  --color-green-800: hsl(142, 65%, 20%);
+
+  --color-blue-50: hsl(217, 65%, 96%);
+  --color-blue-100: hsl(217, 60%, 92%);
+  --color-blue-200: hsl(217, 55%, 84%);
+  --color-blue-600: hsl(217, 70%, 45%);
+  --color-blue-700: hsl(217, 75%, 36%);
+
+  --color-yellow-50: hsl(45, 70%, 94%);
+  --color-yellow-100: hsl(45, 65%, 88%);
+  --color-yellow-200: hsl(45, 60%, 78%);
+  --color-yellow-700: hsl(45, 70%, 30%);
+  --color-yellow-800: hsl(45, 70%, 22%);
+
+  --color-amber-50: hsl(38, 70%, 94%);
+  --color-amber-100: hsl(38, 65%, 88%);
+  --color-amber-200: hsl(38, 60%, 78%);
+  --color-amber-400: hsl(38, 60%, 55%);
+  --color-amber-600: hsl(38, 70%, 40%);
+  --color-amber-700: hsl(38, 72%, 32%);
+  --color-amber-800: hsl(38, 72%, 24%);
+
+  --color-orange-50: hsl(25, 70%, 94%);
+  --color-orange-200: hsl(25, 60%, 78%);
+  --color-orange-400: hsl(25, 60%, 55%);
+  --color-orange-500: hsl(25, 65%, 48%);
+  --color-orange-600: hsl(25, 70%, 40%);
+  --color-orange-700: hsl(25, 72%, 32%);
+  --color-orange-800: hsl(25, 72%, 24%);
+
+  --color-purple-50: hsl(271, 55%, 96%);
+  --color-purple-100: hsl(271, 50%, 91%);
+  --color-purple-200: hsl(271, 45%, 82%);
+  --color-purple-700: hsl(271, 55%, 40%);
 }
 
 html,

@@ -105,7 +105,7 @@ function CategoryTranslationsSection({ categoryId }: { categoryId: string }) {
               if (tDesc) opts.description = tDesc
               upsertMut.mutate(opts)
             }}
-            className="border border-indigo-200 rounded-lg p-3 space-y-2 bg-white"
+            className="border border-indigo-200 rounded-lg p-3 space-y-2 bg-gray-100"
           >
             <p className="text-xs font-semibold text-indigo-700 uppercase">{t.locale}</p>
             <Field label="Name">
@@ -136,7 +136,7 @@ function CategoryTranslationsSection({ categoryId }: { categoryId: string }) {
         ) : (
           <div
             key={t.locale}
-            className="flex items-start justify-between rounded-lg border border-gray-100 bg-white px-3 py-2"
+            className="flex items-start justify-between rounded-lg border border-gray-100 bg-gray-100 px-3 py-2"
           >
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold text-gray-500 uppercase mb-0.5">{t.locale}</p>
@@ -169,7 +169,7 @@ function CategoryTranslationsSection({ categoryId }: { categoryId: string }) {
             if (tDesc) opts.description = tDesc
             upsertMut.mutate(opts)
           }}
-          className="border border-indigo-200 rounded-lg p-3 space-y-2 bg-white"
+          className="border border-indigo-200 rounded-lg p-3 space-y-2 bg-gray-100"
         >
           <Field label="Language">
             <select value={locale} onChange={(e) => setLocale(e.target.value)} className={inputCls}>
@@ -251,7 +251,7 @@ function UnsplashPicker({
   }
 
   return (
-    <div className="border border-gray-200 rounded-lg p-3 mt-2 bg-white shadow-md">
+    <div className="border border-gray-200 rounded-lg p-3 mt-2 bg-gray-100 shadow-md">
       <div className="flex gap-2 mb-3">
         <input
           value={query}

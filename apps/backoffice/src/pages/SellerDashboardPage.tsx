@@ -36,7 +36,7 @@ export function SellerDashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
+      <header className="bg-gray-100 border-b border-gray-200 px-8 py-4 flex items-center justify-between">
         <div>
           <p className="font-display text-lg font-bold text-gray-900">{seller.storeName}</p>
           <p className="text-xs text-gray-400">{seller.email}</p>
@@ -64,7 +64,7 @@ export function SellerDashboardPage() {
               className={`px-4 py-2 rounded-lg text-sm font-medium capitalize transition-colors ${
                 tab === t
                   ? 'bg-gray-900 text-white'
-                  : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                  : 'bg-gray-100 border border-gray-200 text-gray-600 hover:bg-gray-50'
               }`}
             >
               {t}
@@ -111,7 +111,7 @@ function ProductsTab() {
   })
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-6">
+    <div className="bg-gray-100 border border-gray-200 rounded-xl p-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-semibold text-gray-900">My products</h2>
         {!adding && (
@@ -265,14 +265,14 @@ function OrdersTab() {
   if (isLoading) return <p className="text-sm text-gray-400">Loading…</p>
   if (ordersList.length === 0) {
     return (
-      <div className="bg-white border border-gray-200 rounded-xl p-6">
+      <div className="bg-gray-100 border border-gray-200 rounded-xl p-6">
         <p className="text-sm text-gray-400">No orders yet.</p>
       </div>
     )
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl divide-y divide-gray-100">
+    <div className="bg-gray-100 border border-gray-200 rounded-xl divide-y divide-gray-100">
       {ordersList.map((o) => (
         <div key={o.orderId} className="p-4">
           <div className="flex items-center justify-between mb-2">
@@ -305,7 +305,7 @@ function EarningsTab() {
 
   return (
     <div className="space-y-4">
-      <div className="bg-white border border-gray-200 rounded-xl p-6 flex items-center justify-between">
+      <div className="bg-gray-100 border border-gray-200 rounded-xl p-6 flex items-center justify-between">
         <div>
           <p className="text-sm text-gray-500">Available balance</p>
           <p className="text-2xl font-bold text-gray-900">{fmt(availableTotal, currency)}</p>
@@ -316,11 +316,11 @@ function EarningsTab() {
       </div>
 
       {earnings.length === 0 ? (
-        <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <div className="bg-gray-100 border border-gray-200 rounded-xl p-6">
           <p className="text-sm text-gray-400">No earnings yet.</p>
         </div>
       ) : (
-        <div className="bg-white border border-gray-200 rounded-xl divide-y divide-gray-100">
+        <div className="bg-gray-100 border border-gray-200 rounded-xl divide-y divide-gray-100">
           {earnings.map((e) => (
             <div key={e.id} className="p-4 flex items-center justify-between">
               <div>

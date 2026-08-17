@@ -72,7 +72,7 @@ function BestSellersSection() {
             type="button"
             onClick={() => void handleExport()}
             disabled={exporting}
-            className="border border-gray-200 bg-white text-gray-700 text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+            className="border border-gray-200 bg-gray-100 text-gray-700 text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
           >
             {exporting ? t('common.exporting') : t('common.exportCsv')}
           </button>
@@ -152,7 +152,7 @@ function OrdersExportSection() {
             type="button"
             onClick={() => void handleExport()}
             disabled={isFetching}
-            className="border border-gray-200 bg-white text-gray-700 text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+            className="border border-gray-200 bg-gray-100 text-gray-700 text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
           >
             {isFetching ? t('common.exporting') : t('common.exportCsv')}
           </button>

@@ -53,7 +53,7 @@ export function TenantsPage() {
             e.preventDefault()
             createMut.mutate({ slug, name })
           }}
-          className="bg-white border border-gray-200 rounded-xl p-6 space-y-3"
+          className="bg-gray-100 border border-gray-200 rounded-xl p-6 space-y-3"
         >
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -100,7 +100,7 @@ export function TenantsPage() {
         </form>
       )}
 
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <div className="bg-gray-100 border border-gray-200 rounded-xl overflow-hidden">
         {error?.data?.code === 'UNAUTHORIZED' ? (
           <div className="p-12 text-center text-sm text-red-600">
             Super admin access required to manage tenants — sign in with the master admin key.

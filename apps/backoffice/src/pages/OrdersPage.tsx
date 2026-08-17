@@ -107,7 +107,7 @@ export function OrdersPage() {
             setOffset(0)
           }}
           placeholder={t('orders.searchPlaceholder')}
-          className="flex-1 min-w-56 text-sm rounded-lg border border-gray-200 px-3 py-1.5 bg-white text-gray-900 outline-none focus:ring-2 focus:ring-indigo-400"
+          className="flex-1 min-w-56 text-sm rounded-lg border border-gray-200 px-3 py-1.5 bg-gray-100 text-gray-900 outline-none focus:ring-2 focus:ring-indigo-400"
         />
         {statuses.map((s) => (
           <button
@@ -137,7 +137,7 @@ export function OrdersPage() {
             <button
               type="button"
               onClick={() => setSelected(new Set())}
-              className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+              className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-200 bg-gray-100 text-gray-600 hover:bg-gray-50"
             >
               {t('common.clear')}
             </button>

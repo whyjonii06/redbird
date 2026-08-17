@@ -105,7 +105,7 @@ function ItemForm({
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 space-y-5">
+      <div className="bg-gray-100 rounded-xl shadow-2xl w-full max-w-md p-6 space-y-5">
         <h2 className="font-semibold text-gray-900">
           {item.id ? 'Modifier le lien' : 'Ajouter un lien'}
         </h2>
@@ -257,7 +257,7 @@ function NavRow({
   const hasChildren = (item.children?.length ?? 0) > 0
 
   return (
-    <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
+    <div className="border border-gray-200 rounded-lg bg-gray-100 overflow-hidden">
       {/* Main row */}
       <div className="flex items-center gap-3 px-4 py-3">
         {/* Reorder */}

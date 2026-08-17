@@ -54,7 +54,7 @@ function OpenRegisterForm({ onOpened }: { onOpened: () => void }) {
             ...(notes.trim() ? { notes: notes.trim() } : {}),
           })
         }}
-        className="bg-white border border-gray-200 rounded-xl p-6 space-y-4"
+        className="bg-gray-100 border border-gray-200 rounded-xl p-6 space-y-4"
       >
         <div>
           <label htmlFor="opening-cash" className="block text-sm font-medium text-gray-700 mb-1">
@@ -169,7 +169,7 @@ function Register({ session }: { session: RegisterSession }) {
     return (
       <div className="p-8 max-w-md mx-auto">
         <h1 className="font-display text-2xl font-bold text-gray-900 mb-1">Close register</h1>
-        <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-3 mt-6">
+        <div className="bg-gray-100 border border-gray-200 rounded-xl p-6 space-y-3 mt-6">
           <div className="flex justify-between text-sm">
             <span className="text-gray-500">Opening float</span>
             <span className="font-medium">{fmt(session.openingCashAmount, 'EUR')}</span>
@@ -269,7 +269,7 @@ function Register({ session }: { session: RegisterSession }) {
         />
 
         {matches.length > 0 && (
-          <div className="bg-white border border-gray-200 rounded-lg divide-y divide-gray-100">
+          <div className="bg-gray-100 border border-gray-200 rounded-lg divide-y divide-gray-100">
             {matches.map((m) => (
               <button
                 key={m.variantId}
@@ -307,7 +307,7 @@ function Register({ session }: { session: RegisterSession }) {
       </div>
 
       <div className="lg:col-span-2">
-        <div className="bg-white border border-gray-200 rounded-xl p-5 sticky top-6">
+        <div className="bg-gray-100 border border-gray-200 rounded-xl p-5 sticky top-6">
           <h2 className="font-semibold text-gray-900 mb-3">Cart</h2>
           {cartLines.length === 0 ? (
             <p className="text-sm text-gray-400">No items yet — search above to add one.</p>

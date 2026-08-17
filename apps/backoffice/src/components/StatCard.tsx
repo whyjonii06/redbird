@@ -6,9 +6,14 @@ type Props = {
 
 export function StatCard({ label, value, sub }: Props) {
   return (
-    <div className="bg-gray-100 border border-gray-200 border-l-2 border-l-indigo-600 p-6">
+    <div className="bg-gray-100 border border-gray-200 border-l-2 border-l-indigo-600 rounded-lg p-6">
       <p className="text-xs font-medium text-gray-500 uppercase tracking-widest">{label}</p>
-      <p className="mt-2 text-3xl font-bold text-gray-900">{value}</p>
+      <p
+        className="mt-2 font-display text-3xl font-bold text-gray-900"
+        style={{ fontVariantNumeric: 'tabular-nums' }}
+      >
+        {value}
+      </p>
       {sub && <p className="mt-1 text-xs text-gray-400">{sub}</p>}
     </div>
   )

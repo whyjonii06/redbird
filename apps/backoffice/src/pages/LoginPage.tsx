@@ -16,7 +16,7 @@ export function LoginPage() {
     >
       <div
         className="w-full max-w-sm p-8 rounded-2xl"
-        style={{ background: 'var(--bo-bg2)', border: '1px solid #1e1e1e' }}
+        style={{ background: 'var(--bo-bg2)', border: '1px solid #211e1c' }}
       >
         <div className="text-center mb-8">
           <img
@@ -37,7 +37,7 @@ export function LoginPage() {
         </div>
 
         {/* Mode tabs */}
-        <div className="flex mb-6" style={{ borderBottom: '1px solid #1e1e1e' }}>
+        <div className="flex mb-6" style={{ borderBottom: '1px solid #211e1c' }}>
           <button
             type="button"
             onClick={() => setMode('staff')}

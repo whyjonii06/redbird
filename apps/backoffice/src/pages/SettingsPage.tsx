@@ -359,7 +359,7 @@ export function SettingsPage() {
                   value={storeName}
                   onChange={(e) => setStoreName(e.target.value)}
                   placeholder="My Store"
-                  className="flex-1 max-w-xs text-sm rounded-lg border border-gray-200 px-2.5 py-1.5 bg-white text-gray-900 outline-none focus:ring-2 focus:ring-indigo-400"
+                  className="flex-1 max-w-xs text-sm rounded-lg border border-gray-200 px-2.5 py-1.5 bg-gray-100 text-gray-900 outline-none focus:ring-2 focus:ring-indigo-400"
                 />
               </div>
               <div
@@ -373,7 +373,7 @@ export function SettingsPage() {
                   value={tagline}
                   onChange={(e) => setTagline(e.target.value)}
                   placeholder={t('settings.taglinePlaceholder')}
-                  className="flex-1 max-w-md text-sm rounded-lg border border-gray-200 px-2.5 py-1.5 bg-white text-gray-900 outline-none focus:ring-2 focus:ring-indigo-400"
+                  className="flex-1 max-w-md text-sm rounded-lg border border-gray-200 px-2.5 py-1.5 bg-gray-100 text-gray-900 outline-none focus:ring-2 focus:ring-indigo-400"
                 />
                 <button
                   type="button"
@@ -418,7 +418,7 @@ export function SettingsPage() {
                       priceDisplay: e.target.value as 'incl_tax' | 'excl_tax' | 'none',
                     })
                   }
-                  className="text-sm rounded-lg border border-gray-200 px-2 py-1 bg-white text-gray-900 outline-none focus:ring-2 focus:ring-indigo-400"
+                  className="text-sm rounded-lg border border-gray-200 px-2 py-1 bg-gray-100 text-gray-900 outline-none focus:ring-2 focus:ring-indigo-400"
                 >
                   <option value="none">{t('settings.priceNone')}</option>
                   <option value="incl_tax">{t('settings.priceIncl')}</option>
@@ -477,7 +477,7 @@ export function SettingsPage() {
                 <input
                   value={seller[key]}
                   onChange={(e) => setSeller((s) => ({ ...s, [key]: e.target.value }))}
-                  className="w-full text-sm rounded-lg border border-gray-200 px-2.5 py-1.5 bg-white text-gray-900 outline-none focus:ring-2 focus:ring-indigo-400"
+                  className="w-full text-sm rounded-lg border border-gray-200 px-2.5 py-1.5 bg-gray-100 text-gray-900 outline-none focus:ring-2 focus:ring-indigo-400"
                 />
               </div>
             ))}
@@ -525,7 +525,7 @@ export function SettingsPage() {
                 type="date"
                 value={fecFrom}
                 onChange={(e) => setFecFrom(e.target.value)}
-                className="text-sm rounded-lg border border-gray-200 px-2.5 py-1.5 bg-white text-gray-900 outline-none focus:ring-2 focus:ring-indigo-400"
+                className="text-sm rounded-lg border border-gray-200 px-2.5 py-1.5 bg-gray-100 text-gray-900 outline-none focus:ring-2 focus:ring-indigo-400"
               />
             </div>
             <div>
@@ -539,7 +539,7 @@ export function SettingsPage() {
                 type="date"
                 value={fecTo}
                 onChange={(e) => setFecTo(e.target.value)}
-                className="text-sm rounded-lg border border-gray-200 px-2.5 py-1.5 bg-white text-gray-900 outline-none focus:ring-2 focus:ring-indigo-400"
+                className="text-sm rounded-lg border border-gray-200 px-2.5 py-1.5 bg-gray-100 text-gray-900 outline-none focus:ring-2 focus:ring-indigo-400"
               />
             </div>
             <button
@@ -908,27 +908,27 @@ export function SettingsPage() {
               <div
                 className="mt-3 h-10 rounded-lg overflow-hidden flex"
                 style={{
-                  background: t.id === 'dark' ? '#080808' : '#f4f4f5',
+                  background: t.id === 'dark' ? '#0a0908' : '#f7f5f2',
                   border: '1px solid',
-                  borderColor: t.id === 'dark' ? '#1e1e1e' : '#e4e4e7',
+                  borderColor: t.id === 'dark' ? '#211e1c' : '#e8e4de',
                 }}
               >
                 <div
                   className="w-8 flex-shrink-0"
                   style={{
-                    background: t.id === 'dark' ? '#101010' : '#ffffff',
+                    background: t.id === 'dark' ? '#131110' : '#ffffff',
                     borderRight: '1px solid',
-                    borderColor: t.id === 'dark' ? '#1e1e1e' : '#e4e4e7',
+                    borderColor: t.id === 'dark' ? '#211e1c' : '#e8e4de',
                   }}
                 />
                 <div className="flex-1 p-1.5 space-y-1">
                   <div
                     className="h-1.5 rounded w-2/3"
-                    style={{ background: t.id === 'dark' ? '#2a2a2a' : '#e5e5e5' }}
+                    style={{ background: t.id === 'dark' ? '#2d2926' : '#d8d2c8' }}
                   />
                   <div
                     className="h-1.5 rounded w-1/2"
-                    style={{ background: t.id === 'dark' ? '#1e1e1e' : '#f0f0f0' }}
+                    style={{ background: t.id === 'dark' ? '#211e1c' : '#e7e3dd' }}
                   />
                 </div>
               </div>

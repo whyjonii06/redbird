@@ -196,7 +196,7 @@ export function MailboxPage() {
                   <span>{new Date(selected.sentAt).toLocaleString()}</span>
                 </p>
               </div>
-              <div className="flex-1 overflow-hidden bg-white">
+              <div className="flex-1 overflow-hidden bg-gray-100">
                 <iframe
                   srcDoc={selected.html}
                   className="w-full h-full border-0"
