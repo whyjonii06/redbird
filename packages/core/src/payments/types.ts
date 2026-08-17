@@ -83,4 +83,25 @@ export interface PaymentProvider {
     currency: string
     metadata?: Record<string, string>
   }): Promise<PaymentIntent>
+  /**
+   * Optional capability: a hosted, redirect-based checkout page — the flow
+   * used by the headless reference storefronts (they never hold gateway
+   * credentials themselves, only orderId/success/cancel URLs). Distinct from
+   * createPaymentIntent, which backs the embedded Stripe Elements flow.
+   */
+  createCheckoutSession?(opts: {
+    orderId: string
+    amount: number
+    currency: string
+    customerEmail: string
+    successUrl: string
+    cancelUrl: string
+  }): Promise<{ url: string | null }>
+  /**
+   * Optional capability: verify a hosted checkout session actually paid the
+   * order it claims to, for createCheckoutSession's redirect-back leg.
+   */
+  getCheckoutSession?(
+    sessionId: string,
+  ): Promise<{ paid: boolean; orderId: string | null; reference: string }>
 }

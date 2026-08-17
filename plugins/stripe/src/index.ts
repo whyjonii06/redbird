@@ -341,6 +341,49 @@ export function stripe(input: StripeConfig) {
     }
   }
 
+  /** Hosted Stripe Checkout — the redirect-based flow used by the headless
+   * reference storefronts, which never hold gateway credentials themselves. */
+  async function createCheckoutSession(opts: {
+    orderId: string
+    amount: number
+    currency: string
+    customerEmail: string
+    successUrl: string
+    cancelUrl: string
+  }): Promise<{ url: string | null }> {
+    if (config.dryRun) return { url: `${opts.successUrl}&demo_session=cs_demo_${opts.orderId}` }
+    const params = new URLSearchParams()
+    params.set('mode', 'payment')
+    params.set('success_url', opts.successUrl)
+    params.set('cancel_url', opts.cancelUrl)
+    params.set('customer_email', opts.customerEmail)
+    params.set('client_reference_id', opts.orderId)
+    params.set('metadata[orderId]', opts.orderId)
+    params.set('line_items[0][quantity]', '1')
+    params.set('line_items[0][price_data][currency]', opts.currency.toLowerCase())
+    params.set('line_items[0][price_data][unit_amount]', String(opts.amount))
+    params.set('line_items[0][price_data][product_data][name]', `Order ${opts.orderId}`)
+    const data = await stripePost('checkout/sessions', params)
+    return { url: (data.url as string | undefined) ?? null }
+  }
+
+  /** Verifies a hosted checkout session actually paid the order it claims to
+   * — used on the redirect-back leg, never trust the client's own claim. */
+  async function getCheckoutSession(
+    sessionId: string,
+  ): Promise<{ paid: boolean; orderId: string | null; reference: string }> {
+    if (config.dryRun) {
+      const orderId = sessionId.startsWith('cs_demo_') ? sessionId.slice('cs_demo_'.length) : null
+      return { paid: orderId !== null, orderId, reference: sessionId }
+    }
+    const data = await stripeGet(`checkout/sessions/${encodeURIComponent(sessionId)}`)
+    return {
+      paid: data.payment_status === 'paid',
+      orderId: (data.client_reference_id as string | undefined) ?? null,
+      reference: sessionId,
+    }
+  }
+
   const provider: PaymentProvider = config.webhookSecret
     ? {
         name: '@redbird/plugin-stripe',
@@ -350,6 +393,8 @@ export function stripe(input: StripeConfig) {
         createSetupIntent,
         getPaymentMethod,
         chargeOffSession,
+        createCheckoutSession,
+        getCheckoutSession,
         webhookHandler: buildStripeWebhookHandler(config.webhookSecret),
       }
     : {
@@ -357,6 +402,8 @@ export function stripe(input: StripeConfig) {
         createPaymentIntent,
         refund,
         createCustomer,
+        createCheckoutSession,
+        getCheckoutSession,
         createSetupIntent,
         getPaymentMethod,
         chargeOffSession,
