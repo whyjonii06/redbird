@@ -12,7 +12,6 @@ const PLUGINS = [
 const THEMES = [
   { icon: '🛍️', title: 'Classic', desc: 'Traditional storefront. Products front and center, familiar UX.' },
   { icon: '📰', title: 'Editorial', desc: 'Magazine-style layout. Large photography, story-driven browsing.' },
-  { icon: '◻️', title: 'Minimal', desc: 'Ultra-clean. Single product focus, zero distraction.' },
   { icon: '🏢', title: 'B2B', desc: 'Professional catalog. Customer group pricing, bulk ordering.' },
   { icon: '🎨', title: 'Custom theme', desc: 'Build your own storefront in React, Next.js, or any framework.' },
   { icon: '➕', title: 'Submit a theme', desc: 'Community-built themes reviewed and listed in the marketplace.' },
@@ -35,7 +34,7 @@ export function LandingPage() {
           borderRadius: 99, border: '1px solid #374151', marginBottom: 32, fontSize: 12, color: '#9ca3af',
         }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
-          🇫🇷 Made in France · Open-source commerce engine
+          🇫🇷 Made in France · Source-available commerce engine
         </div>
         <h1 style={{ fontSize: 'clamp(36px,6vw,64px)', fontWeight: 800, lineHeight: 1.1, letterSpacing: '-0.04em', marginBottom: 24 }}>
           The e-commerce engine<br />
@@ -88,7 +87,7 @@ export function LandingPage() {
           {[
             { icon: '⚡', title: 'Runs in seconds, zero setup', desc: 'Ships with an embedded database (PGlite). No PostgreSQL, no Docker, no DATABASE_URL to start. Point it at Postgres only for production.' },
             { icon: '🔗', title: 'End-to-end type safety', desc: 'One TypeScript type flows from the database (Drizzle) through the API (tRPC) to your frontend. No GraphQL codegen, no drift.' },
-            { icon: '🔓', title: 'You own it', desc: 'Self-hosted, MIT-licensed, no per-transaction fees, no vendor lock-in. Read the whole engine in an afternoon.' },
+            { icon: '🔓', title: 'You own it', desc: 'Self-hosted, source available, no per-transaction fees, no vendor lock-in. Read the whole engine in an afternoon.' },
           ].map((f) => (
             <div key={f.title} style={cardStyle}>
               <div style={{ fontSize: 28, marginBottom: 12 }}>{f.icon}</div>
