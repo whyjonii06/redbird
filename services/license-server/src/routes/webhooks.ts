@@ -38,7 +38,17 @@ webhooksRouter.post('/stripe', async (c) => {
     // Safety net: track the current billing period end. It's pushed forward on every
     // renewal webhook — if webhooks stop arriving entirely (retries exhausted, downtime),
     // the license naturally reads as expired instead of staying active forever.
-    const expiresAt = new Date(sub.current_period_end * 1000).toISOString()
+    // current_period_end moved from the subscription root to each line item as of
+    // API version 2026-05-27 (multi-item billing periods) — this account is on that
+    // version, so sub.current_period_end is always undefined now. The installed
+    // `stripe` SDK (17.7.0) predates this and still types SubscriptionItem without
+    // the field, even though the real API response has it — cast around the stale type.
+    const periodEnd = (sub.items.data[0] as unknown as { current_period_end?: number })
+      ?.current_period_end
+    if (periodEnd === undefined) {
+      return c.json({ error: 'Subscription has no line items with a billing period' }, 400)
+    }
+    const expiresAt = new Date(periodEnd * 1000).toISOString()
 
     // Check if license already exists for this subscription
     const existing = await db.query.licenses.findFirst({
