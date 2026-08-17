@@ -12,8 +12,8 @@
     "start": "tsx server.ts"
   },
   "dependencies": {
-    "@redbirdshop/api": "^0.1.0",
-    "@redbirdshop/core": "^0.1.0"
+    "@redbirdshop/api": "^0.2.0",
+    "@redbirdshop/core": "^0.2.0"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",

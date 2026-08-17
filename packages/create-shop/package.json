@@ -1,6 +1,6 @@
 {
   "name": "create-redbird-shop",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Scaffold a full Redbird store (API + storefront) that runs instantly on an embedded database — no PostgreSQL, no Docker, no config.",
   "license": "MIT",
   "type": "module",

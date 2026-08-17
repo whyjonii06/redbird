@@ -1,7 +1,7 @@
 {
   "name": "@redbirdshop/api",
-  "version": "0.1.1",
-  "license": "MIT",
+  "version": "0.2.0",
+  "license": "UNLICENSED",
   "description": "Redbird API — type-safe tRPC router for catalog, cart, orders",
   "type": "module",
   "exports": {
@@ -20,7 +20,8 @@
   },
   "files": [
     "dist",
-    "assets"
+    "assets",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -29,7 +30,6 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@redbird/plugin-reviews": "workspace:*",
     "@redbirdshop/core": "workspace:*",
     "@redbirdshop/trpc": "workspace:*",
     "@trpc/server": "^11.0.0-rc.660",
@@ -43,6 +43,7 @@
   "devDependencies": {
     "@electric-sql/pglite": "^0.2.17",
     "@redbird/plugin-analytics": "workspace:*",
+    "@redbird/plugin-reviews": "workspace:*",
     "@redbird/plugin-email-local": "workspace:*",
     "@redbird/plugin-email-resend": "workspace:*",
     "@redbird/plugin-email-smtp": "workspace:*",

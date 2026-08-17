@@ -1,7 +1,7 @@
 {
   "name": "@redbirdshop/trpc",
-  "version": "0.1.0",
-  "license": "MIT",
+  "version": "0.2.0",
+  "license": "UNLICENSED",
   "description": "Shared tRPC foundation — context type, procedures and rate limiting, consumed by the API and by modules so both build against the same typed context",
   "type": "module",
   "exports": {
@@ -11,7 +11,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",

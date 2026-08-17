@@ -1,7 +1,7 @@
 {
   "name": "@redbirdshop/core",
-  "version": "0.1.1",
-  "license": "MIT",
+  "version": "0.2.0",
+  "license": "UNLICENSED",
   "description": "Redbird core — engine, domain logic, database, plugin system",
   "type": "module",
   "exports": {
@@ -36,7 +36,8 @@
   },
   "files": [
     "dist",
-    "drizzle"
+    "drizzle",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",

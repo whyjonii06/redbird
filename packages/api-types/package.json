@@ -1,6 +1,6 @@
 {
   "name": "@redbirdshop/api-types",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "TypeScript types for the Redbird tRPC API — use in custom storefronts",
   "license": "UNLICENSED",
   "type": "module",
@@ -10,14 +10,15 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "peerDependencies": {
-    "@redbirdshop/api": "^0.1.0"
+    "@redbirdshop/api": "^0.2.0"
   },
   "devDependencies": {
     "@redbirdshop/api": "workspace:*",

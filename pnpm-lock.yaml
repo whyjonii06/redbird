@@ -278,9 +278,6 @@ importers:
 
   packages/api:
     dependencies:
-      '@redbird/plugin-reviews':
-        specifier: workspace:*
-        version: link:../../plugins/reviews
       '@redbirdshop/core':
         specifier: workspace:*
         version: link:../core
@@ -327,6 +324,9 @@ importers:
       '@redbird/plugin-paypal':
         specifier: workspace:*
         version: link:../../plugins/paypal
+      '@redbird/plugin-reviews':
+        specifier: workspace:*
+        version: link:../../plugins/reviews
       '@redbird/plugin-shipping-flat':
         specifier: workspace:*
         version: link:../../plugins/shipping-flat
