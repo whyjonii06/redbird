@@ -1,24 +1,63 @@
-# ── Stage 1: builder ────────────────────────────────────────────────────────
-FROM node:22-alpine AS builder
+# =============================================================================
+# Redbird Backoffice — Production Dockerfile
+# =============================================================================
+# Build from the monorepo root (context must be the repo root — same reason
+# as packages/api/Dockerfile: @redbirdshop/api is a workspace-only package,
+# never published to npm, so it must be built from source here rather than
+# `npm install`-ed as if it were a registry dependency.
+#
+#   docker build -f apps/backoffice/Dockerfile -t redbird-backoffice .
+# =============================================================================
+
+# ─── Stage 1: deps ────────────────────────────────────────────────────────────
+FROM node:22-alpine AS deps
+
+RUN corepack enable && corepack prepare pnpm@11.8.0 --activate
 
 WORKDIR /app
 
-# Install from npm (not workspace) — @redbirdshop/api is published
-COPY package.json ./
-RUN sed -i 's|"@redbirdshop/api": "workspace:\*"|"@redbirdshop/api": "^0.1.0"|g' package.json \
- && sed -i '/workspace:\*/d' package.json \
- && npm install
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json .npmrc* ./
 
-COPY index.html tsconfig.json vite.config.ts ./
-COPY src ./src
-COPY public ./public
+COPY packages/api/package.json        ./packages/api/package.json
+COPY packages/core/package.json       ./packages/core/package.json
+COPY packages/trpc/package.json       ./packages/trpc/package.json
+COPY packages/plugin-sdk/package.json ./packages/plugin-sdk/package.json
+COPY packages/cli/package.json        ./packages/cli/package.json
+COPY plugins/ ./plugins/
+COPY apps/backoffice/package.json ./apps/backoffice/package.json
+
+RUN pnpm install --frozen-lockfile
+
+# ─── Stage 2: builder ─────────────────────────────────────────────────────────
+FROM deps AS builder
+
+WORKDIR /app
+
+COPY tsconfig.base.json ./
+
+COPY packages/core/ ./packages/core/
+RUN pnpm --filter @redbirdshop/core run build
+
+COPY packages/trpc/ ./packages/trpc/
+RUN pnpm --filter @redbirdshop/trpc run build
+
+COPY packages/plugin-sdk/ ./packages/plugin-sdk/
+RUN pnpm --filter @redbirdshop/plugin-sdk run build
+
+COPY plugins/ ./plugins/
+RUN pnpm --filter './plugins/*' run build
+
+COPY packages/api/ ./packages/api/
+RUN pnpm --filter @redbirdshop/api run build
+
+COPY apps/backoffice/ ./apps/backoffice/
 
 ARG VITE_STOREFRONT_URL=http://localhost:5173
 ENV VITE_STOREFRONT_URL=$VITE_STOREFRONT_URL
 
-RUN npx vite build
+RUN pnpm --filter @redbird/backoffice run build
 
-# ── Stage 2: runtime (nginx) ─────────────────────────────────────────────────
+# ─── Stage 3: runtime (nginx) ─────────────────────────────────────────────────
 FROM nginx:alpine AS runtime
 
 RUN printf 'server {\n\
@@ -70,6 +109,6 @@ RUN printf 'server {\n\
     }\n\
 }\n' > /etc/nginx/conf.d/default.conf
 
-COPY --from=builder /app/dist /usr/share/nginx/html
+COPY --from=builder /app/apps/backoffice/dist /usr/share/nginx/html
 
 EXPOSE 80

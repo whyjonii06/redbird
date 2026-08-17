@@ -5,10 +5,10 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: redbird
-      POSTGRES_PASSWORD: redbird
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-redbird}
       POSTGRES_DB: redbird
     ports:
-      - '5433:5432'
+      - '127.0.0.1:5433:5432'
     volumes:
       - ./.postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -35,9 +35,16 @@ services:
     restart: unless-stopped
 
   storefront:
-    build: ./apps/storefront
+    build:
+      context: .
+      dockerfile: apps/storefront/Dockerfile
+      args:
+        VITE_API_URL: ${PUBLIC_API_URL:-https://api.redbirdshop.dev}
     ports:
-      - '127.0.0.1:5173:80'
+      - '127.0.0.1:5173:5173'
+    environment:
+      VITE_API_URL: ${PUBLIC_API_URL:-https://api.redbirdshop.dev}
+      PORT: '5173'
     depends_on:
       api:
         condition: service_healthy
@@ -45,7 +52,8 @@ services:
 
   backoffice:
     build:
-      context: ./apps/backoffice
+      context: .
+      dockerfile: apps/backoffice/Dockerfile
       args:
         VITE_STOREFRONT_URL: https://demo.redbirdshop.dev
     ports:
@@ -63,7 +71,7 @@ services:
       - '127.0.0.1:3000:3000'
     env_file: .env
     environment:
-      DATABASE_URL: postgres://redbird:redbird@postgres:5432/redbird
+      DATABASE_URL: postgres://redbird:${POSTGRES_PASSWORD:-redbird}@postgres:5432/redbird
       PORT: '3000'
     volumes:
       - ./packages/api/redbird.config.js:/app/packages/api/redbird.config.ts:ro
